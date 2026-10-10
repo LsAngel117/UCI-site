@@ -1,0 +1,221 @@
+---
+/**
+ * ProximosEventos — "Lo que está pasando en UCI" (docs/04 §13, docs/03 §19).
+ *
+ * Light practical surface (rhythm docs/03 §43). Each event is a horizontal
+ * row with a compact date block on the left (day over month, strong hierarchy)
+ * and the event details adjacent (docs/04 §13.5). Only upcoming, published
+ * events are returned by the data layer; otherwise an honest empty message is
+ * shown (docs/04 §13.7).
+ */
+import { ArrowRight, Clock, MapPin } from '@lucide/astro';
+import { getProximosEventosContent, getUpcomingEvents } from '../../data/site';
+import Button from '../ui/Button.astro';
+import Container from '../ui/Container.astro';
+import Section from '../ui/Section.astro';
+import SectionLabel from '../ui/SectionLabel.astro';
+
+const section = getProximosEventosContent();
+const events = getUpcomingEvents(3);
+
+const monthFormatter = new Intl.DateTimeFormat('es-CO', { month: 'short' });
+const dayFormatter = new Intl.DateTimeFormat('es-CO', { day: '2-digit' });
+---
+
+<Section id="eventos" surface="light" spacing="lg" class="eventos">
+  <Container>
+    <header class="eventos__header">
+      <SectionLabel accent="blue">{section.label}</SectionLabel>
+      <h2 class="eventos__heading font-display">{section.heading}</h2>
+    </header>
+
+    {
+      events.length > 0 ? (
+        <ul class="eventos__list">
+          {events.map((event) => {
+            const start = new Date(event.startDate);
+            return (
+              <li class="evento">
+                <a class="evento__link" href={`/eventos/${event.slug}`}>
+                  <time class="evento__date" datetime={event.startDate}>
+                    <span class="evento__day">{dayFormatter.format(start)}</span>
+                    <span class="evento__month">
+                      {monthFormatter.format(start).replace('.', '').toUpperCase()}
+                    </span>
+                  </time>
+
+                  <div class="evento__body">
+                    <p class="evento__category">{event.category.name}</p>
+                    <h3 class="evento__title font-display">{event.title}</h3>
+                    <p class="evento__meta">
+                      <span>
+                        <Clock size={16} stroke-width={1.75} />
+                        {event.startTime}
+                        {event.endTime ? `–${event.endTime}` : ''}
+                      </span>
+                      <span>
+                        <MapPin size={16} stroke-width={1.75} />
+                        {event.location.city}
+                      </span>
+                    </p>
+                  </div>
+
+                  <span class="evento__arrow" aria-hidden="true">
+                    <ArrowRight size={20} stroke-width={1.75} />
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p class="eventos__empty">{section.emptyMessage}</p>
+      )
+    }
+
+    <div class="eventos__actions">
+      <Button href={section.cta.href} variant="text" contrast="navy">
+        {section.cta.label}
+      </Button>
+    </div>
+  </Container>
+</Section>
+
+<style>
+  .eventos__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    margin-bottom: var(--space-48);
+  }
+
+  .eventos__heading {
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-navy);
+  }
+
+  .eventos__list {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border-on-light);
+  }
+
+  .evento {
+    border-bottom: 1px solid var(--border-on-light);
+  }
+
+  .evento__link {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-32);
+    padding-block: var(--space-24);
+    transition: background-color var(--duration-fast) var(--ease-out);
+  }
+
+  .evento__link:hover {
+    background-color: rgba(22, 117, 209, 0.04);
+  }
+
+  .evento__date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 4.5rem;
+    padding: var(--space-8);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-sm);
+  }
+
+  .evento__day {
+    color: var(--color-navy);
+    font-family: var(--font-display);
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+  }
+
+  .evento__month {
+    margin-top: var(--space-4);
+    color: var(--color-blue);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+  }
+
+  .evento__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .evento__category {
+    color: var(--color-blue);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .evento__title {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .evento__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-top: var(--space-4);
+    color: var(--color-navy);
+    opacity: 0.66;
+    font-size: var(--font-size-body-small);
+  }
+
+  .evento__meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  .evento__arrow {
+    color: var(--color-blue);
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .evento__link:hover .evento__arrow {
+    transform: translateX(4px);
+  }
+
+  .eventos__empty {
+    padding-block: var(--space-40);
+    border-top: 1px solid var(--border-on-light);
+    border-bottom: 1px solid var(--border-on-light);
+    color: var(--color-navy);
+    opacity: 0.7;
+    font-size: var(--font-size-body-large);
+  }
+
+  .eventos__actions {
+    margin-top: var(--space-40);
+  }
+
+  @media (max-width: 639px) {
+    .evento__link {
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: var(--space-16);
+    }
+
+    .evento__arrow {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .evento__link:hover .evento__arrow {
+      transform: none;
+    }
+  }
+</style>

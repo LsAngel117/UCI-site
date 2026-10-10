@@ -1,0 +1,258 @@
+---
+/**
+ * Footer — dark, information-rich closing surface (docs/03 §24, docs/04 §18).
+ * All data comes from the repository layer.
+ */
+import { Mail, Phone } from '@lucide/astro';
+import { Image } from 'astro:assets';
+import logoFull from '../../assets/brand/uci-logo-full.png';
+import {
+  getChurchProfile,
+  getNavigation,
+  getServiceSchedules,
+} from '../../data/site';
+import Container from '../ui/Container.astro';
+import SocialIcon from '../ui/SocialIcon.astro';
+
+const church = getChurchProfile();
+const navigation = getNavigation();
+const schedules = getServiceSchedules();
+
+const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const formatSchedule = (schedule: (typeof schedules)[number]) =>
+  `${DAY_NAMES[schedule.dayOfWeek]} · ${schedule.startTime}`;
+
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <Container wide>
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <Image
+          class="footer__logo"
+          src={logoFull}
+          alt={church.fullName}
+          width={260}
+          height={98}
+          widths={[180, 260]}
+          sizes="200px"
+          loading="lazy"
+        />
+        <p class="footer__tagline">{church.shortDescription}</p>
+        <ul class="footer__social" aria-label="Redes sociales">
+          {
+            church.socialLinks.map((social) => (
+              <li>
+                <a
+                  href={social.url}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  aria-label={social.label}
+                >
+                  <SocialIcon name={social.platform} size={20} />
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <nav class="footer__column" aria-label="Navegación del pie de página">
+        <h2 class="footer__heading">Navegación</h2>
+        <ul class="footer__list">
+          {
+            navigation.footer.map((item) => (
+              <li><a href={item.href}>{item.label}</a></li>
+            ))
+          }
+        </ul>
+      </nav>
+
+      <div class="footer__column">
+        <h2 class="footer__heading">Ubicación</h2>
+        <address class="footer__address">
+          <span>{church.location.name}</span>
+          <span>{church.location.address}</span>
+          <span>{church.location.city}, {church.location.state}</span>
+          <a href={church.location.mapUrl} rel="noopener noreferrer" target="_blank">
+            Cómo llegar
+          </a>
+        </address>
+      </div>
+
+      <div class="footer__column">
+        <h2 class="footer__heading">Horarios</h2>
+        <ul class="footer__list">
+          {
+            schedules.length > 0 ? (
+              schedules.map((schedule) => (
+                <li>
+                  {schedule.name}
+                  <span class="footer__muted">{formatSchedule(schedule)}</span>
+                </li>
+              ))
+            ) : (
+              <li class="footer__muted">Horarios por confirmar.</li>
+            )
+          }
+        </ul>
+      </div>
+
+      <div class="footer__column">
+        <h2 class="footer__heading">Contacto</h2>
+        <ul class="footer__list footer__contact">
+          <li>
+            <a href={`tel:${church.phone.replace(/\s+/g, '')}`}>
+              <Phone size={16} stroke-width={1.75} />
+              {church.phone}
+            </a>
+          </li>
+          <li>
+            <a href={`mailto:${church.email}`}>
+              <Mail size={16} stroke-width={1.75} />
+              {church.email}
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer__bottom">
+      <p class="footer__copyright">
+        © {year} {church.fullName}. Todos los derechos reservados.
+      </p>
+    </div>
+  </Container>
+</footer>
+
+<style>
+  .footer {
+    position: relative;
+    background-color: var(--color-black);
+    border-top: 1px solid var(--border-on-dark);
+    padding-block: var(--section-padding-y-sm);
+    color: var(--color-white);
+  }
+
+  .footer__grid {
+    display: grid;
+    grid-template-columns: 1.6fr repeat(4, 1fr);
+    gap: var(--space-40) var(--space-32);
+  }
+
+  @media (max-width: 1023px) {
+    .footer__grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .footer__brand {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 599px) {
+    .footer__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .footer__logo {
+    height: 2rem;
+    width: auto;
+    filter: var(--brand-logo-filter);
+  }
+
+  .footer__tagline {
+    margin-top: var(--space-16);
+    max-width: 34ch;
+    color: var(--color-gray);
+    font-size: var(--font-size-body-small);
+  }
+
+  .footer__social {
+    display: flex;
+    gap: var(--space-16);
+    margin-top: var(--space-24);
+  }
+
+  .footer__social a {
+    color: var(--color-gray-light);
+    transition: color var(--duration-fast) var(--ease-out);
+  }
+
+  .footer__contact a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  .footer__social a:hover {
+    color: var(--color-gold);
+  }
+
+  .footer__heading {
+    margin-bottom: var(--space-16);
+    color: var(--color-white);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .footer__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    font-size: var(--font-size-body-small);
+  }
+
+  .footer__list a,
+  .footer__address a {
+    color: var(--color-gray-light);
+    transition: color var(--duration-fast) var(--ease-out);
+  }
+
+  .footer__list a:hover,
+  .footer__address a:hover {
+    color: var(--color-gold);
+  }
+
+  .footer__muted {
+    display: block;
+    color: var(--color-gray);
+  }
+
+  .footer__address {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-small);
+    font-style: normal;
+  }
+
+  .footer__address a {
+    margin-top: var(--space-8);
+    color: var(--color-gold);
+  }
+
+  .footer__bottom {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--space-48);
+    padding-top: var(--space-24);
+    border-top: 1px solid var(--border-on-dark);
+  }
+
+  .footer__copyright {
+    color: var(--color-gray);
+    font-size: var(--font-size-caption);
+  }
+
+  @media (min-width: 1024px) {
+    .footer__brand {
+      padding-right: var(--space-40);
+    }
+  }
+</style>

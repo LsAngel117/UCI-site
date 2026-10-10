@@ -1,0 +1,143 @@
+---
+/**
+ * BaseLayout — document shell for every public page.
+ *
+ * Realizes the global head contract (docs/02 §41, docs/04 §25, docs/10 §12):
+ * charset, viewport, favicon, configurable title/description, canonical,
+ * Open Graph + Twitter cards, JSON-LD for the church/organization entity,
+ * global styles, skip-link and the default slot.
+ *
+ * Fonts are self-hosted through @fontsource (no external requests, better
+ * privacy/performance). Inter is the UI sans; Playfair Display is the editorial
+ * serif reserved for display headings, scripture and quotes (docs/03 §6).
+ */
+import '@fontsource/inter/latin-400.css';
+import '@fontsource/inter/latin-500.css';
+import '@fontsource/inter/latin-600.css';
+import '@fontsource/inter/latin-700.css';
+import '@fontsource/playfair-display/latin-500.css';
+import '@fontsource/playfair-display/latin-600.css';
+import '@fontsource/playfair-display/latin-500-italic.css';
+import '../styles/global.css';
+
+import logoFull from '../assets/brand/uci-logo-full.png';
+import { getChurchProfile } from '../data/site';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Root-relative canonical path, e.g. "/". Resolved against Astro.site. */
+  canonicalPath?: string;
+  /**
+   * Optional Open Graph image URL. When omitted, the default social image
+   * `/og-image.jpg` is referenced.
+   */
+  ogImageUrl?: string;
+  /** Prevent indexing when needed (e.g. previews). */
+  noindex?: boolean;
+}
+
+const {
+  title,
+  description,
+  canonicalPath = Astro.url.pathname,
+  ogImageUrl,
+  noindex = false,
+} = Astro.props;
+
+const church = getChurchProfile();
+const siteName = 'Iglesia UCI';
+const siteOrigin = Astro.site ?? new URL(Astro.url.origin);
+const canonical = new URL(canonicalPath, siteOrigin).href;
+
+// Social share image. TODO: deliver the 1200×630 `public/og-image.jpg` asset
+// (docs/12 §34). Until then this references the reserved path, which 404s.
+const socialImage = ogImageUrl
+  ? new URL(ogImageUrl, siteOrigin).href
+  : new URL('/og-image.jpg', siteOrigin).href;
+
+// R1: warn honestly when the site is built/served against the placeholder
+// origin. We do not throw, so builds never break on a missing SITE_URL.
+if (Astro.site && Astro.site.hostname === 'uci.example.org') {
+  console.warn(
+    '[uci] Rendering with the placeholder SITE_URL (uci.example.org). ' +
+      'Canonical, Open Graph and JSON-LD URLs are not production-safe.',
+  );
+}
+
+// --- JSON-LD: Church / Organization (docs/10 §12.2) ---------------------
+// Only truthful, confirmed data is emitted. Placeholder location/contact
+// values from fixtures are omitted rather than published as real data.
+const socialProfiles = church.socialLinks
+  .map((link) => link.url)
+  .filter((url) => url && url !== '#');
+
+const organization: Record<string, unknown> = {
+  '@context': 'https://schema.org',
+  '@type': 'Church',
+  name: church.fullName,
+  url: siteOrigin.href,
+  logo: new URL(logoFull.src, siteOrigin).href,
+};
+
+if (church.location.confirmed) {
+  organization.address = {
+    '@type': 'PostalAddress',
+    streetAddress: church.location.address,
+    addressLocality: church.location.city,
+    addressRegion: church.location.state,
+    addressCountry: church.location.country,
+  };
+  // Contact details share the same confirmation gate as the address.
+  if (church.phone) organization.telephone = church.phone;
+}
+
+if (socialProfiles.length > 0) {
+  organization.sameAs = socialProfiles;
+}
+
+const organizationJsonLd = JSON.stringify(organization);
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="generator" content={Astro.generator} />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={socialImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={siteName} />
+    <meta property="og:locale" content="es_CO" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={socialImage} />
+    <meta name="twitter:image:alt" content={siteName} />
+
+    <script type="application/ld+json" set:html={organizationJsonLd} />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Saltar al contenido principal</a>
+    <slot name="header" />
+    <main id="main-content">
+      <slot />
+    </main>
+    <slot name="footer" />
+  </body>
+</html>

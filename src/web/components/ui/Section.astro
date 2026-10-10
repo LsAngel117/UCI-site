@@ -1,0 +1,55 @@
+---
+/**
+ * Section — full-bleed section wrapper with the approved surface variants and
+ * responsive vertical rhythm (docs/03 §8.1, §43). Composition variants let a
+ * section own its layout without touching global CSS.
+ */
+type Surface = 'dark' | 'navy' | 'light' | 'blue';
+type Spacing = 'sm' | 'md' | 'lg';
+
+interface Props {
+  /** Surface / color treatment. Maps to the global surface utilities. */
+  surface?: Surface;
+  /** Vertical padding rhythm. `lg` is for major cinematic sections. */
+  spacing?: Spacing;
+  /** Semantic element to render. */
+  as?: keyof HTMLElementTagNameMap;
+  /** Optional id (e.g. for skip-link / anchor targets). */
+  id?: string;
+  /** Accessible label when the section has no visible heading. */
+  ariaLabel?: string;
+  class?: string;
+}
+
+const {
+  surface = 'dark',
+  spacing = 'md',
+  as: Tag = 'section',
+  id,
+  ariaLabel,
+  class: className,
+} = Astro.props;
+---
+
+<Tag
+  id={id}
+  class:list={['section', `surface-${surface}`, `section--${spacing}`, className]}
+  aria-label={ariaLabel}
+>
+  <slot />
+</Tag>
+
+<style>
+  .section {
+    padding-block: var(--section-padding-y);
+    position: relative;
+  }
+
+  .section--sm {
+    padding-block: var(--section-padding-y-sm);
+  }
+
+  .section--lg {
+    padding-block: var(--section-padding-y-lg);
+  }
+</style>

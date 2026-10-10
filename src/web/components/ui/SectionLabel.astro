@@ -1,0 +1,69 @@
+---
+/**
+ * SectionLabel — small uppercase label with increased letter-spacing
+ * (docs/03 §7.2). Pinned by the brief as part of the UCI visual language.
+ * Gold is the default accent; blue is available for blue surfaces.
+ * Gold must never be used on light surfaces (docs/03 §37), so callers on a
+ * light background should use accent="blue" or the default "navy".
+ */
+interface Props {
+  accent?: 'gold' | 'blue' | 'navy' | 'light';
+  /** Render a short gold rule before the label. Default off to stay restrained. */
+  withRule?: boolean;
+  as?: 'p' | 'span' | 'div';
+  class?: string;
+}
+
+const {
+  accent = 'gold',
+  withRule = false,
+  as: Tag = 'p',
+  class: className,
+} = Astro.props;
+---
+
+<Tag
+  class:list={['section-label', `section-label--${accent}`, className]}
+>
+  {withRule && <span class="section-label__rule" aria-hidden="true"></span>}
+  <slot />
+</Tag>
+
+<style>
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-12);
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-caption);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .section-label__rule {
+    display: inline-block;
+    width: 2rem;
+    height: 1px;
+    background-color: currentColor;
+    opacity: 0.7;
+  }
+
+  .section-label--gold {
+    color: var(--color-gold);
+  }
+
+  .section-label--blue {
+    color: var(--color-blue);
+  }
+
+  .section-label--navy {
+    color: var(--color-navy);
+  }
+
+  .section-label--light {
+    color: var(--color-white);
+  }
+</style>
