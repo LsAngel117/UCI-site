@@ -1,0 +1,233 @@
+---
+/**
+ * UltimoSermon — "Último sermón" (docs/04 §11, docs/03 §17).
+ *
+ * Dark cinematic editorial moment. Left: label, title, scripture, preacher and
+ * the CTAs. Right: preacher imagery. Content comes from the featured sermon in
+ * the data layer; when no published sermon exists the section shows an honest
+ * empty state instead of invented copy (docs/04 §24).
+ *
+ * The sermon-notes visual language (hand-drawn circle) is used exactly once,
+ * around the scripture reference, to stay restrained (docs/04 §11.5).
+ */
+import { Image } from 'astro:assets';
+import { getFeaturedSermon, getUltimoSermonContent } from '../../data/site';
+import Button from '../ui/Button.astro';
+import Container from '../ui/Container.astro';
+import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
+import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
+import Section from '../ui/Section.astro';
+import SectionLabel from '../ui/SectionLabel.astro';
+
+const section = getUltimoSermonContent();
+const sermon = getFeaturedSermon();
+
+const dateFormatter = new Intl.DateTimeFormat('es-CO', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+});
+
+const sermonHref = sermon ? `/sermones/${sermon.slug}` : section.archiveHref;
+---
+
+<Section id="ultimo-sermon" surface="dark" spacing="lg" class="sermon">
+  <div class="sermon__atmosphere" aria-hidden="true"></div>
+
+  <Container class="sermon__inner">
+    <div class="sermon__content">
+      <SectionLabel>{section.label}</SectionLabel>
+
+      {
+        sermon ? (
+          <>
+            <h2 class="sermon__title font-display">{sermon.title}</h2>
+
+            <p class="sermon__scripture">
+              <svg
+                class="sermon__scripture-ring"
+                viewBox="0 0 220 60"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <path d="M8 30c18-20 176-24 204-4-16 22-182 26-204 4z" />
+              </svg>
+              <span>{sermon.scripture}</span>
+            </p>
+
+            <p class="sermon__preacher">
+              {sermon.preacher.displayName}
+              <span class="sermon__meta"> · {dateFormatter.format(new Date(sermon.date))}</span>
+            </p>
+
+            <div class="sermon__actions">
+              <Button href={sermonHref} variant="primary">
+                {section.primaryCtaLabel}
+              </Button>
+              {sermon.notesAvailable && sermon.notesUrl && (
+                <Button href={sermon.notesUrl} variant="secondary" external>
+                  {section.secondaryCtaLabel}
+                </Button>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 class="sermon__title font-display">Sermón por confirmar</h2>
+            <p class="sermon__preacher">
+              Estamos preparando el próximo mensaje. Vuelve pronto.
+            </p>
+            <div class="sermon__actions">
+              <Button href={section.archiveHref} variant="secondary">
+                Ver todos los sermones
+              </Button>
+            </div>
+          </>
+        )
+      }
+    </div>
+
+    <div class="sermon__visual">
+      {
+        isLocalAsset(sermon?.imageUrl) ? (
+          <Image
+            class="sermon__image"
+            src={sermon.imageUrl}
+            alt={`Predicador: ${sermon.preacher.displayName}`}
+            width={720}
+            height={900}
+            widths={[360, 540, 720]}
+            sizes="(min-width: 1024px) 42vw, 90vw"
+            loading="lazy"
+          />
+        ) : isRemoteAsset(sermon?.imageUrl) ? (
+          <img
+            class="sermon__image"
+            src={sermon.imageUrl}
+            alt={`Predicador: ${sermon.preacher.displayName}`}
+            loading="lazy"
+          />
+        ) : (
+          <MediaPlaceholder
+            class="sermon__image"
+            label="Predicador del último sermón"
+            aspect="4 / 5"
+            asset="sermon-featured-preacher.jpg"
+          />
+        )
+      }
+    </div>
+  </Container>
+</Section>
+
+<style>
+  .sermon {
+    overflow: hidden;
+  }
+
+  .sermon__atmosphere {
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-blue-glow);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .sermon__inner {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: center;
+    gap: var(--space-64);
+  }
+
+  .sermon__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-24);
+  }
+
+  .sermon__title {
+    max-width: 16ch;
+    font-size: var(--font-size-display-l);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  /* --- Restrained sermon-notes language: one scripture ring (docs §11.5) - */
+  .sermon__scripture {
+    position: relative;
+    display: inline-block;
+    padding: var(--space-8) var(--space-16);
+    color: var(--color-gold);
+    font-family: var(--font-display);
+    font-size: var(--font-size-heading-3);
+    font-style: italic;
+  }
+
+  .sermon__scripture-ring {
+    position: absolute;
+    inset: -6% -4%;
+    width: 108%;
+    height: 112%;
+    fill: none;
+    stroke: var(--color-gold);
+    stroke-width: 1.5;
+    opacity: 0.5;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .sermon__scripture span {
+    position: relative;
+  }
+
+  .sermon__preacher {
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-small);
+    letter-spacing: var(--letter-spacing-nav);
+  }
+
+  .sermon__meta {
+    color: var(--color-gray);
+  }
+
+  .sermon__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-top: var(--space-8);
+  }
+
+  .sermon__visual {
+    position: relative;
+  }
+
+  .sermon__image {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+  }
+
+  @media (max-width: 1023px) {
+    .sermon__inner {
+      grid-template-columns: 1fr;
+      gap: var(--space-40);
+    }
+
+    .sermon__visual {
+      order: -1;
+      max-width: 24rem;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .sermon__actions {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+</style>

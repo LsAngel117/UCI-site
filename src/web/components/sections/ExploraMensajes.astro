@@ -1,0 +1,247 @@
+---
+/**
+ * ExploraMensajes — sermon archive preview (docs/04 §12, docs/03 §18).
+ *
+ * Light browsing surface (rhythm docs/03 §43) with a four-card row on desktop
+ * and a single column on mobile. Cards keep consistent image proportions and
+ * expose title, scripture, date and a play indicator (docs/04 §12.5).
+ *
+ * The filter row is rendered as a labeled taxonomy (Todos active) rather than
+ * fake buttons: result filtering belongs to the full `/sermones` archive, and
+ * shipping inert <button> controls would misrepresent behavior. When the
+ * archive route lands, these chips become the real control.
+ */
+import { Play } from '@lucide/astro';
+import { Image } from 'astro:assets';
+import { getExploraMensajesContent, getRecentSermons } from '../../data/site';
+import Button from '../ui/Button.astro';
+import Container from '../ui/Container.astro';
+import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
+import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
+import Section from '../ui/Section.astro';
+import SectionLabel from '../ui/SectionLabel.astro';
+
+const section = getExploraMensajesContent();
+const sermons = getRecentSermons(4);
+
+const dateFormatter = new Intl.DateTimeFormat('es-CO', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+});
+---
+
+<Section id="sermones" surface="light" spacing="lg" class="mensajes">
+  <Container>
+    <header class="mensajes__header">
+      <div class="mensajes__intro">
+        <SectionLabel accent="blue">{section.label}</SectionLabel>
+        <h2 class="mensajes__heading font-display">{section.heading}</h2>
+      </div>
+
+      {/* Filter taxonomy — static in this phase (see component note). */}
+      <ul class="mensajes__filters" aria-label="Filtros de sermones">
+        {
+          section.filters.map((filter, index) => (
+            <li>
+              <span
+                class:list={['mensajes__filter', { 'is-active': index === 0 }]}
+                aria-current={index === 0 ? 'true' : undefined}
+              >
+                {filter}
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+    </header>
+
+    <ul class="mensajes__grid">
+      {
+        sermons.map((sermon) => (
+          <li class="mensaje">
+            <a class="mensaje__link" href={`/sermones/${sermon.slug}`}>
+              <div class="mensaje__media">
+                {
+                  isLocalAsset(sermon.imageUrl) ? (
+                    <Image
+                      class="mensaje__image"
+                      src={sermon.imageUrl}
+                      alt=""
+                      width={640}
+                      height={360}
+                      widths={[320, 480, 640]}
+                      sizes="(min-width: 1024px) 22vw, (min-width: 640px) 45vw, 90vw"
+                      loading="lazy"
+                    />
+                  ) : isRemoteAsset(sermon.imageUrl) ? (
+                    <img class="mensaje__image" src={sermon.imageUrl} alt="" loading="lazy" />
+                  ) : (
+                    <MediaPlaceholder
+                      class="mensaje__image"
+                      label="Sermón"
+                      aspect="16 / 9"
+                      asset="sermon-cover-default.jpg"
+                    />
+                  )
+                }
+                <span class="mensaje__play" aria-hidden="true">
+                  <Play size={20} stroke-width={1.75} />
+                </span>
+              </div>
+              <div class="mensaje__body">
+                <h3 class="mensaje__title font-display">{sermon.title}</h3>
+                <p class="mensaje__scripture">{sermon.scripture}</p>
+                <p class="mensaje__date">{dateFormatter.format(new Date(sermon.date))}</p>
+              </div>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div class="mensajes__actions">
+      <Button href={section.cta.href} variant="text" contrast="navy">
+        {section.cta.label}
+      </Button>
+    </div>
+  </Container>
+</Section>
+
+<style>
+  .mensajes__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+    margin-bottom: var(--space-48);
+  }
+
+  .mensajes__intro {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+  }
+
+  .mensajes__heading {
+    max-width: 20ch;
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-navy);
+  }
+
+  .mensajes__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8);
+  }
+
+  .mensajes__filter {
+    display: inline-block;
+    padding: var(--space-8) var(--space-16);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-pill);
+    color: var(--color-navy);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .mensajes__filter.is-active {
+    border-color: var(--color-gold);
+    background-color: var(--color-gold);
+    color: var(--color-black);
+  }
+
+  .mensajes__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-24);
+  }
+
+  .mensaje__link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+    height: 100%;
+  }
+
+  .mensaje__media {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background-color: var(--color-navy);
+  }
+
+  .mensaje__image {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    transition: transform var(--duration-slow) var(--ease-out);
+  }
+
+  .mensaje__link:hover .mensaje__image {
+    transform: scale(1.05);
+  }
+
+  .mensaje__play {
+    position: absolute;
+    right: var(--space-12);
+    bottom: var(--space-12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-pill);
+    background-color: rgba(5, 7, 10, 0.66);
+    color: var(--color-white);
+    backdrop-filter: blur(4px);
+  }
+
+  .mensaje__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .mensaje__title {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .mensaje__scripture {
+    color: var(--color-blue);
+    font-size: var(--font-size-body-small);
+    font-style: italic;
+  }
+
+  .mensaje__date {
+    color: var(--color-navy);
+    opacity: 0.6;
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .mensajes__actions {
+    margin-top: var(--space-40);
+  }
+
+  @media (max-width: 1023px) {
+    .mensajes__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 639px) {
+    .mensajes__grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mensaje__link:hover .mensaje__image {
+      transform: none;
+    }
+  }
+</style>

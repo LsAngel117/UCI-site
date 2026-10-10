@@ -1,0 +1,169 @@
+---
+/**
+ * Historias — "Dios sigue haciendo historia" (docs/04 §15, docs/03 §21).
+ *
+ * Dark editorial story feature (rhythm docs/03 §43): one large portrait, a
+ * large quote and a name — not a repeated three-card testimonial grid.
+ *
+ * Governance (docs/04 §15.5, docs/05 §14): only published, editorially
+ * approved stories may surface. When no approved story exists the section
+ * keeps its structural heading and states honestly that real stories are
+ * being prepared, without inventing a testimony, name or portrait.
+ */
+import { Image } from 'astro:assets';
+import { getFeaturedStory, getHistoriasContent } from '../../data/site';
+import Container from '../ui/Container.astro';
+import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
+import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
+import Section from '../ui/Section.astro';
+import SectionLabel from '../ui/SectionLabel.astro';
+
+const section = getHistoriasContent();
+const story = getFeaturedStory();
+---
+
+<Section id="historias" surface="dark" spacing="lg" class="historias">
+  <Container class="historias__inner">
+    <header class="historias__header">
+      <SectionLabel>{section.label}</SectionLabel>
+      <h2 class="historias__heading font-display">{section.heading}</h2>
+    </header>
+
+    {
+      story ? (
+        <figure class="historia">
+          <div class="historia__portrait">
+            {
+              isLocalAsset(story.imageUrl) ? (
+                <Image
+                  class="historia__image"
+                  src={story.imageUrl}
+                  alt={`Retrato de ${story.displayName}`}
+                  width={640}
+                  height={800}
+                  widths={[360, 480, 640]}
+                  sizes="(min-width: 1024px) 34vw, 90vw"
+                  loading="lazy"
+                />
+              ) : isRemoteAsset(story.imageUrl) ? (
+                <img
+                  class="historia__image"
+                  src={story.imageUrl}
+                  alt={`Retrato de ${story.displayName}`}
+                  loading="lazy"
+                />
+              ) : (
+                <MediaPlaceholder
+                  class="historia__image"
+                  label={story.displayName}
+                  aspect="4 / 5"
+                  asset="story-portrait-default.jpg"
+                />
+              )
+            }
+          </div>
+
+          <figcaption class="historia__content">
+            <blockquote class="historia__quote font-display">“{story.quote}”</blockquote>
+            <p class="historia__name">{story.displayName}</p>
+          </figcaption>
+        </figure>
+      ) : (
+        <p class="historias__empty">
+          Estamos preparando historias reales de nuestra comunidad.
+        </p>
+      )
+    }
+  </Container>
+</Section>
+
+<style>
+  .historias {
+    overflow: hidden;
+  }
+
+  .historias__inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-48);
+  }
+
+  .historias__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+  }
+
+  .historias__heading {
+    max-width: 18ch;
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .historia {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    align-items: center;
+    gap: var(--space-64);
+  }
+
+  .historia__portrait {
+    position: relative;
+  }
+
+  .historia__portrait::before {
+    content: '';
+    position: absolute;
+    inset: -12% -12% -12% 12%;
+    background: var(--gradient-blue-glow);
+    pointer-events: none;
+  }
+
+  .historia__image {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+  }
+
+  .historia__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+  }
+
+  .historia__quote {
+    font-size: var(--font-size-heading-2);
+    font-style: italic;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+    text-wrap: balance;
+  }
+
+  .historia__name {
+    color: var(--color-gold);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .historias__empty {
+    max-width: 44ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+  }
+
+  @media (max-width: 1023px) {
+    .historia {
+      grid-template-columns: 1fr;
+      gap: var(--space-40);
+    }
+
+    .historia__portrait {
+      max-width: 22rem;
+    }
+  }
+</style>

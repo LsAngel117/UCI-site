@@ -1,0 +1,42 @@
+services:
+  # PostgreSQL — private, persistent, internal only (docs/14 §9, §10).
+  # The database port is bound for local development convenience but MUST NOT
+  # be exposed publicly in production (docs/14 §58–§59).
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-uci}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME}
+      POSTGRES_DB: ${POSTGRES_DB:-uci}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # uci-app — application container (Phase 0 placeholder, docs/14 §41).
+  # TODO(Phase 1): build and run the real web + server entrypoint behind Caddy.
+  # It currently only validates that the image can be assembled; the server is
+  # still bootstrapped with `tsx` during development.
+  uci-app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      HOST: 0.0.0.0
+      PORT: ${PORT:-8787}
+      DATABASE_URL: postgres://${POSTGRES_USER:-uci}:${POSTGRES_PASSWORD:-CHANGE_ME}@postgres:5432/${POSTGRES_DB:-uci}
+    ports:
+      - '${PORT:-8787}:8787'
+
+volumes:
+  postgres_data:

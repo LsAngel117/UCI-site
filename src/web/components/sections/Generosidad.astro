@@ -1,0 +1,137 @@
+---
+/**
+ * Generosidad — "Una iglesia generosa" (docs/04 §16, docs/03 §22).
+ *
+ * Blue/navy surface (rhythm docs/03 §43) kept deliberately restrained: one
+ * concise message and one clear action, no fundraising pressure.
+ *
+ * Giving honesty rule (docs/04 §16.4, §24): the website must not invent a
+ * giving mechanism. When `url` is null the CTA is replaced by an informative
+ * state instead of a broken or fake link.
+ */
+import { Heart } from '@lucide/astro';
+import { getGivingConfig } from '../../data/site';
+import Button from '../ui/Button.astro';
+import Container from '../ui/Container.astro';
+import Section from '../ui/Section.astro';
+
+const giving = getGivingConfig();
+const hasGivingUrl = typeof giving.url === 'string' && giving.url.length > 0;
+---
+
+<Section id="generosidad" surface="blue" spacing="lg" class="generosidad">
+  <div class="generosidad__glow" aria-hidden="true"></div>
+
+  <Container class="generosidad__inner">
+    <span class="generosidad__icon" aria-hidden="true">
+      <Heart size={28} stroke-width={1.75} />
+    </span>
+
+    <div class="generosidad__content">
+      <h2 class="generosidad__heading font-display">{giving.title}</h2>
+      <p class="generosidad__message">{giving.message}</p>
+    </div>
+
+    <div class="generosidad__action">
+      {
+        hasGivingUrl ? (
+          <Button href={giving.url ?? undefined} variant="primary" external>
+            {giving.ctaLabel}
+          </Button>
+        ) : (
+          <p class="generosidad__pending">
+            El medio oficial para dar se habilitará pronto. Si deseas contribuir hoy,
+            escríbenos y con gusto te orientamos.
+          </p>
+        )
+      }
+    </div>
+  </Container>
+</Section>
+
+<style>
+  .generosidad {
+    overflow: hidden;
+  }
+
+  .generosidad__glow {
+    position: absolute;
+    inset: -30% 40% auto -10%;
+    height: 140%;
+    background: radial-gradient(
+      circle at 30% 40%,
+      rgba(91, 184, 245, 0.4) 0%,
+      rgba(91, 184, 245, 0) 65%
+    );
+    pointer-events: none;
+  }
+
+  .generosidad__inner {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-40);
+  }
+
+  .generosidad__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    border: 1px solid var(--border-gold);
+    border-radius: var(--radius-md);
+    color: var(--color-gold-light);
+  }
+
+  .generosidad__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    max-width: 44rem;
+  }
+
+  .generosidad__heading {
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .generosidad__message {
+    color: var(--color-white);
+    opacity: 0.9;
+    font-size: var(--font-size-body-large);
+  }
+
+  .generosidad__action {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .generosidad__pending {
+    max-width: 26ch;
+    padding: var(--space-16) var(--space-24);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: var(--radius-md);
+    color: var(--color-white);
+    font-size: var(--font-size-body-small);
+  }
+
+  @media (max-width: 1023px) {
+    .generosidad__inner {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .generosidad__action {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .generosidad__inner {
+      grid-template-columns: 1fr;
+      gap: var(--space-24);
+    }
+  }
+</style>
