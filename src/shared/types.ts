@@ -25,13 +25,31 @@ import type { ImageMetadata } from 'astro';
  */
 export type MediaSource = ImageMetadata | string | null;
 
-/** Editorial lifecycle shared by CMS-managed content (docs/05 §29). */
-export type ContentStatus =
-  | 'draft'
-  | 'scheduled'
-  | 'published'
-  | 'unpublished'
-  | 'archived';
+/**
+ * Editorial lifecycle shared by CMS-managed content (docs/05 §29, docs/08 §22).
+ *
+ * This is the single source of truth for the content lifecycle. The Prisma
+ * `ContentStatus` enum (prisma/schema.prisma) mirrors these exact lowercase
+ * values; keep them in sync (docs/08 §48, §57). The runtime array below is the
+ * allowlist used for boundary validation.
+ */
+export const CONTENT_STATUSES = [
+  'draft',
+  'scheduled',
+  'published',
+  'unpublished',
+  'archived',
+] as const;
+
+export type ContentStatus = (typeof CONTENT_STATUSES)[number];
+
+/** Type guard for validating untrusted values against the lifecycle allowlist. */
+export function isContentStatus(value: unknown): value is ContentStatus {
+  return (
+    typeof value === 'string' &&
+    (CONTENT_STATUSES as readonly string[]).includes(value)
+  );
+}
 
 export interface Coordinates {
   latitude: number;

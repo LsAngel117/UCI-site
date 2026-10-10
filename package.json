@@ -17,13 +17,18 @@
     "dev:server": "tsx watch src/server/server.ts",
     "start:server": "tsx src/server/server.ts",
     "dev:admin": "vite --config src/admin/vite.config.ts",
-    "build:admin": "vite build --config src/admin/vite.config.ts"
+    "build:admin": "vite build --config src/admin/vite.config.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "db:push": "prisma db push"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/playfair-display": "^5.3.0",
     "@lucide/astro": "^1.53.0",
+    "@prisma/client": "6.19.3",
     "astro": "^7.3.3",
     "fastify": "^5.12.5",
     "react": "^19.3.0",
@@ -39,6 +44,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "prisma": "6.19.3",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vite": "^8.3.4"

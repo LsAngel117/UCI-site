@@ -7,6 +7,8 @@
  * host/port/environment are required to boot the Phase 0 server.
  */
 
+import { loadEnvFile } from './env';
+
 export type NodeEnv = 'development' | 'production' | 'test';
 
 export interface ServerConfig {
@@ -36,6 +38,8 @@ function readPort(raw: string | undefined): number {
 
 /** Read and validate configuration from the environment. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
+  // Load `.env` so HOST/PORT (and any future vars) are available locally.
+  loadEnvFile();
   return {
     nodeEnv: readNodeEnv(env.NODE_ENV),
     host: env.HOST ?? DEFAULT_HOST,

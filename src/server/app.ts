@@ -8,6 +8,7 @@
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type { ApiErrorEnvelope, HealthResponse } from '@shared/api';
 import { loggerOptions } from './logger';
+import { prisma } from './db';
 
 export const SERVICE_NAME = 'uci-api';
 export const SERVICE_VERSION = '0.0.1';
@@ -55,14 +56,25 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     reply.status(statusCode).send(errorEnvelope(statusCode));
   });
 
-  // Liveness/readiness entry point (docs/14 §30). Dependency checks land when
-  // PostgreSQL is wired in Phase 1.
+  // Liveness + readiness entry point (docs/14 §30, docs/07 §36). A single
+  // endpoint is used: `status` reflects process liveness, `database` reflects
+  // the PostgreSQL readiness probe. A DB outage degrades to `degraded` +
+  // `database: "unavailable"` instead of failing the liveness check.
   app.get('/api/v1/health', async (): Promise<HealthResponse> => {
+    let database: HealthResponse['database'] = 'unavailable';
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      database = 'ok';
+    } catch (error) {
+      // Readiness probe failure — never throw, so liveness stays green.
+      app.log.warn({ err: error }, 'Database readiness check failed');
+    }
     return {
-      status: 'ok',
+      status: database === 'ok' ? 'ok' : 'degraded',
       service: SERVICE_NAME,
       version: SERVICE_VERSION,
       timestamp: new Date().toISOString(),
+      database,
     };
   });
 

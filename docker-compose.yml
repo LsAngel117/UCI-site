@@ -4,13 +4,18 @@ services:
   # be exposed publicly in production (docs/14 §58–§59).
   postgres:
     image: postgres:16-alpine
+    # Fixed container name so Docker shows `uci-site/uci_db` instead of the
+    # Compose default `uci-site/postgres-1`.
+    container_name: uci_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-uci}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME}
-      POSTGRES_DB: ${POSTGRES_DB:-uci}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-uci2026}
+      POSTGRES_DB: ${POSTGRES_DB:-uci_db}
     ports:
-      - '5432:5432'
+      # Host port is configurable via POSTGRES_PORT (default 5432). Developers
+      # whose 5432 is occupied can set POSTGRES_PORT=5435 in their local .env.
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -34,7 +39,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       HOST: 0.0.0.0
       PORT: ${PORT:-8787}
-      DATABASE_URL: postgres://${POSTGRES_USER:-uci}:${POSTGRES_PASSWORD:-CHANGE_ME}@postgres:5432/${POSTGRES_DB:-uci}
+      DATABASE_URL: postgres://${POSTGRES_USER:-uci}:${POSTGRES_PASSWORD:-uci2026}@postgres:5432/${POSTGRES_DB:-uci_db}
     ports:
       - '${PORT:-8787}:8787'
 

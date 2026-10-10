@@ -6,6 +6,7 @@
  */
 import { buildServer } from './app';
 import { loadConfig } from './config';
+import { prisma } from './db';
 
 const config = loadConfig();
 const app = buildServer();
@@ -19,6 +20,9 @@ async function shutdown(signal: string): Promise<void> {
   try {
     await app.close();
   } finally {
+    // Release the PostgreSQL connection pool after Fastify stops accepting
+    // connections (docs/07 §55).
+    await prisma.$disconnect();
     process.exit(0);
   }
 }

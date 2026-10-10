@@ -1,17 +1,14 @@
-# Database layer — skeleton (Phase 0)
+# Database layer (Phase 1)
 
-This directory holds the persistence boundary for the Node API. In Phase 0 it
-is intentionally empty of schema: the exact ORM/data-access library, table
-definitions and migration tool are deferred decisions (docs/07 §58) resolved
-in Phase 1 (`docs/15` §7).
+This directory is the persistence boundary for the Node API. The canonical
+Prisma schema and migrations now live at the repo root under `prisma/`
+(see `prisma/README.md` for the location decision and conventions). This
+directory is retained for domain-specific notes and seed data.
 
 ## Enforced conventions (docs/02 §33, docs/14 §35)
 
-- **Migrations are versioned and reproducible.** Every schema change ships as
-  a migration committed to `src/db/migrations/`; production schema is never
-  edited by hand.
-- **`schema/`** will hold the canonical SQL/type definitions generated or
-  reviewed from migrations.
+- **Migrations are versioned and reproducible** — see `prisma/migrations/`.
+  Production schema is never edited by hand.
 - **`seed/`** will hold representative, non-production seed data
   (docs/14 §42: seed data must never be mistaken for real content).
 
@@ -20,10 +17,9 @@ in Phase 1 (`docs/15` §7).
 - Frontends (Astro web / React admin) never touch PostgreSQL directly.
 - No credentials are stored here; connection info comes from `DATABASE_URL`.
 
-## Planned contents (Phase 1)
+## Current contents (Phase 1)
 
-- Migration tool + initial migration creating the foundation tables.
-- Repository interfaces and the database connection layer.
-- UUID + timestamp conventions (docs/07 §15, §16).
+- `prisma/schema.prisma` — declarative schema (foundation tables).
+- `prisma/migrations/` — versioned SQL migrations.
+- `src/server/db.ts` — PrismaClient singleton (server only).
 
-Nothing here connects to a database yet.
