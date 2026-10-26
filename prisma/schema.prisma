@@ -130,13 +130,27 @@ model RolePermission {
 
 /// A user session. Append-only: revocation is recorded via `revokedAt`, so no
 /// `updatedAt` (deliberate exception to the all-tables convention).
+///
+/// Session lifetime is two-dimensional (docs/11 §6.3):
+///   - `expiresAt` is the ABSOLUTE expiry, fixed at creation (`createdAt` +
+///     `SESSION_ABSOLUTE_TTL`). It is never extended by activity.
+///   - `lastSeenAt` records the last validated request so the auth layer can
+///     enforce an IDLE timeout (`lastSeenAt` + `SESSION_IDLE_TTL`); it is the
+///     only field mutated after creation (slides forward on each request).
+/// `ipAddress`/`userAgent` are optional security metadata captured at login
+/// (docs/11 §6.1) for later auditing — they are never returned to clients.
 model Session {
-  id        String    @id @default(uuid())
-  userId    String    @map("user_id")
-  tokenHash String    @map("token_hash")
-  expiresAt DateTime  @map("expires_at")
-  revokedAt DateTime? @map("revoked_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  /// SHA-256 of the opaque session token — the lookup key on every request.
+  /// Unique so no two sessions can ever share a hash (docs/11 §6.1).
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at")
+  ipAddress  String?   @map("ip_address")
+  userAgent  String?   @map("user_agent")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

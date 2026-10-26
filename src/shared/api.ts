@@ -72,3 +72,111 @@ export interface HealthResponse {
   /** `ok` when `SELECT 1` succeeds; `unavailable` otherwise. */
   database?: 'ok' | 'unavailable';
 }
+
+// ---------------------------------------------------------------------------
+// Authentication & authorization contracts (docs/08 §7, docs/11 §5–11).
+//
+// These describe the auth API's DTOs. They never carry database models or
+// storage internals — no Prisma types cross this boundary (docs/08 §48, §55).
+// Password hashes and session tokens are deliberately absent: the token is
+// transported only through a secure HttpOnly cookie (docs/11 §5.1).
+// ---------------------------------------------------------------------------
+
+/**
+ * Canonical permission vocabulary (docs/11 §9).
+ *
+ * This runtime tuple is the single source of truth for permission identifiers;
+ * `PermissionName` is its string-literal union. The client-facing union, the
+ * authorization layer and the seed all derive from it, so a permission is
+ * declared in exactly one place. Kept as plain strings — adding a permission
+ * here is the only change needed for it to flow through the whole stack.
+ */
+export const PERMISSIONS = [
+  'users.read',
+  'users.create',
+  'users.update',
+  'users.disable',
+  'roles.read',
+  'roles.update',
+  'pages.read',
+  'pages.create',
+  'pages.update',
+  'pages.publish',
+  'pages.archive',
+  'pages.delete',
+  'sermons.read',
+  'sermons.create',
+  'sermons.update',
+  'sermons.publish',
+  'sermons.archive',
+  'sermons.delete',
+  'events.read',
+  'events.create',
+  'events.update',
+  'events.publish',
+  'events.archive',
+  'events.delete',
+  'ministries.read',
+  'ministries.create',
+  'ministries.update',
+  'ministries.publish',
+  'ministries.archive',
+  'media.read',
+  'media.upload',
+  'media.update',
+  'media.delete',
+  'navigation.read',
+  'navigation.update',
+  'seo.read',
+  'seo.update',
+  'settings.read',
+  'settings.update',
+  'audit.read',
+] as const;
+
+export type PermissionName = (typeof PERMISSIONS)[number];
+
+/**
+ * Type guard for validating untrusted values against the permission allowlist
+ * (mirrors `isContentStatus` in `types.ts`). Unknown strings are rejected so
+ * the authorization layer can never be fooled into trusting arbitrary input.
+ */
+export function isPermissionName(value: unknown): value is PermissionName {
+  return (
+    typeof value === 'string' &&
+    (PERMISSIONS as readonly string[]).includes(value)
+  );
+}
+
+/** Request body of `POST /api/v1/auth/login` (docs/08 §7.1). */
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+/**
+ * Authenticated identity as exposed to clients (docs/08 §7.1–7.2).
+ *
+ * Never carries credentials, password hashes or session internals
+ * (docs/11 §5.3, §13, §20). `role` is the primary role name for UI
+ * presentation only — authorization never trusts it (docs/07 §59).
+ */
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+/** Success payload of `POST /api/v1/auth/login` (docs/08 §7.1). */
+export interface LoginResponse {
+  user: AuthUser;
+}
+
+/**
+ * Response body of `GET /api/v1/auth/me`: the identity plus every permission
+ * resolved server-side for the current session (docs/08 §7.2, docs/11 §10).
+ */
+export interface CurrentUserResponse extends AuthUser {
+  permissions: PermissionName[];
+}
