@@ -1,0 +1,408 @@
+---
+/**
+ * Header — global navigation.
+ *
+ * IMPORTANT: this header is designed to sit OVER the hero. It renders as a
+ * fixed, transparent layer at the top of the page and transitions to a solid
+ * deep-navy surface once the user scrolls (docs/03 §10.2, §10.3, docs/04 §5.3).
+ * Any page that uses it without a full-bleed hero must add top padding so its
+ * content clears the fixed header.
+ *
+ * Data comes from the repository layer; the page does not pass navigation props
+ * so the header stays consistent across routes.
+ */
+import { Menu, X } from '@lucide/astro';
+import { Image } from 'astro:assets';
+import logoFull from '../../assets/brand/uci-logo-full.png';
+import { getChurchProfile, getNavigation } from '../../data/site';
+import Container from '../ui/Container.astro';
+
+const navigation = getNavigation();
+const church = getChurchProfile();
+
+const currentPath = Astro.url.pathname;
+const isActive = (href: string) =>
+  href === '/' ? currentPath === '/' : currentPath.startsWith(href);
+
+const primary = navigation.primary;
+const [newcomerAction, liveAction] = navigation.actions;
+const menuId = 'primary-navigation';
+---
+
+<header class="site-header" data-header>
+  <Container wide class="site-header__inner">
+    <a class="site-header__brand" href="/" aria-label={`${church.name} — Inicio`}>
+      <Image
+        class="site-header__logo"
+        src={logoFull}
+        alt={church.fullName}
+        width={320}
+        height={120}
+        widths={[160, 240, 320]}
+        sizes="(min-width: 768px) 240px, 180px"
+        loading="eager"
+      />
+    </a>
+
+    <nav
+      id={menuId}
+      class="site-header__nav"
+      aria-label="Navegación principal"
+      data-nav
+    >
+      <ul class="site-header__links">
+        {
+          primary.map((item) => (
+            <li>
+              <a
+                class:list={['site-header__link', { 'is-active': isActive(item.href) }]}
+                href={item.href}
+                aria-current={isActive(item.href) ? 'page' : undefined}
+              >
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+
+      <div class="site-header__actions">
+        {
+          newcomerAction && (
+            <a class="site-header__cta site-header__cta--primary" href={newcomerAction.href}>
+              {newcomerAction.label}
+            </a>
+          )
+        }
+        {
+          liveAction && (
+            <a class="site-header__cta site-header__cta--secondary" href={liveAction.href}>
+              <span class="site-header__live-dot" aria-hidden="true"></span>
+              {liveAction.label}
+            </a>
+          )
+        }
+      </div>
+    </nav>
+
+    <button
+      class="site-header__toggle"
+      type="button"
+      aria-expanded="false"
+      aria-controls={menuId}
+      data-menu-toggle
+    >
+      <span class="visually-hidden">Abrir menú de navegación</span>
+      <span class="site-header__toggle-icon site-header__toggle-icon--menu">
+        <Menu size={24} />
+      </span>
+      <span class="site-header__toggle-icon site-header__toggle-icon--close">
+        <X size={24} />
+      </span>
+    </button>
+  </Container>
+</header>
+
+<style>
+  .site-header {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: var(--z-header);
+    background-color: transparent;
+    border-bottom: 1px solid transparent;
+    transition:
+      background-color var(--duration-base) var(--ease-out),
+      border-color var(--duration-base) var(--ease-out),
+      backdrop-filter var(--duration-base) var(--ease-out);
+  }
+
+  /* Solid state applied by the scroll script. */
+  .site-header.is-scrolled,
+  .site-header.is-menu-open {
+    background-color: rgba(11, 18, 32, 0.96);
+    border-bottom-color: var(--border-on-dark);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-24);
+    min-height: 4.5rem;
+    padding-block: var(--space-12);
+  }
+
+  .site-header__brand {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .site-header__logo {
+    height: var(--brand-logo-height);
+    width: auto;
+    filter: var(--brand-logo-filter);
+  }
+
+  .site-header__nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-32);
+  }
+
+  .site-header__links {
+    display: flex;
+    align-items: center;
+    gap: var(--space-24);
+  }
+
+  .site-header__link {
+    position: relative;
+    padding-block: var(--space-8);
+    color: var(--color-white);
+    font-size: var(--font-size-navigation);
+    letter-spacing: var(--letter-spacing-nav);
+    transition: color var(--duration-fast) var(--ease-out);
+  }
+
+  .site-header__link::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background-color: var(--color-gold);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .site-header__link:hover {
+    color: var(--color-gold-light);
+  }
+
+  .site-header__link.is-active {
+    color: var(--color-gold);
+  }
+
+  .site-header__link.is-active::after,
+  .site-header__link:hover::after {
+    transform: scaleX(1);
+  }
+
+  .site-header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+  }
+
+  .site-header__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    padding: var(--space-8) var(--space-16);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-nav);
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out);
+  }
+
+  .site-header__cta--primary {
+    background-color: var(--color-gold);
+    color: var(--color-black);
+    border: 1px solid var(--color-gold);
+  }
+
+  .site-header__cta--primary:hover {
+    background-color: var(--color-gold-light);
+    border-color: var(--color-gold-light);
+  }
+
+  .site-header__cta--secondary {
+    color: var(--color-white);
+    border: 1px solid var(--border-on-dark-strong);
+  }
+
+  .site-header__cta--secondary:hover {
+    background-color: rgba(91, 184, 245, 0.12);
+    border-color: var(--color-blue-light);
+  }
+
+  .site-header__live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--color-gold);
+    box-shadow: 0 0 0 3px rgba(217, 164, 65, 0.22);
+  }
+
+  /* --- Mobile toggle ---------------------------------------------------- */
+  .site-header__toggle {
+    display: none;
+    position: relative;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: var(--space-8);
+    border-radius: var(--radius-md);
+    color: var(--color-white);
+  }
+
+  .site-header__toggle-icon {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    transition:
+      opacity var(--duration-base) var(--ease-out),
+      transform var(--duration-base) var(--ease-out);
+  }
+
+  .site-header__toggle-icon--close {
+    opacity: 0;
+    transform: rotate(-45deg);
+  }
+
+  .site-header__toggle[aria-expanded='true'] .site-header__toggle-icon--menu {
+    opacity: 0;
+    transform: rotate(45deg);
+  }
+
+  .site-header__toggle[aria-expanded='true'] .site-header__toggle-icon--close {
+    opacity: 1;
+    transform: rotate(0);
+  }
+
+  /* --- Mobile ----------------------------------------------------------- */
+  @media (max-width: 1023px) {
+    .site-header__toggle {
+      display: flex;
+    }
+
+    .site-header__nav {
+      position: fixed;
+      inset: 0;
+      z-index: var(--z-mobile-menu);
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: var(--space-32);
+      padding: 6.5rem var(--container-padding-inline) var(--space-40);
+      background-color: var(--color-black);
+      overflow-y: auto;
+      transform: translateY(-100%);
+      visibility: hidden;
+      transition:
+        transform var(--duration-base) var(--ease-out),
+        visibility var(--duration-base) var(--ease-out);
+    }
+
+    .site-header__nav.is-open {
+      transform: translateY(0);
+      visibility: visible;
+    }
+
+    .site-header__links {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--space-4);
+    }
+
+    .site-header__link {
+      display: block;
+      padding: var(--space-16) 0;
+      font-size: var(--font-size-body-large);
+    }
+
+    .site-header__link::after {
+      display: none;
+    }
+
+    .site-header__actions {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--space-12);
+    }
+
+    .site-header__cta {
+      justify-content: center;
+      padding: var(--space-16);
+      font-size: var(--font-size-body);
+    }
+
+    /* Keep the toggle above the opened panel. */
+    .site-header__toggle {
+      position: relative;
+      z-index: calc(var(--z-mobile-menu) + 1);
+    }
+  }
+</style>
+
+<script>
+  // Minimal, dependency-free header behavior:
+  // 1. Toggle the solid surface after a small scroll threshold.
+  // 2. Accessible mobile menu (aria-expanded, Escape, focus management).
+  const header = document.querySelector<HTMLElement>('[data-header]');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+  const nav = document.querySelector<HTMLElement>('[data-nav]');
+
+  if (header && toggle && nav) {
+    let ticking = false;
+
+    const applyScrollState = () => {
+      header.classList.toggle('is-scrolled', window.scrollY > 24);
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(applyScrollState);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    applyScrollState();
+
+    const setMenu = (open: boolean) => {
+      nav.classList.toggle('is-open', open);
+      header.classList.toggle('is-menu-open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+      document.body.style.overflow = open ? 'hidden' : '';
+
+      if (open) {
+        nav.querySelector<HTMLElement>('a')?.focus();
+      } else {
+        toggle.focus();
+      }
+    };
+
+    toggle.addEventListener('click', () => {
+      setMenu(toggle.getAttribute('aria-expanded') !== 'true');
+    });
+
+    nav.addEventListener('click', (event) => {
+      if ((event.target as HTMLElement).closest('a')) setMenu(false);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+        setMenu(false);
+      }
+    });
+
+    // Reset the mobile state when crossing into the desktop layout.
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    desktop.addEventListener('change', (event) => {
+      if (event.matches && toggle.getAttribute('aria-expanded') === 'true') {
+        setMenu(false);
+      }
+    });
+  }
+</script>

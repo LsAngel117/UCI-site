@@ -1,0 +1,169 @@
+---
+/**
+ * ThreePillars — "En UCI" (docs/04 §8, docs/03 §14).
+ *
+ * Light community surface after the dark identity block (rhythm docs/03 §43).
+ * The three pillars are photographic editorial blocks, deliberately NOT
+ * SaaS-style cards: full-bleed imagery with quiet typography underneath, no
+ * white boxes, one restrained action each.
+ *
+ * Pillar images are approved local assets resolved by the data layer.
+ */
+import { Image } from 'astro:assets';
+import { getPillarsSection } from '../../data/site';
+import Container from '../ui/Container.astro';
+import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
+import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
+import Section from '../ui/Section.astro';
+import SectionLabel from '../ui/SectionLabel.astro';
+
+const section = getPillarsSection();
+---
+
+<Section id="en-uci" surface="light" spacing="lg" class="pillars">
+  <Container>
+    <header class="pillars__header">
+      <SectionLabel accent="blue">{section.label}</SectionLabel>
+      <h2 class="pillars__heading font-display">{section.heading}</h2>
+    </header>
+
+    <ul class="pillars__grid">
+      {
+        section.pillars.map((pillar, index) => (
+          <li class="pillar">
+            <div class="pillar__media">
+              {
+                isLocalAsset(pillar.imageUrl) ? (
+                  <Image
+                    class="pillar__image"
+                    src={pillar.imageUrl}
+                    alt=""
+                    width={688}
+                    height={386}
+                    widths={[360, 520, 688]}
+                    sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+                    loading={index === 0 ? 'eager' : 'lazy'}
+                  />
+                ) : isRemoteAsset(pillar.imageUrl) ? (
+                  <img class="pillar__image" src={pillar.imageUrl} alt="" loading="lazy" />
+                ) : (
+                  <MediaPlaceholder
+                    label={pillar.name}
+                    aspect="16 / 9"
+                    asset={`pillar-${pillar.id}.jpg`}
+                  />
+                )
+              }
+            </div>
+
+            <div class="pillar__body">
+              <h3 class="pillar__name">{pillar.name}</h3>
+              <p class="pillar__description">{pillar.description}</p>
+            </div>
+          </li>
+        ))
+      }
+    </ul>
+  </Container>
+</Section>
+
+<style>
+  .pillars__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+    margin-bottom: var(--space-48);
+  }
+
+  .pillars__heading {
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-navy);
+  }
+
+  .pillars__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-32);
+  }
+
+  .pillar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+  }
+
+  .pillar__media {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background-color: var(--color-navy);
+  }
+
+  .pillar__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    aspect-ratio: 16 / 9;
+    transition: transform var(--duration-slow) var(--ease-out);
+  }
+
+  .pillar:hover .pillar__image {
+    transform: scale(1.04);
+  }
+
+  .pillar__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .pillar__name {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    color: var(--color-navy);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-body-large);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+  }
+
+  .pillar__description {
+    max-width: 34ch;
+    color: var(--color-navy);
+    opacity: 0.76;
+    font-size: var(--font-size-body);
+  }
+
+  @media (max-width: 1023px) {
+    .pillars__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pillar:last-child {
+      grid-column: 1 / -1;
+      max-width: 34rem;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .pillars__header {
+      margin-bottom: var(--space-32);
+    }
+
+    .pillars__grid {
+      grid-template-columns: 1fr;
+    }
+
+    .pillar:last-child {
+      max-width: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pillar:hover .pillar__image {
+      transform: none;
+    }
+  }
+</style>

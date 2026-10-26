@@ -1,0 +1,170 @@
+---
+/**
+ * Button — the three approved action weights (docs/03 §25):
+ *  - primary:   gold surface, dark text. The most important action only.
+ *  - secondary: transparent/dark with a light border.
+ *  - text:      low-weight text + arrow, no heavy container.
+ *
+ * Renders <a> when `href` is provided, otherwise <button>. Disabled state is
+ * only exposed on the button branch; anchors should not be rendered disabled.
+ */
+import { ArrowRight } from '@lucide/astro';
+
+interface Props {
+  variant?: 'primary' | 'secondary' | 'text';
+  /** Text-variant link color: gold on dark surfaces, navy on light (WCAG AA). */
+  contrast?: 'gold' | 'navy';
+  /** Internal path or external URL. Presence switches the root to <a>. */
+  href?: string;
+  /** Open external links in a new tab with a safe rel. */
+  external?: boolean;
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+  /** Extra classes from the consuming layout. */
+  class?: string;
+  ariaLabel?: string;
+}
+
+const {
+  variant = 'primary',
+  contrast = 'gold',
+  href,
+  external = false,
+  type = 'button',
+  disabled = false,
+  class: className,
+  ariaLabel,
+} = Astro.props;
+
+const isLink = typeof href === 'string' && href.length > 0;
+const isExternal = isLink && external;
+// Capitalized so Astro treats it as a dynamic component rather than an
+// intrinsic HTML element (lowercase tags are parsed as native elements).
+const Root = isLink ? 'a' : 'button';
+// A disabled link is rendered without href so it leaves the tab order.
+const renderedHref = isLink && !disabled ? href : undefined;
+---
+
+<Root
+  class:list={[
+    'btn',
+    `btn--${variant}`,
+    variant === 'text' && `btn--text-${contrast}`,
+    className,
+  ]}
+  href={renderedHref}
+  target={isExternal ? '_blank' : undefined}
+  rel={isExternal ? 'noopener noreferrer' : undefined}
+  type={isLink ? undefined : type}
+  disabled={isLink ? undefined : disabled}
+  aria-disabled={isLink && disabled ? 'true' : undefined}
+  aria-label={ariaLabel}
+>
+  <span class="btn__label"><slot /></span>
+  {
+    variant === 'text' && (
+      <span class="btn__arrow">
+        <ArrowRight size={16} stroke-width={1.75} />
+      </span>
+    )
+  }
+</Root>
+
+<style>
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+    padding: var(--space-12) var(--space-24);
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-navigation);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-nav);
+    line-height: 1.2;
+    text-align: center;
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  .btn:disabled,
+  .btn[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* --- Primary: gold, dark text ---------------------------------------- */
+  .btn--primary {
+    background-color: var(--color-gold);
+    color: var(--color-black);
+    border: 1px solid var(--color-gold);
+  }
+
+  .btn--primary:hover {
+    background-color: var(--color-gold-light);
+    border-color: var(--color-gold-light);
+  }
+
+  .btn--primary:active {
+    transform: translateY(1px);
+  }
+
+  /* --- Secondary: transparent / dark with light border ----------------- */
+  .btn--secondary {
+    background-color: transparent;
+    color: var(--color-white);
+    border: 1px solid var(--border-on-dark-strong);
+  }
+
+  .btn--secondary:hover {
+    background-color: rgba(91, 184, 245, 0.12);
+    border-color: var(--color-blue-light);
+  }
+
+  .btn--secondary:active {
+    transform: translateY(1px);
+  }
+
+  /* --- Text action: no container, arrow moves on hover ----------------- */
+  .btn--text {
+    padding: var(--space-4) 0;
+    background: none;
+    border: none;
+    color: var(--color-gold);
+    border-radius: var(--radius-sm);
+  }
+
+  .btn--text:hover {
+    color: var(--color-gold-light);
+  }
+
+  /* On light surfaces gold text fails WCAG AA (docs/03 §37); the text
+     variant exposes a navy contrast for light contexts. */
+  .btn--text-navy {
+    color: var(--color-navy);
+  }
+
+  .btn--text-navy:hover {
+    color: var(--color-blue);
+  }
+
+  .btn--text .btn__arrow {
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .btn--text:hover .btn__arrow {
+    transform: translateX(3px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn--text:hover .btn__arrow {
+      transform: none;
+    }
+  }
+</style>

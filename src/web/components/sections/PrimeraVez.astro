@@ -1,0 +1,142 @@
+---
+/**
+ * PrimeraVez — "¿Es tu primera vez en UCI?" (docs/04 §10, docs/03 §16).
+ *
+ * Dark visitor surface (rhythm docs/03 §43). Three concise information blocks
+ * answer the essential first-visit questions with a consistent line icon each.
+ * The block icons are data-driven (`icon` key) and resolved against Lucide.
+ */
+import { Clock, Heart, MapPin } from '@lucide/astro';
+import { getPrimeraVezContent } from '../../data/site';
+import Button from '../ui/Button.astro';
+import Container from '../ui/Container.astro';
+import Section from '../ui/Section.astro';
+import SectionLabel from '../ui/SectionLabel.astro';
+
+const section = getPrimeraVezContent();
+
+// Data-driven block icons resolve against the Lucide set; unknown keys fall
+// back to `Heart` (same behavior the old isIconName fallback had).
+const BLOCK_ICONS = { 'map-pin': MapPin, clock: Clock, heart: Heart } as const;
+const resolveBlockIcon = (name: string) =>
+  BLOCK_ICONS[name as keyof typeof BLOCK_ICONS] ?? Heart;
+---
+
+<Section id="primera-vez" surface="navy" spacing="lg" class="primera">
+  <Container class="primera__inner">
+    <header class="primera__header">
+      <SectionLabel>{section.label}</SectionLabel>
+      <h2 class="primera__heading font-display">{section.heading}</h2>
+      <p class="primera__support text-body-large">{section.supportingText}</p>
+    </header>
+
+    <ul class="primera__blocks">
+      {
+        section.blocks.map((block) => {
+          const BlockIcon = resolveBlockIcon(block.icon);
+          return (
+            <li class="primera__block">
+              <span class="primera__block-icon" aria-hidden="true">
+                <BlockIcon size={24} stroke-width={1.75} />
+              </span>
+              <h3 class="primera__block-title">{block.title}</h3>
+              <p class="primera__block-body">{block.body}</p>
+            </li>
+          );
+        })
+      }
+    </ul>
+
+    <div class="primera__actions">
+      <Button href={section.cta.href} variant="primary">
+        {section.cta.label}
+      </Button>
+    </div>
+  </Container>
+</Section>
+
+<style>
+  .primera {
+    background: var(--gradient-dark);
+    overflow: hidden;
+  }
+
+  .primera__inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-48);
+  }
+
+  .primera__header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 44rem;
+  }
+
+  .primera__heading {
+    font-size: var(--font-size-heading-1);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .primera__support {
+    color: var(--color-gray-light);
+  }
+
+  .primera__blocks {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-32);
+    padding-top: var(--space-40);
+    border-top: 1px solid var(--border-on-dark);
+  }
+
+  .primera__block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+  }
+
+  .primera__block-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border: 1px solid var(--border-on-dark-strong);
+    border-radius: var(--radius-md);
+    color: var(--color-blue-light);
+  }
+
+  .primera__block-title {
+    color: var(--color-white);
+    font-family: var(--font-display);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .primera__block-body {
+    max-width: 32ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body);
+  }
+
+  .primera__actions {
+    display: flex;
+  }
+
+  @media (max-width: 1023px) {
+    .primera__blocks {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 639px) {
+    .primera__blocks {
+      grid-template-columns: 1fr;
+      gap: var(--space-24);
+    }
+  }
+</style>

@@ -1,0 +1,322 @@
+---
+/**
+ * Homepage — full composition.
+ *
+ * Sections follow the approved order in docs/04 §4 and the dark/light rhythm
+ * in docs/03 §43. All content is read through the repository layer
+ * (`src/data/site.ts`); no production data is hardcoded here.
+ */
+import { ArrowRight, Calendar, MapPin } from '@lucide/astro';
+import { Image } from 'astro:assets';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/layout/Header.astro';
+import Footer from '../components/layout/Footer.astro';
+import SomosUCI from '../components/sections/SomosUCI.astro';
+import ThreePillars from '../components/sections/ThreePillars.astro';
+import ProximoServicio from '../components/sections/ProximoServicio.astro';
+import PrimeraVez from '../components/sections/PrimeraVez.astro';
+import UltimoSermon from '../components/sections/UltimoSermon.astro';
+import ExploraMensajes from '../components/sections/ExploraMensajes.astro';
+import ProximosEventos from '../components/sections/ProximosEventos.astro';
+import Ministerios from '../components/sections/Ministerios.astro';
+import Historias from '../components/sections/Historias.astro';
+import Generosidad from '../components/sections/Generosidad.astro';
+import FinalCTA from '../components/sections/FinalCTA.astro';
+import Button from '../components/ui/Button.astro';
+import Container from '../components/ui/Container.astro';
+import MediaPlaceholder from '../components/ui/MediaPlaceholder.astro';
+import SectionLabel from '../components/ui/SectionLabel.astro';
+import { isLocalAsset, isRemoteAsset } from '../components/ui/media-source';
+import { getChurchProfile, getHeroContent, getNextService } from '../data/site';
+
+const church = getChurchProfile();
+const hero = getHeroContent();
+const nextService = getNextService();
+
+const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+// W1: no invented 'Domingo'/'09:00' fallbacks. When there is no scheduled
+// service, the strip shows an honest "por confirmar" state (docs/04 §6.6).
+const serviceDay = nextService
+  ? `${DAY_NAMES[nextService.nextDate.getDay()]} ${nextService.nextDate.getDate()}`
+  : 'Por confirmar';
+const serviceTime = nextService?.schedule.startTime ?? 'Por confirmar';
+const servicePlace = nextService
+  ? `${nextService.location.city}, ${nextService.location.state}`
+  : `${church.location.city}, ${church.location.state}`;
+const hasRoute = church.location.confirmed;
+
+const pageTitle = `${church.fullName} | Una iglesia que intercede`;
+const pageDescription = church.shortDescription;
+---
+
+<BaseLayout title={pageTitle} description={pageDescription} canonicalPath="/">
+  <Header slot="header" />
+
+  {/* =====================================================================
+      HERO (docs/04 §6)
+      Real approved worship photography with a cinematic dark overlay that
+      keeps the image recognizable while guaranteeing text contrast.
+      ===================================================================== */}
+  <section class="hero" aria-labelledby="hero-heading">
+    <div class="hero__media" aria-hidden="true">
+      {
+        isLocalAsset(hero.backgroundImageUrl) ? (
+          <Image
+            class="hero__image"
+            src={hero.backgroundImageUrl}
+            alt=""
+            width={2307}
+            height={794}
+            widths={[720, 1200, 1600, 2307]}
+            sizes="100vw"
+            format="webp"
+            loading="eager"
+            fetchpriority="high"
+          />
+        ) : isRemoteAsset(hero.backgroundImageUrl) ? (
+          <img class="hero__image" src={hero.backgroundImageUrl} alt="" />
+        ) : (
+          <MediaPlaceholder
+            class="hero__image"
+            label="Adoración en UCI"
+            aspect="2307 / 794"
+            asset="hero-worship.jpg"
+          />
+        )
+      }
+      <div class="hero__overlay"></div>
+      <div class="hero__vignette"></div>
+    </div>
+
+    <Container class="hero__inner">
+      <div class="hero__content">
+        <SectionLabel accent="gold">{hero.label}</SectionLabel>
+
+        <h1 id="hero-heading" class="hero__heading font-display">
+          {hero.headingLineOne}
+          <span class="hero__heading-accent">{hero.headingAccent}</span>
+        </h1>
+
+        <p class="hero__supporting text-body-large">{hero.supportingText}</p>
+
+        <div class="hero__actions">
+          <Button href={hero.primaryCta.href} variant="primary">
+            {hero.primaryCta.label}
+          </Button>
+          <Button href={hero.secondaryCta.href} variant="secondary">
+            {hero.secondaryCta.label}
+          </Button>
+        </div>
+      </div>
+
+      {/* Practical service strip (docs/04 §6.6). */}
+      <div class="hero__strip">
+        <div class="hero__strip-item">
+          <span class="hero__strip-label">
+            <Calendar size={16} stroke-width={1.75} />
+            Próximo servicio
+          </span>
+          <span class="hero__strip-value">{serviceDay} · {serviceTime}</span>
+        </div>
+        <div class="hero__strip-item">
+          <span class="hero__strip-label">
+            <MapPin size={16} stroke-width={1.75} />
+            Ubicación
+          </span>
+          <span class="hero__strip-value">{servicePlace}</span>
+        </div>
+        {
+          hasRoute ? (
+            <a
+              class="hero__strip-route"
+              href={church.location.mapUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              CÓMO LLEGAR
+              <ArrowRight size={16} stroke-width={1.75} />
+            </a>
+          ) : (
+            <span class="hero__strip-route hero__strip-route--muted">
+              Ruta por confirmar
+            </span>
+          )
+        }
+      </div>
+    </Container>
+  </section>
+
+  <SomosUCI />
+  <ThreePillars />
+  <ProximoServicio />
+  <PrimeraVez />
+  <UltimoSermon />
+  <ExploraMensajes />
+  <ProximosEventos />
+  <Ministerios />
+  <Historias />
+  <Generosidad />
+  <FinalCTA />
+
+  <Footer slot="footer" />
+</BaseLayout>
+
+<style>
+  .hero {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    min-height: 100svh;
+    padding-block: 8rem var(--space-48);
+    background-color: var(--color-black);
+    color: var(--color-white);
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  /* --- Media layer ------------------------------------------------------ */
+  .hero__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .hero__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 35%;
+  }
+
+  .hero__overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-hero-overlay);
+  }
+
+  .hero__vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle at 30% 70%,
+      rgba(22, 117, 209, 0.22) 0%,
+      rgba(5, 7, 10, 0) 60%
+    );
+  }
+
+  .hero__inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-64);
+  }
+
+  .hero__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-24);
+    max-width: 46rem;
+  }
+
+  .hero__heading {
+    font-size: var(--font-size-display-xl);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .hero__heading-accent {
+    display: block;
+    color: var(--color-gold);
+  }
+
+  .hero__supporting {
+    max-width: 42ch;
+    color: var(--color-gray-light);
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-top: var(--space-8);
+  }
+
+  /* --- Service strip ---------------------------------------------------- */
+  .hero__strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-32);
+    padding-top: var(--space-24);
+    border-top: 1px solid var(--border-on-dark);
+  }
+
+  .hero__strip-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .hero__strip-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    color: var(--color-gray);
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .hero__strip-value {
+    color: var(--color-white);
+    font-size: var(--font-size-body-large);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .hero__strip-route {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    margin-left: auto;
+    color: var(--color-gold);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+  }
+
+  .hero__strip-route:hover {
+    color: var(--color-gold-light);
+  }
+
+  .hero__strip-route--muted {
+    color: var(--color-gray);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--letter-spacing-normal);
+  }
+
+  @media (max-width: 767px) {
+    .hero {
+      min-height: 92svh;
+      padding-block: 7rem var(--space-32);
+    }
+
+    .hero__inner {
+      gap: var(--space-40);
+    }
+
+    .hero__actions {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .hero__strip {
+      gap: var(--space-24);
+    }
+
+    .hero__strip-route {
+      margin-left: 0;
+    }
+  }
+</style>

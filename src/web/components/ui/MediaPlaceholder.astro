@@ -1,0 +1,111 @@
+---
+/**
+ * MediaPlaceholder — honest stand-in for media that is not delivered yet.
+ *
+ * The homepage must never substitute external stock photography (docs/03 §3.3),
+ * so sections without a real asset render this atmospheric placeholder instead
+ * of an empty shell (docs/04 §22–24). It reserves the final aspect ratio to
+ * avoid layout shift (docs/12 §30, docs/13 §66).
+ *
+ * It is intentionally marked as temporary: each instance documents the future
+ * asset in a code comment and renders a small editor-facing label. When the
+ * real media arrives, the section switches to `<Image>` and drops this wrapper.
+ */
+interface Props {
+  /** Accessible/label text describing the media slot (editor-facing). */
+  label: string;
+  /** Aspect ratio as a CSS value, e.g. "16 / 9" or "4 / 3". */
+  aspect?: string;
+  /** Future asset filename this placeholder stands in for. */
+  asset?: string;
+  /** Extra classes from the consuming layout. */
+  class?: string;
+}
+
+const {
+  label,
+  aspect = '16 / 9',
+  asset,
+  class: className,
+} = Astro.props;
+---
+
+{/* TEMPORARY: replace with <Image> of the documented asset (see `asset`). */}
+<div
+  class:list={['media-placeholder', className]}
+  style={`--media-aspect: ${aspect};`}
+  role="img"
+  aria-label={`${label} — imagen por confirmar`}
+>
+  <div class="media-placeholder__glow" aria-hidden="true"></div>
+  <div class="media-placeholder__texture" aria-hidden="true"></div>
+  <div class="media-placeholder__caption">
+    <span class="media-placeholder__label">{label}</span>
+    {asset && <span class="media-placeholder__asset">{asset}</span>}
+  </div>
+</div>
+
+<style>
+  .media-placeholder {
+    position: relative;
+    display: grid;
+    place-items: end stretch;
+    width: 100%;
+    aspect-ratio: var(--media-aspect, 16 / 9);
+    overflow: hidden;
+    border: 1px solid var(--border-on-dark);
+    border-radius: var(--radius-md);
+    background:
+      linear-gradient(160deg, var(--color-navy-700) 0%, var(--color-black) 100%);
+    isolation: isolate;
+  }
+
+  .media-placeholder__glow {
+    position: absolute;
+    inset: -20% -10% auto -10%;
+    height: 80%;
+    background: var(--gradient-blue-glow);
+    opacity: 0.55;
+  }
+
+  /* Subtle diagonal texture — quiet, no particles (docs/03 §44). */
+  .media-placeholder__texture {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.035) 0,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px,
+      transparent 9px
+    );
+    mix-blend-mode: overlay;
+  }
+
+  .media-placeholder__caption {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-16);
+    background: linear-gradient(
+      to top,
+      rgba(5, 7, 10, 0.78) 0%,
+      rgba(5, 7, 10, 0) 100%
+    );
+  }
+
+  .media-placeholder__label {
+    color: var(--color-gray-light);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .media-placeholder__asset {
+    color: var(--color-gray);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-caption);
+  }
+</style>

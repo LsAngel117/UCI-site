@@ -1,0 +1,270 @@
+---
+/**
+ * ProximoServicio — "Nos vemos este domingo" (docs/04 §9, docs/03 §15).
+ *
+ * The first light/practical surface after the dark identity blocks
+ * (rhythm docs/03 §43): navy typography, a gold accent rule and blue secondary
+ * details. It answers when and where the next service happens using
+ * CMS-managed schedule data only.
+ *
+ * Honesty rule (docs/04 §6.6, §24): when no active schedule exists, every
+ * practical field shows a "por confirmar" state instead of a fabricated date
+ * or time.
+ */
+import { ArrowUpRight, Calendar, Clock, MapPin } from '@lucide/astro';
+import { getChurchProfile, getNextService, getProximoServicioContent } from '../../data/site';
+import Button from '../ui/Button.astro';
+import Container from '../ui/Container.astro';
+import Section from '../ui/Section.astro';
+import SectionLabel from '../ui/SectionLabel.astro';
+
+const section = getProximoServicioContent();
+const nextService = getNextService();
+const church = getChurchProfile();
+
+const dateFormatter = new Intl.DateTimeFormat('es-CO', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+
+const serviceDay = nextService
+  ? dateFormatter.format(nextService.nextDate)
+  : 'Por confirmar';
+const serviceTime = nextService
+  ? nextService.schedule.startTime
+  : 'Por confirmar';
+const serviceType = nextService?.schedule.name ?? 'Horario por confirmar';
+const locationName = church.location.name;
+const locationLine = `${church.location.address} · ${church.location.city}, ${church.location.state}`;
+const hasRoute = church.location.confirmed;
+---
+
+<Section id="proximo-servicio" surface="light" spacing="lg" class="servicio">
+  <Container class="servicio__inner">
+    <div class="servicio__intro">
+      <SectionLabel accent="blue">{section.label}</SectionLabel>
+      <h2 class="servicio__heading font-display">{section.heading}</h2>
+      <p class="servicio__support text-body-large">{section.supportingText}</p>
+      <div class="servicio__cta">
+        <Button href={section.cta.href} variant="primary">{section.cta.label}</Button>
+      </div>
+    </div>
+
+    <div class="servicio__panel">
+      <span class="servicio__rule" aria-hidden="true"></span>
+
+      <dl class="servicio__details">
+        <div class="servicio__detail">
+          <dt class="servicio__detail-label">
+            <Calendar size={18} stroke-width={1.75} />
+            Día
+          </dt>
+          <dd class="servicio__detail-value">{serviceDay}</dd>
+        </div>
+
+        <div class="servicio__detail">
+          <dt class="servicio__detail-label">
+            <Clock size={18} stroke-width={1.75} />
+            Hora
+          </dt>
+          <dd class="servicio__detail-value">{serviceTime}</dd>
+        </div>
+
+        <div class="servicio__detail">
+          <dt class="servicio__detail-label">
+            <MapPin size={18} stroke-width={1.75} />
+            Ubicación
+          </dt>
+          <dd class="servicio__detail-value">
+            <span class="servicio__place">{locationName}</span>
+            <span class="servicio__address">{locationLine}</span>
+          </dd>
+        </div>
+      </dl>
+
+      <div class="servicio__footer">
+        <p class="servicio__type">{serviceType}</p>
+        {
+          hasRoute ? (
+            <a
+              class="servicio__route"
+              href={church.location.mapUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Cómo llegar
+              <ArrowUpRight size={16} stroke-width={1.75} />
+            </a>
+          ) : (
+            <span class="servicio__route servicio__route--muted">
+              Ruta por confirmar
+            </span>
+          )
+        }
+      </div>
+    </div>
+  </Container>
+</Section>
+
+<style>
+  .servicio {
+    /* Lightest surface; the practicality contrast is intentional. */
+    background-color: var(--color-white);
+  }
+
+  .servicio__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    align-items: center;
+    gap: var(--space-64);
+  }
+
+  .servicio__intro {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+  }
+
+  .servicio__heading {
+    font-size: var(--font-size-heading-1);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-navy);
+  }
+
+  .servicio__support {
+    max-width: 36ch;
+    color: var(--color-navy);
+    opacity: 0.78;
+  }
+
+  .servicio__cta {
+    margin-top: var(--space-8);
+  }
+
+  /* --- Practical panel: quiet border, no floating card (docs/03 §28) ---- */
+  .servicio__panel {
+    position: relative;
+    padding: var(--space-40);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+  }
+
+  .servicio__rule {
+    position: absolute;
+    top: calc(-1 * var(--space-24));
+    left: var(--space-40);
+    width: 3rem;
+    height: 3px;
+    background-color: var(--color-gold);
+  }
+
+  .servicio__details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-24);
+  }
+
+  .servicio__detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .servicio__detail-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    color: var(--color-blue);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .servicio__detail-value {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    color: var(--color-navy);
+    font-size: var(--font-size-body-large);
+    font-weight: var(--font-weight-medium);
+    text-transform: capitalize;
+  }
+
+  .servicio__place {
+    text-transform: none;
+  }
+
+  .servicio__address {
+    color: var(--color-navy);
+    opacity: 0.68;
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-regular);
+  }
+
+  .servicio__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-16);
+    margin-top: var(--space-32);
+    padding-top: var(--space-24);
+    border-top: 1px solid var(--border-on-light);
+  }
+
+  .servicio__type {
+    color: var(--color-navy);
+    opacity: 0.76;
+    font-size: var(--font-size-body-small);
+    font-style: italic;
+  }
+
+  .servicio__route {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    color: var(--color-blue);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    transition: color var(--duration-fast) var(--ease-out);
+  }
+
+  .servicio__route:hover {
+    color: var(--color-navy);
+  }
+
+  .servicio__route--muted {
+    color: var(--color-navy);
+    opacity: 0.6;
+    font-weight: var(--font-weight-regular);
+  }
+
+  @media (max-width: 1023px) {
+    .servicio__inner {
+      grid-template-columns: 1fr;
+      gap: var(--space-40);
+    }
+  }
+
+  @media (max-width: 639px) {
+    .servicio__panel {
+      padding: var(--space-24);
+    }
+
+    .servicio__rule {
+      left: var(--space-24);
+    }
+
+    .servicio__details {
+      grid-template-columns: 1fr;
+    }
+
+    .servicio__footer {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

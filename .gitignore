@@ -9,6 +9,7 @@ build/
 # Agents
 .agents/
 .opencode/
+.atl/
 
 # Database backups / dumps (never commit)
 *.dump

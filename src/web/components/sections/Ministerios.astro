@@ -1,0 +1,243 @@
+---
+/**
+ * Ministerios — "Encuentra tu lugar" (docs/04 §14, docs/03 §20).
+ *
+ * Dark cinematic surface (rhythm docs/03 §43). Image-heavy grid of real
+ * communities rather than category tiles: each ministry is a photographic
+ * block with a short description and a quiet action. Only featured/published
+ * ministries are returned by the data layer.
+ */
+import { ArrowRight } from '@lucide/astro';
+import { Image } from 'astro:assets';
+import { getFeaturedMinistries, getMinisteriosContent } from '../../data/site';
+import Button from '../ui/Button.astro';
+import Container from '../ui/Container.astro';
+import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
+import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
+import Section from '../ui/Section.astro';
+import SectionLabel from '../ui/SectionLabel.astro';
+
+const section = getMinisteriosContent();
+const ministries = getFeaturedMinistries(3);
+---
+
+<Section id="ministerios" surface="dark" spacing="lg" class="ministerios">
+  <div class="ministerios__atmosphere" aria-hidden="true"></div>
+
+  <Container class="ministerios__inner">
+    <header class="ministerios__header">
+      <div class="ministerios__intro">
+        <SectionLabel>{section.label}</SectionLabel>
+        <h2 class="ministerios__heading font-display">{section.heading}</h2>
+        <p class="ministerios__support">{section.supportingText}</p>
+      </div>
+      <div class="ministerios__cta">
+        <Button href={section.cta.href} variant="secondary">{section.cta.label}</Button>
+      </div>
+    </header>
+
+    <ul class="ministerios__grid">
+      {
+        ministries.map((ministry) => (
+          <li class="ministerio">
+            <a class="ministerio__link" href={`/ministerios/${ministry.slug}`}>
+              <div class="ministerio__media">
+                {
+                  isLocalAsset(ministry.imageUrl) ? (
+                    <Image
+                      class="ministerio__image"
+                      src={ministry.imageUrl}
+                      alt=""
+                      width={640}
+                      height={800}
+                      widths={[360, 480, 640]}
+                      sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+                      loading="lazy"
+                    />
+                  ) : isRemoteAsset(ministry.imageUrl) ? (
+                    <img
+                      class="ministerio__image"
+                      src={ministry.imageUrl}
+                      alt=""
+                      loading="lazy"
+                    />
+                  ) : (
+                    <MediaPlaceholder
+                      class="ministerio__image"
+                      label={ministry.name}
+                      aspect="4 / 5"
+                      asset="ministry-cover-default.jpg"
+                    />
+                  )
+                }
+                <div class="ministerio__overlay" aria-hidden="true"></div>
+                <div class="ministerio__text">
+                  <h3 class="ministerio__name font-display">{ministry.name}</h3>
+                  <p class="ministerio__description">{ministry.shortDescription}</p>
+                  <span class="ministerio__action" aria-hidden="true">
+                    Ver ministerio
+                    <ArrowRight size={16} stroke-width={1.75} />
+                  </span>
+                </div>
+              </div>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </Container>
+</Section>
+
+<style>
+  .ministerios {
+    overflow: hidden;
+  }
+
+  .ministerios__atmosphere {
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-blue-glow);
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .ministerios__inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-48);
+  }
+
+  .ministerios__header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-32);
+  }
+
+  .ministerios__intro {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    max-width: 40rem;
+  }
+
+  .ministerios__heading {
+    font-size: var(--font-size-heading-1);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .ministerios__support {
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+  }
+
+  .ministerios__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-24);
+  }
+
+  .ministerio__media {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background-color: var(--color-navy-800);
+  }
+
+  .ministerio__image {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    transition: transform var(--duration-slow) var(--ease-out);
+  }
+
+  .ministerio__link:hover .ministerio__image {
+    transform: scale(1.05);
+  }
+
+  .ministerio__overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(5, 7, 10, 0.9) 0%,
+      rgba(5, 7, 10, 0.2) 55%,
+      rgba(5, 7, 10, 0) 100%
+    );
+  }
+
+  .ministerio__text {
+    position: absolute;
+    inset: auto 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    padding: var(--space-24);
+  }
+
+  .ministerio__name {
+    color: var(--color-white);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .ministerio__description {
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-small);
+  }
+
+  .ministerio__action {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    margin-top: var(--space-4);
+    color: var(--color-gold);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .ministerio__action svg {
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .ministerio__link:hover .ministerio__action svg {
+    transform: translateX(4px);
+  }
+
+  @media (max-width: 1023px) {
+    .ministerios__header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .ministerios__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ministerio:last-child {
+      grid-column: 1 / -1;
+      max-width: 28rem;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .ministerios__grid {
+      grid-template-columns: 1fr;
+    }
+
+    .ministerio:last-child {
+      max-width: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ministerio__link:hover .ministerio__image,
+    .ministerio__link:hover .ministerio__action svg {
+      transform: none;
+    }
+  }
+</style>
