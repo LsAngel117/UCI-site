@@ -7,9 +7,34 @@
  * imports Prisma types (docs/08 §48, §55).
  */
 
+/**
+ * Canonical API error codes (docs/08 §30). The `code` is the programmatic
+ * contract clients switch on, so the set is closed and declared here to keep
+ * the API and the admin UI in agreement. Every server error envelope uses one
+ * of these values.
+ */
+export const API_ERROR_CODES = [
+  'VALIDATION_ERROR',
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'NOT_FOUND',
+  'CONFLICT',
+  'SLUG_TAKEN',
+  'RATE_LIMITED',
+  'INTERNAL_ERROR',
+  'REQUEST_ERROR',
+] as const;
+
+export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
+
 /** Stable, machine-readable error code (e.g. `NOT_FOUND`, `VALIDATION_ERROR`). */
 export interface ApiError {
-  code: string;
+  /**
+   * One of `API_ERROR_CODES`. Typed as the union so new code paths cannot
+   * invent an undocumented code, while remaining assignable to the historical
+   * `string` consumers.
+   */
+  code: ApiErrorCode | (string & {});
   /** Human-readable message, safe to show to clients. */
   message: string;
   /** Optional machine-readable details (field errors, etc.). */

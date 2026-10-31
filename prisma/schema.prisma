@@ -185,33 +185,50 @@ model Page {
 }
 
 model Sermon {
-  id            String        @id @default(uuid())
-  slug          String        @unique
-  title         String
-  status        ContentStatus @default(draft)
-  publishedAt   DateTime?     @map("published_at")
-  unpublishedAt DateTime?     @map("unpublished_at")
-  createdById   String?       @map("created_by")
-  updatedById   String?       @map("updated_by")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id                 String        @id @default(uuid())
+  slug               String        @unique
+  title              String
+  // --- Minimal editorial fields (Phase 3). Media/SEO/YouTube land in later
+  //     phases; only the fields the editorial workflow needs are here. ---
+  description        String?
+  scriptureReference String?       @map("scripture_reference")
+  scriptureText      String?       @map("scripture_text")
+  preacherName       String?       @map("preacher_name")
+  sermonDate         DateTime?     @map("sermon_date")
+  status             ContentStatus @default(draft)
+  /// Optimistic-concurrency counter (docs/08 §38). A PATCH must present the
+  /// version it read; a mismatch is a 409 CONFLICT and a match increments it.
+  version            Int           @default(1)
+  publishedAt        DateTime?     @map("published_at")
+  /// Future publication instant set by `POST /schedule` (docs/05 §30). Paired
+  /// with `status = scheduled`; `publishDueSermons()` promotes due rows.
+  publishAt          DateTime?     @map("publish_at")
+  unpublishedAt      DateTime?     @map("unpublished_at")
+  createdById        String?       @map("created_by")
+  updatedById        String?       @map("updated_by")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
 
   createdBy User?            @relation("SermonCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy User?            @relation("SermonUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   revisions SermonRevision[]
 
   @@index([status, publishedAt])
+  @@index([status, publishAt])
   @@index([createdById])
   @@map("sermons")
 }
 
-/// Immutable snapshot of a sermon at a point in time (docs/08 §11.9).
-/// Append-only: no `updatedAt`.
+/// Immutable snapshot of a sermon at a point in time (docs/08 §11.9, §32).
+/// Append-only: no `updatedAt`. `snapshot` holds the full editorial content
+/// (`SermonSnapshot` in `@shared/cms`) so a revision is self-contained and can
+/// be restored without reconstructing it from the live row.
 model SermonRevision {
   id          String   @id @default(uuid())
   sermonId    String   @map("sermon_id")
   version     Int
   title       String
+  snapshot    Json
   createdAt   DateTime @default(now()) @map("created_at")
   createdById String?  @map("created_by")
 

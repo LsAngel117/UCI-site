@@ -10,6 +10,7 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type { ApiErrorEnvelope, HealthResponse } from '@shared/api';
 import { registerAuthRoutes } from './auth/routes';
+import { registerSermonRoutes } from './cms/sermons/routes';
 import { loadConfig, type ServerConfig } from './config';
 import { loggerOptions } from './logger';
 import { prisma } from './db';
@@ -110,6 +111,13 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   // is exported from `auth/middleware.ts` for protected routes in later phases.
   app.register(async (instance) => {
     registerAuthRoutes(instance, config);
+  });
+
+  // Admin content API (Phase 3). Registered as a plugin for the same reason as
+  // auth: its routes must be added after the cookie + rate-limit plugins load.
+  // Every route is protected by `requireAuth` + `requirePermission` inside.
+  app.register(async (instance) => {
+    registerSermonRoutes(instance, config);
   });
 
   return app;
