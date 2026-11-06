@@ -8,14 +8,25 @@
  * reusable core (docs/15 §9.9).
  */
 import { Prisma } from '@prisma/client';
-import type { Sermon } from '@prisma/client';
+import type {
+  Person,
+  Sermon,
+  SermonSeries,
+  SeoMetadata,
+  Topic,
+} from '@prisma/client';
 import type {
   CreateSermonInput,
   PaginationMeta,
+  PersonDto,
   SermonAdminDto,
   SermonListQuery,
   SermonRevisionDto,
+  SermonSeoDto,
+  SermonSeoInput,
+  SermonSeriesDto,
   SermonSnapshot,
+  TopicDto,
   UpdateSermonInput,
 } from '@shared/cms';
 import { resolvePagination, paginationOffset, resolveSort, totalPages } from '@shared/query';
@@ -43,6 +54,31 @@ import { isSlugUniqueViolation } from './prisma-errors';
 
 const ENTITY_TYPE = 'SERMON';
 
+/**
+ * Entity/purpose recorded in `MediaReference` for a sermon cover (Phase 5A).
+ * Lowercase `sermon` is the canonical value for this relation; the Phase 4
+ * reference-aware delete only counts rows, so it stays provider-agnostic.
+ */
+const COVER_ENTITY_TYPE = 'sermon';
+const COVER_PURPOSE = 'cover';
+
+/** Entity type used for `SeoMetadata` rows owned by a sermon. */
+const SEO_ENTITY_TYPE = 'sermon';
+
+/** Relations every admin sermon DTO is hydrated from. */
+const sermonInclude = {
+  preacher: true,
+  series: true,
+  topics: { include: { topic: true } },
+} satisfies Prisma.SermonInclude;
+
+type SermonWithRelations = Prisma.SermonGetPayload<{
+  include: typeof sermonInclude;
+}>;
+
+/** Prisma transaction client (the subset used here). */
+type Tx = Prisma.TransactionClient;
+
 // ---------------------------------------------------------------------------
 // Snapshot projection (content frozen into a revision)
 // ---------------------------------------------------------------------------
@@ -56,6 +92,17 @@ function buildSnapshot(sermon: Sermon): SermonSnapshot {
     scriptureText: sermon.scriptureText,
     preacherName: sermon.preacherName,
     sermonDate: sermon.sermonDate ? sermon.sermonDate.toISOString() : null,
+    preacherId: sermon.preacherId,
+    seriesId: sermon.seriesId,
+    coverMediaId: sermon.coverMediaId,
+    notesMediaId: sermon.notesMediaId,
+    videoProvider: sermon.videoProvider,
+    videoExternalId: sermon.videoExternalId,
+    videoUrl: sermon.videoUrl,
+    audioUrl: sermon.audioUrl,
+    notesContent: sermon.notesContent,
+    durationMinutes: sermon.durationMinutes,
+    featured: sermon.featured,
   };
 }
 
@@ -73,7 +120,7 @@ function snapshotToData(snapshot: unknown): Prisma.SermonUncheckedUpdateInput {
       field: 'snapshot',
     });
   }
-  return {
+  const data: Prisma.SermonUncheckedUpdateInput = {
     title: snapshot.title,
     slug: snapshot.slug,
     description: snapshot.description ?? null,
@@ -82,6 +129,20 @@ function snapshotToData(snapshot: unknown): Prisma.SermonUncheckedUpdateInput {
     preacherName: snapshot.preacherName ?? null,
     sermonDate: snapshot.sermonDate ? new Date(snapshot.sermonDate) : null,
   };
+  // Phase 5A fields are optional in the snapshot type: a revision stored before
+  // the sermon domain landed must leave those columns untouched on restore.
+  if (snapshot.preacherId !== undefined) data.preacherId = snapshot.preacherId;
+  if (snapshot.seriesId !== undefined) data.seriesId = snapshot.seriesId;
+  if (snapshot.coverMediaId !== undefined) data.coverMediaId = snapshot.coverMediaId;
+  if (snapshot.notesMediaId !== undefined) data.notesMediaId = snapshot.notesMediaId;
+  if (snapshot.videoProvider !== undefined) data.videoProvider = snapshot.videoProvider;
+  if (snapshot.videoExternalId !== undefined) data.videoExternalId = snapshot.videoExternalId;
+  if (snapshot.videoUrl !== undefined) data.videoUrl = snapshot.videoUrl;
+  if (snapshot.audioUrl !== undefined) data.audioUrl = snapshot.audioUrl;
+  if (snapshot.notesContent !== undefined) data.notesContent = snapshot.notesContent;
+  if (snapshot.durationMinutes !== undefined) data.durationMinutes = snapshot.durationMinutes;
+  if (snapshot.featured !== undefined) data.featured = snapshot.featured;
+  return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -176,7 +237,75 @@ const publication: PublicationService<Sermon> = createPublicationService<Sermon>
 // DTO mapping
 // ---------------------------------------------------------------------------
 
-function toSermonDto(sermon: Sermon): SermonAdminDto {
+function toPersonDto(person: Person): PersonDto {
+  return {
+    id: person.id,
+    firstName: person.firstName,
+    lastName: person.lastName,
+    displayName: person.displayName,
+    role: person.role,
+    photoMediaId: person.photoMediaId,
+    active: person.active,
+    createdAt: person.createdAt.toISOString(),
+    updatedAt: person.updatedAt.toISOString(),
+  };
+}
+
+function toSeriesDto(series: SermonSeries): SermonSeriesDto {
+  return {
+    id: series.id,
+    name: series.name,
+    slug: series.slug,
+    startDate: series.startDate ? series.startDate.toISOString() : null,
+    endDate: series.endDate ? series.endDate.toISOString() : null,
+    coverMediaId: series.coverMediaId,
+    createdAt: series.createdAt.toISOString(),
+    updatedAt: series.updatedAt.toISOString(),
+  };
+}
+
+function toTopicDto(topic: Topic): TopicDto {
+  return {
+    id: topic.id,
+    name: topic.name,
+    slug: topic.slug,
+    createdAt: topic.createdAt.toISOString(),
+    updatedAt: topic.updatedAt.toISOString(),
+  };
+}
+
+function toSeoDto(seo: SeoMetadata | null): SermonSeoDto | null {
+  if (!seo) return null;
+  return {
+    title: seo.title,
+    description: seo.description,
+    canonicalUrl: seo.canonicalUrl,
+    ogImageUrl: seo.ogImageUrl,
+  };
+}
+
+/** Load the SEO row for a sermon (polymorphic, so not a Prisma relation). */
+function loadSeo(entityId: string): Promise<SeoMetadata | null> {
+  return prisma.seoMetadata.findUnique({
+    where: {
+      entityType_entityId: { entityType: SEO_ENTITY_TYPE, entityId },
+    },
+  });
+}
+
+/** Batch-load SEO rows for a page of sermons (avoids an N+1 query). */
+async function loadSeoMap(ids: string[]): Promise<Map<string, SeoMetadata>> {
+  if (ids.length === 0) return new Map();
+  const rows = await prisma.seoMetadata.findMany({
+    where: { entityType: SEO_ENTITY_TYPE, entityId: { in: ids } },
+  });
+  return new Map(rows.map((row) => [row.entityId, row]));
+}
+
+function toSermonDto(
+  sermon: SermonWithRelations,
+  seo: SeoMetadata | null,
+): SermonAdminDto {
   return {
     id: sermon.id,
     slug: sermon.slug,
@@ -186,6 +315,21 @@ function toSermonDto(sermon: Sermon): SermonAdminDto {
     scriptureText: sermon.scriptureText,
     preacherName: sermon.preacherName,
     sermonDate: sermon.sermonDate ? sermon.sermonDate.toISOString() : null,
+    preacherId: sermon.preacherId,
+    preacher: sermon.preacher ? toPersonDto(sermon.preacher) : null,
+    seriesId: sermon.seriesId,
+    series: sermon.series ? toSeriesDto(sermon.series) : null,
+    topics: sermon.topics.map((link) => toTopicDto(link.topic)),
+    coverMediaId: sermon.coverMediaId,
+    notesMediaId: sermon.notesMediaId,
+    videoProvider: sermon.videoProvider,
+    videoExternalId: sermon.videoExternalId,
+    videoUrl: sermon.videoUrl,
+    audioUrl: sermon.audioUrl,
+    notesContent: sermon.notesContent,
+    durationMinutes: sermon.durationMinutes,
+    featured: sermon.featured,
+    seo: toSeoDto(seo),
     status: sermon.status,
     version: sermon.version,
     publishedAt: sermon.publishedAt ? sermon.publishedAt.toISOString() : null,
@@ -241,6 +385,26 @@ function optionalDate(value: unknown, field: string): Date | null {
   return date;
 }
 
+/** A non-negative integer, or null. */
+function optionalInt(value: unknown, field: string): number | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw validation(`"${field}" must be a non-negative integer or null.`, {
+      field,
+    });
+  }
+  return value;
+}
+
+/** A boolean, or null when omitted. */
+function optionalBool(value: unknown, field: string): boolean | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'boolean') {
+    throw validation(`"${field}" must be a boolean or null.`, { field });
+  }
+  return value;
+}
+
 /** Scalar content columns shared by create and update. */
 interface SermonContentData {
   title?: string;
@@ -249,6 +413,17 @@ interface SermonContentData {
   scriptureText?: string | null;
   preacherName?: string | null;
   sermonDate?: Date | null;
+  preacherId?: string | null;
+  seriesId?: string | null;
+  coverMediaId?: string | null;
+  notesMediaId?: string | null;
+  videoProvider?: string | null;
+  videoExternalId?: string | null;
+  videoUrl?: string | null;
+  audioUrl?: string | null;
+  notesContent?: string | null;
+  durationMinutes?: number | null;
+  featured?: boolean;
 }
 
 /** Build the content columns from any provided editorial fields. */
@@ -259,6 +434,17 @@ function contentData(input: {
   scriptureText?: unknown;
   preacherName?: unknown;
   sermonDate?: unknown;
+  preacherId?: unknown;
+  seriesId?: unknown;
+  coverMediaId?: unknown;
+  notesMediaId?: unknown;
+  videoProvider?: unknown;
+  videoExternalId?: unknown;
+  videoUrl?: unknown;
+  audioUrl?: unknown;
+  notesContent?: unknown;
+  durationMinutes?: unknown;
+  featured?: unknown;
   slug?: unknown;
 }): SermonContentData {
   const data: SermonContentData = {};
@@ -281,12 +467,277 @@ function contentData(input: {
   if (input.sermonDate !== undefined) {
     data.sermonDate = optionalDate(input.sermonDate, 'sermonDate');
   }
+  if (input.preacherId !== undefined) {
+    data.preacherId = optionalString(input.preacherId, 'preacherId');
+  }
+  if (input.seriesId !== undefined) {
+    data.seriesId = optionalString(input.seriesId, 'seriesId');
+  }
+  if (input.coverMediaId !== undefined) {
+    data.coverMediaId = optionalString(input.coverMediaId, 'coverMediaId');
+  }
+  if (input.notesMediaId !== undefined) {
+    data.notesMediaId = optionalString(input.notesMediaId, 'notesMediaId');
+  }
+  if (input.videoProvider !== undefined) {
+    data.videoProvider = optionalString(input.videoProvider, 'videoProvider');
+  }
+  if (input.videoExternalId !== undefined) {
+    data.videoExternalId = optionalString(
+      input.videoExternalId,
+      'videoExternalId',
+    );
+  }
+  if (input.videoUrl !== undefined) {
+    data.videoUrl = optionalString(input.videoUrl, 'videoUrl');
+  }
+  if (input.audioUrl !== undefined) {
+    data.audioUrl = optionalString(input.audioUrl, 'audioUrl');
+  }
+  if (input.notesContent !== undefined) {
+    data.notesContent = optionalString(input.notesContent, 'notesContent');
+  }
+  if (input.durationMinutes !== undefined) {
+    data.durationMinutes = optionalInt(input.durationMinutes, 'durationMinutes');
+  }
+  if (input.featured !== undefined) {
+    const featured = optionalBool(input.featured, 'featured');
+    if (featured === null) {
+      throw validation('"featured" must be a boolean.', { field: 'featured' });
+    }
+    data.featured = featured;
+  }
   if (input.slug !== undefined) {
     if (typeof input.slug !== 'string') {
       throw validation('"slug" must be a string.', { field: 'slug' });
     }
   }
   return data;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5A — reference validation + relation synchronisation
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate every FK a create/update provides. A missing reference is a 400
+ * (never a raw FK 500), and validation happens before any write so a rejected
+ * payload leaves stored data untouched.
+ */
+async function validateReferences(input: {
+  preacherId?: unknown;
+  seriesId?: unknown;
+  topicIds?: unknown;
+  coverMediaId?: unknown;
+  notesMediaId?: unknown;
+}): Promise<void> {
+  if (typeof input.preacherId === 'string') {
+    await assertPersonExists(input.preacherId, 'preacherId');
+  }
+  if (typeof input.seriesId === 'string') {
+    await assertSeriesExists(input.seriesId, 'seriesId');
+  }
+  if (input.topicIds !== undefined) {
+    const ids = normalizeTopicIds(input.topicIds);
+    if (ids.length > 0) {
+      const found = await prisma.topic.findMany({
+        where: { id: { in: ids } },
+        select: { id: true },
+      });
+      if (found.length !== ids.length) {
+        throw validation('One or more topics do not exist.', { field: 'topicIds' });
+      }
+    }
+  }
+  if (typeof input.coverMediaId === 'string') {
+    await assertMediaExists(input.coverMediaId, 'coverMediaId');
+  }
+  if (typeof input.notesMediaId === 'string') {
+    await assertMediaExists(input.notesMediaId, 'notesMediaId');
+  }
+}
+
+async function assertPersonExists(id: string, field: string): Promise<void> {
+  const found = await prisma.person.findUnique({ where: { id }, select: { id: true } });
+  if (!found) throw validation('The referenced preacher does not exist.', { field });
+}
+
+async function assertSeriesExists(id: string, field: string): Promise<void> {
+  const found = await prisma.sermonSeries.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!found) throw validation('The referenced series does not exist.', { field });
+}
+
+async function assertMediaExists(id: string, field: string): Promise<void> {
+  const found = await prisma.mediaAsset.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!found) throw validation('The referenced media asset does not exist.', {
+    field,
+  });
+}
+
+/** Parse a topic-id list: strings only, de-duplicated, order preserved. */
+function normalizeTopicIds(value: unknown): string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) {
+    throw validation('"topicIds" must be an array of topic ids.', {
+      field: 'topicIds',
+    });
+  }
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== 'string' || entry.trim().length === 0) {
+      throw validation('"topicIds" must contain non-empty strings.', {
+        field: 'topicIds',
+      });
+    }
+    if (!seen.has(entry)) {
+      seen.add(entry);
+      ids.push(entry);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Keep the cover `MediaReference` in sync with `Sermon.coverMediaId`. The
+ * relation is rewritten only when the cover actually changed, and a cleared
+ * cover removes every `cover`-purpose row for the sermon.
+ */
+async function syncCoverReference(
+  tx: Tx,
+  sermonId: string,
+  previousId: string | null,
+  nextId: string | null | undefined,
+): Promise<void> {
+  if (nextId === undefined || nextId === previousId) return;
+  await tx.mediaReference.deleteMany({
+    where: {
+      entityType: COVER_ENTITY_TYPE,
+      entityId: sermonId,
+      purpose: COVER_PURPOSE,
+    },
+  });
+  if (nextId) {
+    await tx.mediaReference.create({
+      data: {
+        mediaAssetId: nextId,
+        entityType: COVER_ENTITY_TYPE,
+        entityId: sermonId,
+        purpose: COVER_PURPOSE,
+      },
+    });
+  }
+}
+
+/** Validate an optional http(s) URL used by SEO fields. */
+function seoUrl(value: unknown, field: string): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string' || !/^https?:\/\//i.test(value)) {
+    throw validation(`"${field}" must be an http(s) URL or null.`, { field });
+  }
+  return value;
+}
+
+/** Validate an optional SEO text field. */
+function seoText(value: unknown, field: string): string | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'string') {
+    throw validation(`"${field}" must be a string or null.`, { field });
+  }
+  return value;
+}
+
+/** The only keys `SermonSeoInput` accepts (docs/05 §26, `@shared/cms`). */
+const SEO_INPUT_KEYS = new Set(['title', 'description', 'canonicalUrl', 'ogImageUrl']);
+
+/**
+ * Validate the untrusted `seo` field of a create/update body against the
+ * `SermonSeoInput` contract (docs/05 §26). An omitted (or explicit `null`)
+ * field is a no-op — the shared DTO allows `SermonSeoInput | null` — but a
+ * *provided* non-null field must be a plain object carrying only the supported
+ * keys with the right scalar types. A string or array is a 400, not a silently
+ * ignored value (the previous behaviour persisted nothing and hid the client's
+ * mistake). Validation happens before any write, so a rejected payload leaves
+ * stored data and counters untouched.
+ */
+function parseSeoInput(value: unknown): SermonSeoInput | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw validation('"seo" must be an object.', { field: 'seo' });
+  }
+  const input = value as Record<string, unknown>;
+  for (const key of Object.keys(input)) {
+    if (!SEO_INPUT_KEYS.has(key)) {
+      throw validation(`"seo.${key}" is not a supported SEO field.`, {
+        field: `seo.${key}`,
+      });
+    }
+  }
+  const parsed: SermonSeoInput = {};
+  if ('title' in input) parsed.title = seoText(input.title, 'seo.title');
+  if ('description' in input) {
+    parsed.description = seoText(input.description, 'seo.description');
+  }
+  if ('canonicalUrl' in input) {
+    parsed.canonicalUrl = seoUrl(input.canonicalUrl, 'seo.canonicalUrl');
+  }
+  if ('ogImageUrl' in input) {
+    parsed.ogImageUrl = seoUrl(input.ogImageUrl, 'seo.ogImageUrl');
+  }
+  return parsed;
+}
+
+/**
+ * Upsert a sermon's `SeoMetadata` from the already-validated SEO fields.
+ * Unspecified keys keep their stored value. A no-op when `seo` was omitted.
+ */
+async function upsertSeo(
+  tx: Tx,
+  sermonId: string,
+  seo: SermonSeoInput | undefined,
+): Promise<void> {
+  if (seo === undefined) return;
+  const input = seo as Record<string, unknown>;
+  const update: Prisma.SeoMetadataUncheckedUpdateInput = {};
+  const create: Prisma.SeoMetadataUncheckedCreateInput = {
+    entityType: SEO_ENTITY_TYPE,
+    entityId: sermonId,
+  };
+  if ('title' in input) {
+    const title = seoText(input.title, 'seo.title');
+    update.title = title;
+    create.title = title;
+  }
+  if ('description' in input) {
+    const description = seoText(input.description, 'seo.description');
+    update.description = description;
+    create.description = description;
+  }
+  if ('canonicalUrl' in input) {
+    const canonicalUrl = seoUrl(input.canonicalUrl, 'seo.canonicalUrl');
+    update.canonicalUrl = canonicalUrl;
+    create.canonicalUrl = canonicalUrl;
+  }
+  if ('ogImageUrl' in input) {
+    const ogImageUrl = seoUrl(input.ogImageUrl, 'seo.ogImageUrl');
+    update.ogImageUrl = ogImageUrl;
+    create.ogImageUrl = ogImageUrl;
+  }
+  if (Object.keys(update).length === 0) return;
+
+  await tx.seoMetadata.upsert({
+    where: {
+      entityType_entityId: { entityType: SEO_ENTITY_TYPE, entityId: sermonId },
+    },
+    update,
+    create,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -301,8 +752,11 @@ const LIST_SORT_FIELDS = [
   'title',
 ] as const;
 
-async function findSermonOrThrow(id: string): Promise<Sermon> {
-  const sermon = await prisma.sermon.findUnique({ where: { id } });
+async function findSermonOrThrow(id: string): Promise<SermonWithRelations> {
+  const sermon = await prisma.sermon.findUnique({
+    where: { id },
+    include: sermonInclude,
+  });
   if (!sermon) throw notFound('Sermon not found.');
   return sermon;
 }
@@ -321,7 +775,18 @@ export async function listSermons(
   }
   if (query.author) where.createdById = query.author;
   if (query.preacher) {
-    where.preacherName = { contains: query.preacher, mode: 'insensitive' };
+    // Mirror the public archive: the term matches the legacy denormalized name,
+    // the related `Person.displayName`, or the preacher id itself, so a sermon
+    // linked through `preacherId` is found even when `preacherName` is unset.
+    where.OR = [
+      { preacherName: { contains: query.preacher, mode: 'insensitive' } },
+      {
+        preacher: {
+          is: { displayName: { contains: query.preacher, mode: 'insensitive' } },
+        },
+      },
+      { preacherId: query.preacher },
+    ];
   }
   const publishedRange = dateRange(query.publishedFrom, query.publishedTo);
   if (publishedRange) where.publishedAt = publishedRange;
@@ -342,11 +807,14 @@ export async function listSermons(
       orderBy,
       skip: paginationOffset(page, limit),
       take: limit,
+      include: sermonInclude,
     }),
   ]);
 
+  const seoByEntity = await loadSeoMap(rows.map((row) => row.id));
+
   return {
-    data: rows.map(toSermonDto),
+    data: rows.map((row) => toSermonDto(row, seoByEntity.get(row.id) ?? null)),
     meta: { page, limit, total, totalPages: totalPages(total, limit) },
   };
 }
@@ -369,8 +837,10 @@ function dateRange(
   return range.gte === undefined && range.lte === undefined ? undefined : range;
 }
 
-export function getSermon(id: string): Promise<SermonAdminDto> {
-  return findSermonOrThrow(id).then(toSermonDto);
+export async function getSermon(id: string): Promise<SermonAdminDto> {
+  const sermon = await findSermonOrThrow(id);
+  const seo = await loadSeo(id);
+  return toSermonDto(sermon, seo);
 }
 
 export async function createSermon(
@@ -383,19 +853,38 @@ export async function createSermon(
       ? await generateUniqueSlug(title, slugTakenProbe)
       : await requireAvailableSlug(input.slug, slugTakenProbe);
 
-  const data = contentData(input);
-  let created: Sermon;
+  const content = contentData(input);
+  const topicIds = normalizeTopicIds(input.topicIds);
+  // Validate the whole payload (including `seo`) before touching the database,
+  // so a rejected payload leaves no partial row behind (docs/08 §30).
+  const seoInput = parseSeoInput(input.seo);
+  await validateReferences(input);
+
+  let createdId: string;
   try {
-    created = await prisma.sermon.create({
-      data: {
-        ...data,
-        title,
-        slug,
-        status: 'draft',
-        version: 1,
-        createdById: actorId,
-        updatedById: actorId,
-      },
+    createdId = await prisma.$transaction(async (tx) => {
+      const created = await tx.sermon.create({
+        data: {
+          ...content,
+          title,
+          slug,
+          status: 'draft',
+          version: 1,
+          createdById: actorId,
+          updatedById: actorId,
+        },
+      });
+
+      if (topicIds.length > 0) {
+        await tx.sermonTopic.createMany({
+          data: topicIds.map((topicId) => ({ sermonId: created.id, topicId })),
+        });
+      }
+      if (content.coverMediaId) {
+        await syncCoverReference(tx, created.id, null, content.coverMediaId);
+      }
+      await upsertSeo(tx, created.id, seoInput);
+      return created.id;
     });
   } catch (error) {
     // The slug probe and the INSERT are not atomic: a concurrent create can
@@ -404,6 +893,9 @@ export async function createSermon(
     if (isSlugUniqueViolation(error)) throw slugTaken(slug);
     throw error;
   }
+
+  const created = await findSermonOrThrow(createdId);
+  const seo = await loadSeo(createdId);
   await recordAudit({
     actorId,
     action: 'sermon.created',
@@ -411,7 +903,7 @@ export async function createSermon(
     entityId: created.id,
     metadata: { slug: created.slug, status: created.status },
   });
-  return toSermonDto(created);
+  return toSermonDto(created, seo);
 }
 
 export async function updateSermon(
@@ -423,22 +915,52 @@ export async function updateSermon(
   // Throws 409 CONFLICT on a stale version, 400 on a missing/invalid one.
   const nextVersion = assertVersionMatches(current.version, input.version);
 
-  const data: Prisma.SermonUncheckedUpdateInput = contentData(input);
+  const content = contentData(input);
+  // Validate `seo` before any write: a malformed value is a 400, never a
+  // silently ignored field (docs/08 §30).
+  const seoInput = parseSeoInput(input.seo);
+  await validateReferences(input);
+  const topicIds =
+    input.topicIds === undefined ? undefined : normalizeTopicIds(input.topicIds);
+
+  const data: Prisma.SermonUncheckedUpdateInput = {
+    ...content,
+    version: nextVersion,
+    updatedById: actorId,
+  };
   let nextSlug: string | undefined;
   if (input.slug !== undefined && input.slug !== null) {
     nextSlug = await requireAvailableSlug(input.slug, slugTakenProbe, id);
     data.slug = nextSlug;
   }
-  data.version = nextVersion;
-  data.updatedById = actorId;
 
   // Atomic guard: only the row still at `input.version` is updated. A racing
   // writer turns this into a 409 rather than a silent overwrite (docs/08 §38).
-  let result: { count: number };
+  // The related rows (topics, cover reference, SEO) are written in the same
+  // transaction so a failure never leaves them out of sync with the sermon.
   try {
-    result = await prisma.sermon.updateMany({
-      where: { id, version: input.version },
-      data,
+    await prisma.$transaction(async (tx) => {
+      const result = await tx.sermon.updateMany({
+        where: { id, version: input.version },
+        data,
+      });
+      if (result.count === 0) {
+        throw conflict(
+          'The content was modified by someone else. Reload and try again.',
+          { expected: current.version, provided: input.version },
+        );
+      }
+
+      if (topicIds !== undefined) {
+        await tx.sermonTopic.deleteMany({ where: { sermonId: id } });
+        if (topicIds.length > 0) {
+          await tx.sermonTopic.createMany({
+            data: topicIds.map((topicId) => ({ sermonId: id, topicId })),
+          });
+        }
+      }
+      await syncCoverReference(tx, id, current.coverMediaId, content.coverMediaId);
+      await upsertSeo(tx, id, seoInput);
     });
   } catch (error) {
     // Same non-atomic probe/write race as create, but for a slug change: map
@@ -448,14 +970,9 @@ export async function updateSermon(
     }
     throw error;
   }
-  if (result.count === 0) {
-    throw conflict(
-      'The content was modified by someone else. Reload and try again.',
-      { expected: current.version, provided: input.version },
-    );
-  }
 
   const updated = await findSermonOrThrow(id);
+  const seo = await loadSeo(id);
   await recordAudit({
     actorId,
     action: 'sermon.updated',
@@ -463,15 +980,15 @@ export async function updateSermon(
     entityId: id,
     metadata: { version: updated.version },
   });
-  return toSermonDto(updated);
+  return toSermonDto(updated, seo);
 }
 
 export async function publishSermon(
   id: string,
   actorId: string | null,
 ): Promise<SermonAdminDto> {
-  const result = await publication.publish(id, actorId);
-  return toSermonDto(result.entity);
+  await publication.publish(id, actorId);
+  return getSermon(id);
 }
 
 export async function scheduleSermon(
@@ -479,16 +996,16 @@ export async function scheduleSermon(
   publishAt: unknown,
   actorId: string | null,
 ): Promise<SermonAdminDto> {
-  const result = await publication.schedule(id, publishAt, actorId);
-  return toSermonDto(result.entity);
+  await publication.schedule(id, publishAt, actorId);
+  return getSermon(id);
 }
 
 export async function archiveSermon(
   id: string,
   actorId: string | null,
 ): Promise<SermonAdminDto> {
-  const result = await publication.archive(id, actorId);
-  return toSermonDto(result.entity);
+  await publication.archive(id, actorId);
+  return getSermon(id);
 }
 
 export async function previewSermon(id: string): Promise<SermonAdminDto> {
@@ -524,18 +1041,29 @@ export async function restoreSermonRevision(
     createdById: actorId,
     async applySnapshot(snapshot) {
       const currentRow = await findSermonOrThrow(id);
-      const updated = await prisma.sermon.update({
-        where: { id },
-        data: {
-          ...snapshotToData(snapshot),
-          version: currentRow.version + 1,
-          updatedById: actorId,
-        },
+      const restoredCover =
+        isSermonSnapshot(snapshot) && snapshot.coverMediaId !== undefined
+          ? snapshot.coverMediaId
+          : undefined;
+      const updated = await prisma.$transaction(async (tx) => {
+        const row = await tx.sermon.update({
+          where: { id },
+          data: {
+            ...snapshotToData(snapshot),
+            version: currentRow.version + 1,
+            updatedById: actorId,
+          },
+        });
+        // A restored cover must keep the reference-aware delete in sync with
+        // the live `coverMediaId` (docs/12 §20).
+        await syncCoverReference(tx, id, currentRow.coverMediaId, restoredCover);
+        return row;
       });
       return { version: updated.version, title: updated.title };
     },
   });
   const restored = await findSermonOrThrow(id);
+  const seo = await loadSeo(id);
   await recordAudit({
     actorId,
     action: 'sermon.restored',
@@ -543,7 +1071,7 @@ export async function restoreSermonRevision(
     entityId: id,
     metadata: { revisionId, version: restored.version },
   });
-  return toSermonDto(restored);
+  return toSermonDto(restored, seo);
 }
 
 /** Promote scheduled sermons whose `publishAt` has passed (scheduling foundation). */

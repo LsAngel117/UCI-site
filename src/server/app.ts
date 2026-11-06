@@ -12,7 +12,9 @@ import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type { ApiErrorEnvelope, HealthResponse } from '@shared/api';
 import { registerAuthRoutes } from './auth/routes';
+import { registerPublicSermonRoutes } from './cms/sermons/public-routes';
 import { registerSermonRoutes } from './cms/sermons/routes';
+import { registerTaxonomyRoutes } from './cms/taxonomy/routes';
 import { loadConfig, type ServerConfig } from './config';
 import { loggerOptions } from './logger';
 import { prisma } from './db';
@@ -147,6 +149,19 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   // Every route is protected by `requireAuth` + `requirePermission` inside.
   app.register(async (instance) => {
     registerSermonRoutes(instance, config);
+  });
+
+  // Public sermons API (Phase 5B). No authentication, no editorial actions:
+  // only published content is visible, enforced inside the service.
+  app.register(async (instance) => {
+    registerPublicSermonRoutes(instance, config, mediaStorage);
+  });
+
+  // Admin sermon taxonomy API (Phase 5A): people / series / topics pickers.
+  // Protected by the `sermons.*` permissions (docs/11 §9 has no separate
+  // vocabulary for this taxonomy; see `cms/taxonomy/service.ts`).
+  app.register(async (instance) => {
+    registerTaxonomyRoutes(instance, config);
   });
 
   // Admin media API (Phase 4). Multipart is registered in the same plugin

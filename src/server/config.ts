@@ -57,6 +57,8 @@ export interface ServerConfig {
   nodeEnv: NodeEnv;
   host: string;
   port: number;
+  /** Canonical public origin used to build absolute SEO URLs (docs/10 §6.2). */
+  siteUrl: string;
   session: SessionConfig;
   cookie: CookieConfig;
   media: MediaConfig;
@@ -64,6 +66,13 @@ export interface ServerConfig {
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8787;
+
+/**
+ * Non-production placeholder mirrored from `astro.config.mjs`. A deploy that
+ * forgets `SITE_URL` publishes placeholder canonical URLs; `BaseLayout` warns
+ * about the same value, so both runtimes fail visibly instead of silently.
+ */
+const DEFAULT_SITE_URL = 'https://uci.example.org';
 
 /** 10 MB default upload ceiling (feature doc Phase 4 decision). */
 const DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -92,6 +101,29 @@ function readPort(raw: string | undefined): number {
     );
   }
   return port;
+}
+
+/**
+ * Read and validate the public origin. Only an absolute http(s) URL is
+ * accepted; the trailing slash is removed so callers can append paths without
+ * producing `//` (docs/10 §6.2).
+ */
+function readSiteUrl(raw: string | undefined): string {
+  const value = raw?.trim() || DEFAULT_SITE_URL;
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(
+      `Invalid SITE_URL value "${value}". Expected an absolute http(s) URL.`,
+    );
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(
+      `Invalid SITE_URL value "${value}". Expected an absolute http(s) URL.`,
+    );
+  }
+  return value.replace(/\/+$/, '');
 }
 
 /**
@@ -151,6 +183,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     nodeEnv,
     host: env.HOST ?? DEFAULT_HOST,
     port: readPort(env.PORT),
+    siteUrl: readSiteUrl(env.SITE_URL),
     session: {
       cookieName: SESSION_COOKIE_NAME,
       absoluteTtlMs: readTtlMs(

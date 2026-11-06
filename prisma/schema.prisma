@@ -198,13 +198,26 @@ model Sermon {
   id                 String        @id @default(uuid())
   slug               String        @unique
   title              String
-  // --- Minimal editorial fields (Phase 3). Media/SEO/YouTube land in later
-  //     phases; only the fields the editorial workflow needs are here. ---
   description        String?
   scriptureReference String?       @map("scripture_reference")
   scriptureText      String?       @map("scripture_text")
+  /// Denormalized display name kept for legacy/imported sermons that have no
+  /// `Person` row yet. New sermons should reference `preacherId` (docs/05 §8).
   preacherName       String?       @map("preacher_name")
   sermonDate         DateTime?     @map("sermon_date")
+  // --- Sermon domain (Phase 5A, docs/05 §8–10). External video/audio are
+  //     references only; binaries never live in PostgreSQL (docs/12 §38). ---
+  preacherId         String?       @map("preacher_id")
+  seriesId           String?       @map("series_id")
+  coverMediaId       String?       @map("cover_media_id")
+  videoProvider      String?       @map("video_provider")
+  videoExternalId    String?       @map("video_external_id")
+  videoUrl           String?       @map("video_url")
+  audioUrl           String?       @map("audio_url")
+  notesMediaId       String?       @map("notes_media_id")
+  notesContent       String?       @map("notes_content")
+  durationMinutes    Int?          @map("duration_minutes")
+  featured           Boolean       @default(false)
   status             ContentStatus @default(draft)
   /// Optimistic-concurrency counter (docs/08 §38). A PATCH must present the
   /// version it read; a mismatch is a 409 CONFLICT and a match increments it.
@@ -221,12 +234,89 @@ model Sermon {
 
   createdBy User?            @relation("SermonCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy User?            @relation("SermonUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  preacher  Person?          @relation(fields: [preacherId], references: [id], onDelete: SetNull)
+  series    SermonSeries?    @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  cover     MediaAsset?      @relation("SermonCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  notes     MediaAsset?      @relation("SermonNotes", fields: [notesMediaId], references: [id], onDelete: SetNull)
+  topics    SermonTopic[]
   revisions SermonRevision[]
 
   @@index([status, publishedAt])
   @@index([status, publishAt])
   @@index([createdById])
+  @@index([preacherId])
+  @@index([seriesId])
+  @@index([coverMediaId])
+  @@index([notesMediaId])
+  @@index([featured, publishedAt])
   @@map("sermons")
+}
+
+/// A person referenced by content (sermon preacher today; reusable later).
+/// Deleting the photo asset only clears the reference — the person survives
+/// (SetNull), and the person itself is never deleted by a sermon edit.
+model Person {
+  id           String   @id @default(uuid())
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  displayName  String   @map("display_name")
+  role         String?
+  photoMediaId String?  @map("photo_media_id")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  photo   MediaAsset? @relation("PersonPhoto", fields: [photoMediaId], references: [id], onDelete: SetNull)
+  sermons Sermon[]
+
+  @@index([active, displayName])
+  @@index([photoMediaId])
+  @@map("people")
+}
+
+/// A series groups related sermons (docs/05 §9). Deleting a series never
+/// deletes its sermons: the FK is SetNull, so they simply become standalone.
+model SermonSeries {
+  id           String    @id @default(uuid())
+  name         String
+  slug         String    @unique
+  startDate    DateTime? @map("start_date")
+  endDate      DateTime? @map("end_date")
+  coverMediaId String?   @map("cover_media_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  cover   MediaAsset? @relation("SeriesCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  sermons Sermon[]
+
+  @@index([coverMediaId])
+  @@map("sermon_series")
+}
+
+/// Cross-cutting classification for sermons (docs/05 §10).
+model Topic {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  sermons SermonTopic[]
+
+  @@map("topics")
+}
+
+/// Join table for Sermon <-> Topic (many-to-many, docs/05 §10).
+model SermonTopic {
+  sermonId String @map("sermon_id")
+  topicId  String @map("topic_id")
+
+  sermon Sermon @relation(fields: [sermonId], references: [id], onDelete: Cascade)
+  topic  Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([sermonId, topicId])
+  @@index([topicId])
+  @@map("sermon_topics")
 }
 
 /// Immutable snapshot of a sermon at a point in time (docs/08 §11.9, §32).
@@ -345,9 +435,16 @@ model MediaAsset {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  createdBy  User?            @relation("MediaAssetCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  references MediaReference[]
-  variants   MediaVariant[]
+  createdBy    User?            @relation("MediaAssetCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  references   MediaReference[]
+  variants     MediaVariant[]
+  // Content relations (Phase 5A). SetNull on the asset means deleting a media
+  // asset never deletes content; the reference-aware delete in Phase 4 still
+  // blocks it while a `MediaReference` row exists.
+  sermonCovers Sermon[]         @relation("SermonCover")
+  sermonNotes  Sermon[]         @relation("SermonNotes")
+  seriesCovers SermonSeries[]   @relation("SeriesCover")
+  personPhotos Person[]         @relation("PersonPhoto")
 
   @@index([createdById])
   @@index([type, createdAt])

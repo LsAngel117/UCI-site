@@ -72,6 +72,10 @@ export interface ScheduleInput {
  * `Revision.snapshot` so a revision can be restored without reconstructing it
  * from the live row. Serialized to JSON in storage, so all values are
  * primitives (dates as ISO strings).
+ *
+ * The Phase 5A domain fields are optional so revisions stored before the
+ * sermon domain landed (which only carried the Phase 3 keys) remain valid and
+ * restorable: a key that is absent is left untouched on restore.
  */
 export interface SermonSnapshot {
   title: string;
@@ -82,6 +86,17 @@ export interface SermonSnapshot {
   preacherName: string | null;
   /** ISO-8601 date string, or null. */
   sermonDate: string | null;
+  preacherId?: string | null;
+  seriesId?: string | null;
+  coverMediaId?: string | null;
+  notesMediaId?: string | null;
+  videoProvider?: string | null;
+  videoExternalId?: string | null;
+  videoUrl?: string | null;
+  audioUrl?: string | null;
+  notesContent?: string | null;
+  durationMinutes?: number | null;
+  featured?: boolean;
 }
 
 /** Generic revision summary returned by the revisions endpoints. */
@@ -106,6 +121,113 @@ export interface SermonRevisionDto extends RevisionDto {
 // Admin content DTOs (docs/08 §11.3–11.9)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Sermon domain contracts (Phase 5A, docs/05 §8–10)
+//
+// Person / SermonSeries / Topic are sermon-owned taxonomy. They are exposed as
+// plain DTOs (no Prisma types) so the admin UI and the API share one shape.
+// ---------------------------------------------------------------------------
+
+/** A person referenced by content (a preacher today; reusable later). */
+export interface PersonDto {
+  id: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  role: string | null;
+  /** Media asset id used as the person's photo; null when unset. */
+  photoMediaId: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePersonInput {
+  firstName: string;
+  lastName: string;
+  /** Defaults to `"firstName lastName"` when omitted. */
+  displayName?: string;
+  role?: string | null;
+  photoMediaId?: string | null;
+  active?: boolean;
+}
+
+export interface UpdatePersonInput {
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  role?: string | null;
+  photoMediaId?: string | null;
+  active?: boolean;
+}
+
+/** A series grouping related sermons (docs/05 §9). */
+export interface SermonSeriesDto {
+  id: string;
+  name: string;
+  slug: string;
+  /** ISO-8601 date string, or null. */
+  startDate: string | null;
+  /** ISO-8601 date string, or null. */
+  endDate: string | null;
+  coverMediaId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSermonSeriesInput {
+  name: string;
+  /** Auto-generated from the name when omitted. */
+  slug?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  coverMediaId?: string | null;
+}
+
+export interface UpdateSermonSeriesInput {
+  name?: string;
+  slug?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  coverMediaId?: string | null;
+}
+
+/** Cross-cutting classification for sermons (docs/05 §10). */
+export interface TopicDto {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTopicInput {
+  name: string;
+  /** Auto-generated from the name when omitted. */
+  slug?: string;
+}
+
+export interface UpdateTopicInput {
+  name?: string;
+  slug?: string;
+}
+
+/** SEO metadata for a sermon (`SeoMetadata`, entityType `sermon`). */
+export interface SermonSeoDto {
+  title: string | null;
+  description: string | null;
+  canonicalUrl: string | null;
+  ogImageUrl: string | null;
+}
+
+/** SEO input on create/update. Unspecified keys keep their stored value. */
+export interface SermonSeoInput {
+  title?: string | null;
+  description?: string | null;
+  canonicalUrl?: string | null;
+  ogImageUrl?: string | null;
+}
+
 /** Full admin representation of a sermon. */
 export interface SermonAdminDto {
   id: string;
@@ -114,9 +236,25 @@ export interface SermonAdminDto {
   description: string | null;
   scriptureReference: string | null;
   scriptureText: string | null;
+  /** Legacy denormalized preacher name (kept when no `Person` is linked). */
   preacherName: string | null;
   /** ISO-8601 date string, or null. */
   sermonDate: string | null;
+  preacherId: string | null;
+  preacher: PersonDto | null;
+  seriesId: string | null;
+  series: SermonSeriesDto | null;
+  topics: TopicDto[];
+  coverMediaId: string | null;
+  notesMediaId: string | null;
+  videoProvider: string | null;
+  videoExternalId: string | null;
+  videoUrl: string | null;
+  audioUrl: string | null;
+  notesContent: string | null;
+  durationMinutes: number | null;
+  featured: boolean;
+  seo: SermonSeoDto | null;
   status: ContentStatus;
   /** Optimistic-concurrency counter (docs/08 §38). */
   version: number;
@@ -142,12 +280,29 @@ export interface CreateSermonInput {
   scriptureText?: string | null;
   preacherName?: string | null;
   sermonDate?: string | null;
+  preacherId?: string | null;
+  seriesId?: string | null;
+  /** Replace-set of topic ids linked to the sermon. */
+  topicIds?: string[];
+  coverMediaId?: string | null;
+  notesMediaId?: string | null;
+  videoProvider?: string | null;
+  videoExternalId?: string | null;
+  videoUrl?: string | null;
+  audioUrl?: string | null;
+  notesContent?: string | null;
+  durationMinutes?: number | null;
+  featured?: boolean;
+  seo?: SermonSeoInput | null;
 }
 
 /**
  * Update-sermon body. `version` is REQUIRED: it is the optimistic-concurrency
  * guard, and a mismatch is a 409 CONFLICT (docs/08 §38). `status` is absent by
  * design — a PATCH never changes lifecycle state (docs/08 §22).
+ *
+ * `topicIds`, when present, replaces the whole topic set; omitting it leaves the
+ * existing topics untouched.
  */
 export interface UpdateSermonInput {
   version: number;
@@ -158,7 +313,139 @@ export interface UpdateSermonInput {
   scriptureText?: string | null;
   preacherName?: string | null;
   sermonDate?: string | null;
+  preacherId?: string | null;
+  seriesId?: string | null;
+  topicIds?: string[];
+  coverMediaId?: string | null;
+  notesMediaId?: string | null;
+  videoProvider?: string | null;
+  videoExternalId?: string | null;
+  videoUrl?: string | null;
+  audioUrl?: string | null;
+  notesContent?: string | null;
+  durationMinutes?: number | null;
+  featured?: boolean;
+  seo?: SermonSeoInput | null;
 }
+
+// ---------------------------------------------------------------------------
+// Public sermon contracts (Phase 5B, docs/08 §11.1–11.2, docs/10 §5–6)
+//
+// The public API exposes only published sermons and only public data: internal
+// author/version/lifecycle columns are deliberately absent. IDs and slugs of
+// the public taxonomy are included so the frontend can link and build
+// structured data (docs/10 §12) without touching Prisma (docs/08 §48).
+// ---------------------------------------------------------------------------
+
+/** Sort allowlist for the public sermon archive (docs/08 §11.1, §26). */
+export const PUBLIC_SERMON_SORT_FIELDS = [
+  'sermonDate',
+  'title',
+  'publishedAt',
+] as const;
+
+export type PublicSermonSortField =
+  (typeof PUBLIC_SERMON_SORT_FIELDS)[number];
+
+/** Public preacher summary (never the full admin Person). */
+export interface PublicSermonPreacherDto {
+  id: string;
+  displayName: string;
+  role: string | null;
+  /** Resolved public photo URL, or null when unset. */
+  photoUrl: string | null;
+}
+
+/** Public series summary. */
+export interface PublicSermonSeriesDto {
+  id: string;
+  name: string;
+  slug: string;
+  /** Resolved public cover URL, or null when unset. */
+  coverImageUrl: string | null;
+}
+
+/** Public topic summary. */
+export interface PublicSermonTopicDto {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+/**
+ * External video reference. Shaped for a schema.org `VideoObject` on the
+ * frontend (Phase 9); the API only exposes the data, never the JSON-LD.
+ */
+export interface PublicSermonVideoDto {
+  provider: string;
+  externalId: string | null;
+  url: string | null;
+}
+
+/**
+ * Public SEO metadata (docs/10 §11). `title`/`description` fall back to the
+ * sermon's own content and `canonicalUrl` to the canonical public route when
+ * no explicit `SeoMetadata` row exists, so every public sermon always has a
+ * canonical URL (docs/10 §6.1–6.2).
+ */
+export interface PublicSermonSeoDto {
+  title: string;
+  description: string | null;
+  canonicalUrl: string;
+  ogImageUrl: string | null;
+}
+
+/** A sermon as exposed by the public API (list and related items). */
+export interface PublicSermonDto {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  scriptureReference: string | null;
+  scriptureText: string | null;
+  /** Legacy denormalized preacher name, kept when no Person is linked. */
+  preacherName: string | null;
+  preacher: PublicSermonPreacherDto | null;
+  /** ISO-8601 date string, or null. */
+  sermonDate: string | null;
+  series: PublicSermonSeriesDto | null;
+  topics: PublicSermonTopicDto[];
+  /** Resolved public cover URL, or null when unset. */
+  coverImageUrl: string | null;
+  coverImageAlt: string | null;
+  video: PublicSermonVideoDto | null;
+  audioUrl: string | null;
+  notesContent: string | null;
+  /** Resolved public URL of the downloadable notes asset, or null. */
+  notesUrl: string | null;
+  durationMinutes: number | null;
+  featured: boolean;
+  publishedAt: string | null;
+  updatedAt: string;
+  seo: PublicSermonSeoDto;
+}
+
+/** Public sermon detail: the list shape plus related sermons. */
+export interface PublicSermonDetailDto extends PublicSermonDto {
+  /** Published sermons in the same series or sharing at least one topic. */
+  related: PublicSermonDto[];
+}
+
+/** Filters accepted by the public sermon archive (docs/08 §11.1). */
+export interface PublicSermonListFilters {
+  /** Case-insensitive match on title, description or preacher. */
+  search?: string;
+  /** Case-insensitive match on the preacher name (or preacher id). */
+  preacher?: string;
+  /** Inclusive `sermonDate` lower bound (ISO date/datetime). */
+  from?: string;
+  /** Inclusive `sermonDate` upper bound (ISO date/datetime). */
+  to?: string;
+}
+
+/** Query shape of `GET /api/v1/sermons` (filters + pagination + sort). */
+export interface PublicSermonListQuery
+  extends PaginationParams, SortParams, PublicSermonListFilters {}
 
 /** Admin listing filters (`GET /api/v1/admin/sermons`, docs/08 §11.3). */
 export interface SermonListFilters {
@@ -176,6 +463,38 @@ export interface SermonListFilters {
 /** Query shape accepted by the admin sermon listing (filters + pagination + sort). */
 export interface SermonListQuery
   extends PaginationParams, SortParams, SermonListFilters {}
+
+// ---------------------------------------------------------------------------
+// Sermon taxonomy listing (Phase 5A, T5)
+// ---------------------------------------------------------------------------
+
+/** Filters for the admin people picker (`GET /api/v1/admin/people`). */
+export interface PersonListFilters {
+  /** Case-insensitive match on display/first/last name. */
+  search?: string;
+  active?: boolean;
+}
+
+export interface PersonListQuery
+  extends PaginationParams, SortParams, PersonListFilters {}
+
+/** Filters for the admin series picker (`GET /api/v1/admin/series`). */
+export interface SermonSeriesListFilters {
+  /** Case-insensitive match on name/slug. */
+  search?: string;
+}
+
+export interface SermonSeriesListQuery
+  extends PaginationParams, SortParams, SermonSeriesListFilters {}
+
+/** Filters for the admin topic picker (`GET /api/v1/admin/topics`). */
+export interface TopicListFilters {
+  /** Case-insensitive match on name/slug. */
+  search?: string;
+}
+
+export interface TopicListQuery
+  extends PaginationParams, SortParams, TopicListFilters {}
 
 // ---------------------------------------------------------------------------
 // ActionResult — paper trail attached to editorial mutations
