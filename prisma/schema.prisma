@@ -46,6 +46,16 @@ enum ContentStatus {
   @@map("content_status")
 }
 
+/// Stored media categories (Phase 4, docs/12 §3/§42). External video is NOT a
+/// value here: it has no local binary and is modeled as a shared value
+/// contract (`ExternalVideo` in `src/shared/media.ts`), not an asset row.
+enum MediaType {
+  IMAGE
+  DOCUMENT
+
+  @@map("media_type")
+}
+
 // ---------------------------------------------------------------------------
 // Identity & access (foundation only — auth logic is Phase 2).
 // ---------------------------------------------------------------------------
@@ -305,26 +315,70 @@ model Navigation {
   @@map("navigation")
 }
 
-/// Binary/media asset metadata. `url` points at object storage, never the DB
-/// (docs/07 §59, docs/08 §44).
+/// Binary/media asset metadata (Phase 4, docs/12 §9–11, docs/08 §15).
+///
+/// The binary is never stored here. `storageKey` is the stable reference used
+/// by every provider; `url` is a cached public URL and is re-derived from the
+/// storage adapter when a DTO is served, so replacing the provider never
+/// changes the domain model (docs/12 §5–6). The original user filename is
+/// metadata only — the storage key is always app-generated (docs/12 §22).
 model MediaAsset {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
+  type        MediaType @default(IMAGE)
   filename    String
-  mimeType    String   @map("mime_type")
+  mimeType    String    @map("mime_type")
   size        Int
+  /// Stable provider-independent storage reference (`{folder}/{YYYY}/{MM}/{uuid}.{ext}`).
+  storageKey  String    @unique @map("storage_key")
+  /// Storage provider that owns the binary, e.g. `filesystem`.
+  provider    String    @default("filesystem")
+  /// Cached public URL; authoritative URL is derived from `storageKey`.
   url         String
-  altText     String?  @map("alt_text")
+  altText     String?   @map("alt_text")
+  title       String?
+  description String?
+  caption     String?
+  folder      String?
   width       Int?
   height      Int?
-  createdById String?  @map("created_by")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdById String?   @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   createdBy  User?            @relation("MediaAssetCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   references MediaReference[]
+  variants   MediaVariant[]
 
   @@index([createdById])
+  @@index([type, createdAt])
+  @@index([folder])
   @@map("media_assets")
+}
+
+/// Generated image derivative (docs/12 §27–28). Variants are owned by their
+/// parent asset and disappear with it; they are immutable after creation
+/// (hence no `updatedAt`). The storage key is app-generated, never derived
+/// from a user filename.
+model MediaVariant {
+  id           String   @id @default(uuid())
+  mediaAssetId String   @map("media_asset_id")
+  /// Stable derivative label: `thumbnail`, `small`, `medium`.
+  label        String
+  /// Encoding format; currently `webp`.
+  format       String
+  storageKey   String   @unique @map("storage_key")
+  /// Cached public URL; authoritative URL is derived from `storageKey`.
+  url          String
+  width        Int?
+  height       Int?
+  size         Int?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  mediaAsset MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaAssetId, label])
+  @@index([mediaAssetId])
+  @@map("media_variants")
 }
 
 /// Polymorphic join between content and media assets. `onDelete: Restrict`

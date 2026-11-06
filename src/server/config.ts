@@ -9,6 +9,8 @@
  * surfaced through this module.
  */
 
+import { resolve } from 'node:path';
+import { normalizePublicBase } from './media/storage';
 import { loadEnvFile } from './env';
 
 export type NodeEnv = 'development' | 'production' | 'test';
@@ -41,16 +43,31 @@ export interface CookieConfig {
   path: string;
 }
 
+/** Media storage configuration (docs/12 §7, docs/14 §24). */
+export interface MediaConfig {
+  /** Directory the filesystem provider writes to. Absolute after loading. */
+  root: string;
+  /** Public path prefix (`/media`) or absolute media host URL. */
+  publicBase: string;
+  /** Hard upload limit in bytes (`MEDIA_MAX_UPLOAD_BYTES`). */
+  maxUploadBytes: number;
+}
+
 export interface ServerConfig {
   nodeEnv: NodeEnv;
   host: string;
   port: number;
   session: SessionConfig;
   cookie: CookieConfig;
+  media: MediaConfig;
 }
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8787;
+
+/** 10 MB default upload ceiling (feature doc Phase 4 decision). */
+const DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const DEFAULT_MEDIA_ROOT = './media';
 
 /**
  * Default session lifetimes (docs/11 §6.3 — "exact production values may be
@@ -96,6 +113,35 @@ function readTtlMs(
   return seconds * 1000;
 }
 
+function readPositiveInt(
+  raw: string | undefined,
+  fallback: number,
+  name: string,
+): number {
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(
+      `Invalid ${name} value "${raw}". Expected a positive integer.`,
+    );
+  }
+  return value;
+}
+
+/** Read the media storage configuration; never hardcodes a filesystem path. */
+function readMediaConfig(env: NodeJS.ProcessEnv): MediaConfig {
+  const rootRaw = env.MEDIA_ROOT?.trim() || DEFAULT_MEDIA_ROOT;
+  return {
+    root: resolve(process.cwd(), rootRaw),
+    publicBase: normalizePublicBase(env.MEDIA_PUBLIC_BASE),
+    maxUploadBytes: readPositiveInt(
+      env.MEDIA_MAX_UPLOAD_BYTES,
+      DEFAULT_MAX_UPLOAD_BYTES,
+      'MEDIA_MAX_UPLOAD_BYTES',
+    ),
+  };
+}
+
 /** Read and validate configuration from the environment. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   // Load `.env` so HOST/PORT/session vars are available locally.
@@ -125,5 +171,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
       sameSite: 'lax',
       path: '/',
     },
+    media: readMediaConfig(env),
   };
 }

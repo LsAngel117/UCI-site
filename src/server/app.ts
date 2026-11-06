@@ -6,7 +6,9 @@
  * tests can inject the app directly later (docs/02 §67).
  */
 import cookie from '@fastify/cookie';
+import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type { ApiErrorEnvelope, HealthResponse } from '@shared/api';
 import { registerAuthRoutes } from './auth/routes';
@@ -14,6 +16,8 @@ import { registerSermonRoutes } from './cms/sermons/routes';
 import { loadConfig, type ServerConfig } from './config';
 import { loggerOptions } from './logger';
 import { prisma } from './db';
+import { registerMediaRoutes } from './media/routes';
+import { createMediaStorage, isAbsoluteUrl } from './media/storage';
 
 export const SERVICE_NAME = 'uci-api';
 export const SERVICE_VERSION = '0.0.1';
@@ -70,6 +74,31 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   // endpoint is throttled and ordinary reads are unaffected (docs/11 §18).
   app.register(rateLimit, { global: false });
 
+  // Media storage is created once per app. The filesystem provider ensures its
+  // root exists before `@fastify/static` is registered below (docs/12 §7).
+  const mediaStorage = createMediaStorage({
+    root: config.media.root,
+    publicBase: config.media.publicBase,
+  });
+
+  // Public media delivery (docs/12 §12, docs/15 §10.4). In production a reverse
+  // proxy/CDN may serve the same directory; an absolute MEDIA_PUBLIC_BASE
+  // disables this local mount and lets the storage adapter emit CDN URLs.
+  if (!isAbsoluteUrl(config.media.publicBase)) {
+    app.register(fastifyStatic, {
+      root: config.media.root,
+      prefix: `${config.media.publicBase}/`,
+      index: false,
+      dotfiles: 'deny',
+      decorateReply: false,
+      cacheControl: true,
+      // Storage keys are content-addressed by random UUID, so derivatives are
+      // immutable and safe to cache aggressively (docs/12 §45–46).
+      maxAge: '365d',
+      immutable: true,
+    });
+  }
+
   // 404 handler — consistent error envelope (docs/02 §38).
   app.setNotFoundHandler((request, reply) => {
     reply.status(404).send(notFoundEnvelope(request.method, request.url));
@@ -118,6 +147,22 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   // Every route is protected by `requireAuth` + `requirePermission` inside.
   app.register(async (instance) => {
     registerSermonRoutes(instance, config);
+  });
+
+  // Admin media API (Phase 4). Multipart is registered in the same plugin
+  // before the routes so `request.parts()` and its limits are available. Every
+  // route is protected by `requireAuth` + `requirePermission` inside.
+  app.register(async (instance) => {
+    await instance.register(multipart, {
+      limits: {
+        fileSize: config.media.maxUploadBytes,
+        files: 1,
+        fields: 20,
+        fieldSize: 1024 * 1024,
+        parts: 25,
+      },
+    });
+    registerMediaRoutes(instance, config, mediaStorage);
   });
 
   return app;
