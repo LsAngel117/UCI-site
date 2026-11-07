@@ -329,6 +329,241 @@ export interface UpdateSermonInput {
 }
 
 // ---------------------------------------------------------------------------
+// Events & Ministries contracts (Phase 6A, docs/05 §11–13)
+//
+// Same admin conventions as sermons: the DTOs never carry Prisma types, a
+// PATCH carries the optimistic-concurrency `version`, and lifecycle state is
+// only changed through explicit actions (never through create/update).
+// ---------------------------------------------------------------------------
+
+/** Shared SEO shape (one `SeoMetadata` row per content entity). */
+export interface SeoDto {
+  title: string | null;
+  description: string | null;
+  canonicalUrl: string | null;
+  ogImageUrl: string | null;
+}
+
+/** SEO input on create/update. Unspecified keys keep their stored value. */
+export interface SeoInput {
+  title?: string | null;
+  description?: string | null;
+  canonicalUrl?: string | null;
+  ogImageUrl?: string | null;
+}
+
+/** Event SEO contracts (`SeoMetadata` entityType `event`). */
+export type EventSeoDto = SeoDto;
+export type EventSeoInput = SeoInput;
+
+/** Ministry SEO contracts (`SeoMetadata` entityType `ministry`). */
+export type MinistrySeoDto = SeoDto;
+export type MinistrySeoInput = SeoInput;
+
+/** Editorial category for events (docs/05 §12). */
+export interface EventCategoryDto {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateEventCategoryInput {
+  name: string;
+  /** Auto-generated from the name when omitted (docs/05 §27). */
+  slug?: string;
+}
+
+export interface UpdateEventCategoryInput {
+  name?: string;
+  slug?: string;
+}
+
+/** Event content as returned by the admin API (no audit/concurrency fields). */
+export interface EventDto {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string | null;
+  description: string | null;
+  categoryId: string | null;
+  category: EventCategoryDto | null;
+  /** ISO-8601 instant, or null. */
+  startAt: string | null;
+  /** ISO-8601 instant, or null. */
+  endAt: string | null;
+  locationName: string | null;
+  address: string | null;
+  city: string | null;
+  coverMediaId: string | null;
+  registrationUrl: string | null;
+  featured: boolean;
+  seo: SeoDto | null;
+  status: ContentStatus;
+  publishedAt: string | null;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Full admin representation of an event (adds audit + concurrency fields). */
+export interface EventAdminDto extends EventDto {
+  /** Optimistic-concurrency counter (docs/08 §38). */
+  version: number;
+  unpublishedAt: string | null;
+  createdById: string | null;
+  updatedById: string | null;
+}
+
+/**
+ * Create-event body. `status` is deliberately absent — creation always
+ * produces a draft; only explicit lifecycle actions may publish (docs/08 §22).
+ */
+export interface CreateEventInput {
+  title: string;
+  /** Auto-generated from the title when omitted (docs/05 §27). */
+  slug?: string;
+  summary?: string | null;
+  description?: string | null;
+  categoryId?: string | null;
+  startAt?: string | null;
+  endAt?: string | null;
+  locationName?: string | null;
+  address?: string | null;
+  city?: string | null;
+  coverMediaId?: string | null;
+  registrationUrl?: string | null;
+  featured?: boolean;
+  seo?: SeoInput | null;
+}
+
+/** Update-event body. `version` is REQUIRED (optimistic concurrency). */
+export interface UpdateEventInput {
+  version: number;
+  title?: string;
+  slug?: string;
+  summary?: string | null;
+  description?: string | null;
+  categoryId?: string | null;
+  startAt?: string | null;
+  endAt?: string | null;
+  locationName?: string | null;
+  address?: string | null;
+  city?: string | null;
+  coverMediaId?: string | null;
+  registrationUrl?: string | null;
+  featured?: boolean;
+  seo?: SeoInput | null;
+}
+
+/** Admin event listing filters (`GET /api/v1/admin/events`). */
+export interface EventListFilters {
+  status?: ContentStatus;
+  /** Case-insensitive match on title/summary/description. */
+  search?: string;
+  categoryId?: string;
+  /** Inclusive `publishedAt` lower bound (ISO date/datetime). */
+  publishedFrom?: string;
+  /** Inclusive `publishedAt` upper bound (ISO date/datetime). */
+  publishedTo?: string;
+  /** Inclusive `startAt` lower bound (ISO date/datetime). */
+  startFrom?: string;
+  /** Inclusive `startAt` upper bound (ISO date/datetime). */
+  startTo?: string;
+}
+
+export interface EventListQuery
+  extends PaginationParams, SortParams, EventListFilters {}
+
+/** Filters for the admin event-category picker. */
+export interface EventCategoryListFilters {
+  /** Case-insensitive match on name/slug. */
+  search?: string;
+}
+
+export interface EventCategoryListQuery
+  extends PaginationParams, SortParams, EventCategoryListFilters {}
+
+/** Ministry content as returned by the admin API (no audit/concurrency fields). */
+export interface MinistryDto {
+  id: string;
+  slug: string;
+  name: string;
+  shortDescription: string | null;
+  description: string | null;
+  coverMediaId: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  meetingInfo: string | null;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  featured: boolean;
+  seo: SeoDto | null;
+  status: ContentStatus;
+  publishedAt: string | null;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Full admin representation of a ministry. */
+export interface MinistryAdminDto extends MinistryDto {
+  version: number;
+  unpublishedAt: string | null;
+  createdById: string | null;
+  updatedById: string | null;
+}
+
+/** Create-ministry body. Creation always produces a draft. */
+export interface CreateMinistryInput {
+  name: string;
+  /** Auto-generated from the name when omitted (docs/05 §27). */
+  slug?: string;
+  shortDescription?: string | null;
+  description?: string | null;
+  coverMediaId?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  meetingInfo?: string | null;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+  featured?: boolean;
+  seo?: SeoInput | null;
+}
+
+/** Update-ministry body. `version` is REQUIRED (optimistic concurrency). */
+export interface UpdateMinistryInput {
+  version: number;
+  name?: string;
+  slug?: string;
+  shortDescription?: string | null;
+  description?: string | null;
+  coverMediaId?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  meetingInfo?: string | null;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+  featured?: boolean;
+  seo?: SeoInput | null;
+}
+
+/** Admin ministry listing filters (`GET /api/v1/admin/ministries`). */
+export interface MinistryListFilters {
+  status?: ContentStatus;
+  /** Case-insensitive match on name/shortDescription/description. */
+  search?: string;
+  /** Inclusive `publishedAt` lower bound (ISO date/datetime). */
+  publishedFrom?: string;
+  /** Inclusive `publishedAt` upper bound (ISO date/datetime). */
+  publishedTo?: string;
+}
+
+export interface MinistryListQuery
+  extends PaginationParams, SortParams, MinistryListFilters {}
+
+// ---------------------------------------------------------------------------
 // Public sermon contracts (Phase 5B, docs/08 §11.1–11.2, docs/10 §5–6)
 //
 // The public API exposes only published sermons and only public data: internal
@@ -463,6 +698,142 @@ export interface SermonListFilters {
 /** Query shape accepted by the admin sermon listing (filters + pagination + sort). */
 export interface SermonListQuery
   extends PaginationParams, SortParams, SermonListFilters {}
+
+// ---------------------------------------------------------------------------
+// Public events & ministries contracts (Phase 6B, docs/08 §12.1–12.2, §13.1–13.2)
+//
+// The public API exposes only published content and only public data: internal
+// author/version/lifecycle columns are deliberately absent. Category, cover and
+// SEO are resolved for the frontend so it never touches Prisma (docs/08 §48).
+// ---------------------------------------------------------------------------
+
+/** Sort allowlist for the public event archive (docs/08 §12.1, §26). */
+export const PUBLIC_EVENT_SORT_FIELDS = [
+  'startAt',
+  'publishedAt',
+  'title',
+] as const;
+
+export type PublicEventSortField = (typeof PUBLIC_EVENT_SORT_FIELDS)[number];
+
+/** Public event-category summary (never the full admin category). */
+export interface PublicEventCategoryDto {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+/**
+ * Public event SEO metadata (docs/10 §11). `title`/`description` fall back to
+ * the event's own content and `canonicalUrl` to the canonical public route
+ * (`/eventos/:slug`) when no explicit `SeoMetadata` row exists, so every public
+ * event always has a canonical URL (docs/10 §6.1–6.2).
+ */
+export interface PublicEventSeoDto {
+  title: string;
+  description: string | null;
+  canonicalUrl: string;
+  ogImageUrl: string | null;
+}
+
+/** An event as exposed by the public API (list and detail). */
+export interface PublicEventDto {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string | null;
+  description: string | null;
+  category: PublicEventCategoryDto | null;
+  /** ISO-8601 instant, or null. */
+  startAt: string | null;
+  /** ISO-8601 instant, or null. */
+  endAt: string | null;
+  locationName: string | null;
+  address: string | null;
+  city: string | null;
+  /** Resolved public cover URL, or null when unset. */
+  coverImageUrl: string | null;
+  coverImageAlt: string | null;
+  registrationUrl: string | null;
+  featured: boolean;
+  publishedAt: string | null;
+  updatedAt: string;
+  seo: PublicEventSeoDto;
+}
+
+/**
+ * Filters accepted by the public event archive (docs/08 §12.1). `category`
+ * accepts a category id or slug; `upcoming` restricts to events that have not
+ * started yet.
+ */
+export interface PublicEventListFilters {
+  /** Category id or slug. */
+  category?: string;
+  /** Inclusive `startAt` lower bound (ISO date/datetime). */
+  from?: string;
+  /** Inclusive `startAt` upper bound (ISO date/datetime). */
+  to?: string;
+  /** Restrict to events whose `startAt` is at or after now. */
+  upcoming?: boolean | string;
+}
+
+/** Query shape of `GET /api/v1/events` (filters + pagination + sort). */
+export interface PublicEventListQuery
+  extends PaginationParams, SortParams, PublicEventListFilters {}
+
+/** Sort allowlist for the public ministry directory (docs/08 §13.1, §26). */
+export const PUBLIC_MINISTRY_SORT_FIELDS = [
+  'name',
+  'publishedAt',
+  'updatedAt',
+] as const;
+
+export type PublicMinistrySortField =
+  (typeof PUBLIC_MINISTRY_SORT_FIELDS)[number];
+
+/**
+ * Public ministry SEO metadata. Same fallback contract as events, with the
+ * canonical public route `/ministerios/:slug` (docs/10 §6.1–6.2).
+ */
+export interface PublicMinistrySeoDto {
+  title: string;
+  description: string | null;
+  canonicalUrl: string;
+  ogImageUrl: string | null;
+}
+
+/** A ministry as exposed by the public API (list and detail). */
+export interface PublicMinistryDto {
+  id: string;
+  slug: string;
+  name: string;
+  shortDescription: string | null;
+  description: string | null;
+  /** Resolved public cover URL, or null when unset. */
+  coverImageUrl: string | null;
+  coverImageAlt: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  meetingInfo: string | null;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  featured: boolean;
+  publishedAt: string | null;
+  updatedAt: string;
+  seo: PublicMinistrySeoDto;
+}
+
+/** Filters accepted by the public ministry directory (docs/08 §13.1). */
+export interface PublicMinistryListFilters {
+  /** Case-insensitive match on name, shortDescription or description. */
+  search?: string;
+  /** Restrict to featured ministries when true. */
+  featured?: boolean | string;
+}
+
+/** Query shape of `GET /api/v1/ministries` (filters + pagination + sort). */
+export interface PublicMinistryListQuery
+  extends PaginationParams, SortParams, PublicMinistryListFilters {}
 
 // ---------------------------------------------------------------------------
 // Sermon taxonomy listing (Phase 5A, T5)

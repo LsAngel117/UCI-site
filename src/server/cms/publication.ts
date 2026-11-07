@@ -16,6 +16,7 @@
  * `publishAt` has passed. The real cron/worker is a follow-up; this gives the
  * operation a tested, reusable home.
  */
+import { randomUUID } from 'node:crypto';
 import type { ContentStatus } from '@shared/types';
 import type { LifecycleAction } from '@shared/cms';
 import { lifecycleAuditAction, recordAudit } from './audit';
@@ -231,4 +232,38 @@ export function createPublicationService<T extends PublicationEntity>(
 /** True when an action creates a revision checkpoint. */
 export function isCheckpointAction(action: LifecycleAction): boolean {
   return CHECKPOINT_ACTIONS.includes(action);
+}
+
+/**
+ * Revision store for content types that intentionally have no revision table
+ * (Phase 6 decision: docs/05 §32 reserves revisions for "important content";
+ * Events and Ministries reuse lifecycle/publication/slug/concurrency/media/SEO
+ * only). It satisfies the `RevisionStore` port so the publication service keeps
+ * owning the orchestration — including the version bump that guarantees the
+ * lifecycle state transitions stay observable — while persisting nothing.
+ *
+ * `list`/`find` return empty/null because no revision endpoint is exposed for
+ * these collections; `insert` returns the record the caller would have
+ * persisted, with an ephemeral id.
+ */
+export function createNullRevisionStore(): RevisionStore {
+  return {
+    async insert(input) {
+      return {
+        id: randomUUID(),
+        entityId: input.entityId,
+        version: input.version,
+        title: input.title,
+        snapshot: input.snapshot,
+        createdById: input.createdById,
+        createdAt: new Date(),
+      };
+    },
+    async list() {
+      return [];
+    },
+    async find() {
+      return null;
+    },
+  };
 }

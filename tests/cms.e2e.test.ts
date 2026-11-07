@@ -296,15 +296,35 @@ describe(
         const created = await createSermon(app, cookie, { title: 'No publish via patch' });
         const id = created.id as string;
 
+        // An explicit non-draft `status` is rejected, never silently ignored:
+        // lifecycle changes are business actions (publish/schedule/archive).
         const patch = await app.inject({
           method: 'PATCH',
           url: `${BASE}/${id}`,
           ...authed(cookie, { payload: { version: 1, title: 'Editado', status: 'published' } }),
         });
-        assert.equal(patch.statusCode, 200, patch.body);
-        const data = patch.json<{ data: { status: string; publishedAt: string | null } }>().data;
+        assert.equal(patch.statusCode, 400, patch.body);
+        assert.equal(
+          patch.json<{ error: { code: string } }>().error.code,
+          'VALIDATION_ERROR',
+        );
+        assert.match(
+          patch.json<{ error: { message: string } }>().error.message,
+          /publish\/schedule\/archive/,
+        );
+
+        const reloaded = await app.inject({
+          method: 'GET',
+          url: `${BASE}/${id}`,
+          ...authed(cookie),
+        });
+        const data = reloaded.json<{
+          data: { status: string; publishedAt: string | null; title: string; version: number };
+        }>().data;
         assert.equal(data.status, 'draft', 'PATCH must not publish');
         assert.equal(data.publishedAt, null, 'PATCH must not set publishedAt');
+        assert.equal(data.title, 'No publish via patch', 'a rejected PATCH must not write');
+        assert.equal(data.version, 1, 'a rejected PATCH must not bump the version');
       } finally {
         await app.close();
       }

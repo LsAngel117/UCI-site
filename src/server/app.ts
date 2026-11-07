@@ -12,6 +12,11 @@ import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type { ApiErrorEnvelope, HealthResponse } from '@shared/api';
 import { registerAuthRoutes } from './auth/routes';
+import { registerEventCategoryRoutes } from './cms/event-categories/routes';
+import { registerEventRoutes } from './cms/events/routes';
+import { registerPublicEventRoutes } from './cms/events/public-routes';
+import { registerMinistryRoutes } from './cms/ministries/routes';
+import { registerPublicMinistryRoutes } from './cms/ministries/public-routes';
 import { registerPublicSermonRoutes } from './cms/sermons/public-routes';
 import { registerSermonRoutes } from './cms/sermons/routes';
 import { registerTaxonomyRoutes } from './cms/taxonomy/routes';
@@ -157,11 +162,39 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     registerPublicSermonRoutes(instance, config, mediaStorage);
   });
 
+  // Public events & ministries API (Phase 6B). Same visibility rule as the
+  // public sermon archive: only `status = published` rows are ever selected,
+  // enforced inside each service. No authentication is required.
+  app.register(async (instance) => {
+    registerPublicEventRoutes(instance, config, mediaStorage);
+  });
+
+  app.register(async (instance) => {
+    registerPublicMinistryRoutes(instance, config, mediaStorage);
+  });
+
   // Admin sermon taxonomy API (Phase 5A): people / series / topics pickers.
   // Protected by the `sermons.*` permissions (docs/11 §9 has no separate
   // vocabulary for this taxonomy; see `cms/taxonomy/service.ts`).
   app.register(async (instance) => {
     registerTaxonomyRoutes(instance, config);
+  });
+
+  // Admin Events & Ministries API (Phase 6A). Each route is protected by
+  // `requireAuth` + the matching `events.*` / `ministries.*` permission.
+  app.register(async (instance) => {
+    registerEventRoutes(instance, config);
+  });
+
+  app.register(async (instance) => {
+    registerMinistryRoutes(instance, config);
+  });
+
+  // Event-category taxonomy (Phase 6A). No `event-categories.*` vocabulary in
+  // docs/11 §9, so it reuses `events.read/create/update` (documented in
+  // `cms/event-categories/service.ts`).
+  app.register(async (instance) => {
+    registerEventCategoryRoutes(instance, config);
   });
 
   // Admin media API (Phase 4). Multipart is registered in the same plugin

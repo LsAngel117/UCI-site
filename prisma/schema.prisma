@@ -340,44 +340,103 @@ model SermonRevision {
   @@map("sermon_revisions")
 }
 
-model Event {
-  id            String        @id @default(uuid())
-  slug          String        @unique
-  title         String
-  status        ContentStatus @default(draft)
-  startAt       DateTime?     @map("start_at")
-  endAt         DateTime?     @map("end_at")
-  publishedAt   DateTime?     @map("published_at")
-  unpublishedAt DateTime?     @map("unpublished_at")
-  createdById   String?       @map("created_by")
-  updatedById   String?       @map("updated_by")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+/// Editorial category for events (docs/05 §12). Declared before `Event` so the
+/// relation reads top-down. Deleting a category never deletes its events: the
+/// FK is SetNull, so they simply become uncategorized.
+model EventCategory {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  createdBy User? @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy User? @relation("EventUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  events Event[]
+
+  @@map("event_categories")
+}
+
+/// Event domain (Phase 6A, docs/05 §11–12). Location is intentionally stored as
+/// flat text (`locationName`/`address`/`city`) instead of a `Location` model —
+/// docs/05 §11 describes a future Location relation, but Phase 6A only needs
+/// displayable text (documented decision in `odd/tasks/phase6-events-ministries.md`).
+model Event {
+  id              String        @id @default(uuid())
+  slug            String        @unique
+  title           String
+  summary         String?
+  description     String?
+  categoryId      String?       @map("category_id")
+  startAt         DateTime?     @map("start_at")
+  endAt           DateTime?     @map("end_at")
+  locationName    String?       @map("location_name")
+  address         String?
+  city            String?
+  coverMediaId    String?       @map("cover_media_id")
+  registrationUrl String?       @map("registration_url")
+  featured        Boolean       @default(false)
+  status          ContentStatus @default(draft)
+  /// Optimistic-concurrency counter (docs/08 §38). A PATCH must present the
+  /// version it read; a mismatch is a 409 CONFLICT and a match increments it.
+  version         Int           @default(1)
+  publishedAt     DateTime?     @map("published_at")
+  /// Future publication instant set by `POST /schedule` (docs/05 §30). Paired
+  /// with `status = scheduled`.
+  publishAt       DateTime?     @map("publish_at")
+  unpublishedAt   DateTime?     @map("unpublished_at")
+  createdById     String?       @map("created_by")
+  updatedById     String?       @map("updated_by")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  createdBy User?          @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?          @relation("EventUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  category  EventCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  cover     MediaAsset?    @relation("EventCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
 
   @@index([status, publishedAt])
+  @@index([status, publishAt])
   @@index([startAt])
+  @@index([categoryId])
+  @@index([coverMediaId])
+  @@index([featured, publishedAt])
   @@map("events")
 }
 
+/// Ministry domain (Phase 6A, docs/05 §13). Leaders/locations are not modeled
+/// yet; Phase 6A only exposes the content fields, cover and contact/CTA data.
 model Ministry {
-  id            String        @id @default(uuid())
-  slug          String        @unique
-  name          String
-  status        ContentStatus @default(draft)
-  publishedAt   DateTime?     @map("published_at")
-  unpublishedAt DateTime?     @map("unpublished_at")
-  createdById   String?       @map("created_by")
-  updatedById   String?       @map("updated_by")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id               String        @id @default(uuid())
+  slug             String        @unique
+  name             String
+  shortDescription String?       @map("short_description")
+  description      String?
+  coverMediaId     String?       @map("cover_media_id")
+  contactEmail     String?       @map("contact_email")
+  contactPhone     String?       @map("contact_phone")
+  meetingInfo      String?       @map("meeting_info")
+  ctaLabel         String?       @map("cta_label")
+  ctaUrl           String?       @map("cta_url")
+  featured         Boolean       @default(false)
+  status           ContentStatus @default(draft)
+  /// Optimistic-concurrency counter (docs/08 §38).
+  version          Int           @default(1)
+  publishedAt      DateTime?     @map("published_at")
+  /// Future publication instant set by `POST /schedule` (docs/05 §30).
+  publishAt        DateTime?     @map("publish_at")
+  unpublishedAt    DateTime?     @map("unpublished_at")
+  createdById      String?       @map("created_by")
+  updatedById      String?       @map("updated_by")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
 
-  createdBy User? @relation("MinistryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy User? @relation("MinistryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdBy User?       @relation("MinistryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?       @relation("MinistryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  cover     MediaAsset? @relation("MinistryCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
 
   @@index([status, publishedAt])
+  @@index([status, publishAt])
+  @@index([coverMediaId])
+  @@index([featured, publishedAt])
   @@map("ministries")
 }
 
@@ -441,10 +500,12 @@ model MediaAsset {
   // Content relations (Phase 5A). SetNull on the asset means deleting a media
   // asset never deletes content; the reference-aware delete in Phase 4 still
   // blocks it while a `MediaReference` row exists.
-  sermonCovers Sermon[]         @relation("SermonCover")
-  sermonNotes  Sermon[]         @relation("SermonNotes")
-  seriesCovers SermonSeries[]   @relation("SeriesCover")
-  personPhotos Person[]         @relation("PersonPhoto")
+  sermonCovers   Sermon[]       @relation("SermonCover")
+  sermonNotes    Sermon[]       @relation("SermonNotes")
+  seriesCovers   SermonSeries[] @relation("SeriesCover")
+  personPhotos   Person[]       @relation("PersonPhoto")
+  eventCovers    Event[]        @relation("EventCover")
+  ministryCovers Ministry[]     @relation("MinistryCover")
 
   @@index([createdById])
   @@index([type, createdAt])

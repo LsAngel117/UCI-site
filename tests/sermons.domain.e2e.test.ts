@@ -707,5 +707,78 @@ describe(
         await app.close();
       }
     });
+
+    test('an explicit non-draft status is rejected before any write', async () => {
+      const app = makeApp();
+      try {
+        const cookie = await login(app, ADMIN_EMAIL);
+        const admin = await prisma.user.findUniqueOrThrow({
+          where: { email: ADMIN_EMAIL },
+        });
+        const before = await prisma.sermon.count({
+          where: { createdById: admin.id },
+        });
+
+        // create: a non-draft status is a 400 and persists nothing.
+        for (const status of ['published', 'archived', 'scheduled', 'PUBLISHED']) {
+          const res = await app.inject({
+            method: 'POST',
+            url: BASE,
+            ...authed(cookie, { payload: { title: `Estado ${status}`, status } }),
+          });
+          assert.equal(res.statusCode, 400, `${status} -> ${res.body}`);
+          const error = res.json<{ error: { code: string; message: string } }>().error;
+          assert.equal(error.code, 'VALIDATION_ERROR');
+          assert.match(error.message, /publish\/schedule\/archive/);
+        }
+        assert.equal(
+          await prisma.sermon.count({ where: { createdById: admin.id } }),
+          before,
+          'a rejected status must not create a sermon',
+        );
+
+        // update: a non-draft status is a 400 and leaves the row unchanged.
+        const created = await createSermon(app, cookie, { title: 'Status update guard' });
+        const id = String(created.id);
+        const rejected = await app.inject({
+          method: 'PATCH',
+          url: `${BASE}/${id}`,
+          ...authed(cookie, { payload: { version: 1, status: 'archived' } }),
+        });
+        assert.equal(rejected.statusCode, 400, rejected.body);
+        assert.equal(
+          rejected.json<{ error: { code: string } }>().error.code,
+          'VALIDATION_ERROR',
+        );
+        const row = await prisma.sermon.findUniqueOrThrow({ where: { id } });
+        assert.equal(row.status, 'draft', 'a rejected status must not change status');
+        assert.equal(row.version, 1, 'a rejected status must not bump the version');
+
+        // PRESERVE: 'draft' (any case) and an omitted status keep working.
+        for (const status of ['draft', 'DRAFT']) {
+          const ok = await app.inject({
+            method: 'POST',
+            url: BASE,
+            ...authed(cookie, { payload: { title: `Estado ok ${status}`, status } }),
+          });
+          assert.equal(ok.statusCode, 201, ok.body);
+          assert.equal(
+            ok.json<{ data: { status: string } }>().data.status,
+            'draft',
+          );
+        }
+        const patchDraft = await app.inject({
+          method: 'PATCH',
+          url: `${BASE}/${id}`,
+          ...authed(cookie, { payload: { version: 1, title: 'Editado', status: 'DRAFT' } }),
+        });
+        assert.equal(patchDraft.statusCode, 200, patchDraft.body);
+        const patched = patchDraft.json<{ data: { status: string; title: string } }>().data;
+        assert.equal(patched.status, 'draft');
+        assert.equal(patched.title, 'Editado');
+      } finally {
+        await app.close();
+      }
+    });
   },
 );

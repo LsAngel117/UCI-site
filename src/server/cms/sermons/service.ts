@@ -405,6 +405,23 @@ function optionalBool(value: unknown, field: string): boolean | null {
   return value;
 }
 
+/**
+ * Reject an explicit lifecycle `status` on a generic create/update body: state
+ * changes are business actions (`publish`/`schedule`/`archive`), never plain
+ * editorial fields (docs/08 §22). The only accepted value is `'draft'`
+ * (case-insensitive), which matches the canonical create default; an omitted
+ * value is a no-op. Any other provided value is a 400 before any write, so a
+ * rejected payload leaves stored data untouched.
+ */
+function assertNoDirectStatus(value: unknown): void {
+  if (value === undefined) return;
+  if (typeof value === 'string' && value.toLowerCase() === 'draft') return;
+  throw validation(
+    '"status" cannot be set directly; use publish/schedule/archive actions.',
+    { field: 'status' },
+  );
+}
+
 /** Scalar content columns shared by create and update. */
 interface SermonContentData {
   title?: string;
@@ -847,6 +864,7 @@ export async function createSermon(
   input: CreateSermonInput,
   actorId: string | null,
 ): Promise<SermonAdminDto> {
+  assertNoDirectStatus((input as { status?: unknown }).status);
   const title = requireTitle(input.title);
   const slug =
     input.slug === undefined || input.slug === null
@@ -911,6 +929,7 @@ export async function updateSermon(
   input: UpdateSermonInput,
   actorId: string | null,
 ): Promise<SermonAdminDto> {
+  assertNoDirectStatus((input as { status?: unknown }).status);
   const current = await findSermonOrThrow(id);
   // Throws 409 CONFLICT on a stale version, 400 on a missing/invalid one.
   const nextVersion = assertVersionMatches(current.version, input.version);
