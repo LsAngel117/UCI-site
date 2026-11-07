@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+dist-server/
 build/
 .astro/
 
@@ -16,6 +17,7 @@ build/
 .atl/
 
 # Database backups / dumps (never commit)
+/backups/
 *.dump
 *.sql.gz
 backup_*.sql

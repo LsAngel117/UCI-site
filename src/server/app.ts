@@ -6,6 +6,7 @@
  * tests can inject the app directly later (docs/02 §67).
  */
 import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
@@ -57,12 +58,22 @@ export const SERVICE_NAME = 'uci-api';
 export const SERVICE_VERSION = '0.0.1';
 
 /**
- * Built admin SPA (`pnpm build:admin` → `dist/admin`). Resolved from this
- * module so it is independent of the process working directory.
+ * Locate the built admin SPA (`pnpm build:admin` → `dist/admin`).
+ *
+ * - `ADMIN_DIST_ROOT` wins (the production container sets `/app/dist/admin`).
+ * - In dev/test this module lives in `src/server`, so the relative URL points
+ *   at the repository's `dist/admin` independent of the working directory.
+ * - The production bundle lives in `dist-server/server.js`; there `../../`
+ *   escapes the app, so fall back to the process working directory.
  */
-const ADMIN_DIST_ROOT = fileURLToPath(
-  new URL('../../dist/admin', import.meta.url),
-);
+function resolveAdminDistRoot(): string {
+  const configured = process.env.ADMIN_DIST_ROOT?.trim();
+  if (configured) return configured;
+  const fromModule = fileURLToPath(new URL('../../dist/admin', import.meta.url));
+  return existsSync(fromModule) ? fromModule : resolve(process.cwd(), 'dist/admin');
+}
+
+const ADMIN_DIST_ROOT = resolveAdminDistRoot();
 
 export interface BuildServerOptions {
   /** Disable the logger (used by tests that want a quiet instance). */

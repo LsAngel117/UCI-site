@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build && pnpm build:admin",
+    "build:server": "node scripts/build-server.mjs",
+    "build:prod": "pnpm build && pnpm build:server",
     "preview": "astro preview",
     "start:web": "node ./dist/server/entry.mjs",
     "astro": "astro",
@@ -57,6 +59,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "esbuild": "^0.28.2",
     "prisma": "6.19.3",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
