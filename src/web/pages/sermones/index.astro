@@ -1,0 +1,277 @@
+---
+/**
+ * /sermones — public sermon archive (Phase 9B1, docs/03 §18, docs/08 §11.1).
+ *
+ * SSR route: filters and pagination come from the query string, the published
+ * sermons come from `GET /api/v1/sermons`. Filtered states are utility views,
+ * so they are canonicalized to the clean archive and marked noindex.
+ */
+import { getNavigation, getChurchProfile } from '../../data/site';
+import { getSermonsArchive } from '../../data/content';
+import {
+  ARCHIVE_PAGE_SIZE,
+  buildArchiveHref,
+  parseSermonFilters,
+} from '../../lib/archive';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import ArchiveHero from '../../components/ui/ArchiveHero.astro';
+import Button from '../../components/ui/Button.astro';
+import Container from '../../components/ui/Container.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+import NotFoundState from '../../components/ui/NotFoundState.astro';
+import Pagination from '../../components/ui/Pagination.astro';
+import Section from '../../components/ui/Section.astro';
+import SermonCard from '../../components/content/SermonCard.astro';
+
+const search = Astro.url.searchParams;
+const parsed = parseSermonFilters(search, ARCHIVE_PAGE_SIZE);
+
+const [church, navigation, result] = await Promise.all([
+  getChurchProfile(),
+  getNavigation(),
+  getSermonsArchive({
+    ...parsed.filters,
+    page: parsed.page,
+    limit: parsed.limit,
+    sort: 'sermonDate',
+    order: 'desc',
+  }),
+]);
+
+if (result.status === 'unavailable') Astro.response.status = 503;
+
+const meta = result.status === 'ok' ? result.meta : null;
+const page = meta?.page ?? parsed.page;
+const totalPages = meta?.totalPages ?? 1;
+const canonicalPath =
+  page > 1 ? `/sermones?page=${page}` : '/sermones';
+const title = 'Sermones | Iglesia UCI';
+const description =
+  'Escucha los mensajes de Iglesia UCI: predicaciones organizadas por fecha, predicador y texto bíblico.';
+
+// A page beyond the last real page is not a thin archive view: it does not
+// exist, so it answers 404 (and is canonicalized to itself with noindex)
+// instead of returning an indexable empty state (docs/10 §7.4).
+const outOfRange = result.status === 'ok' && meta !== null && page > totalPages;
+if (outOfRange) Astro.response.status = 404;
+
+const firstPageHref = buildArchiveHref('/sermones', search, 1);
+const prevHref =
+  page > 1 ? buildArchiveHref('/sermones', search, page - 1) : null;
+const nextHref =
+  page < totalPages ? buildArchiveHref('/sermones', search, page + 1) : null;
+const clearHref = '/sermones';
+---
+
+<ContentLayout
+  title={title}
+  description={description}
+  canonicalPath={canonicalPath}
+  noindex={parsed.hasFilters || result.status === 'unavailable' || outOfRange}
+  church={church}
+  navigation={navigation}
+>
+  {
+    outOfRange ? (
+      <NotFoundState
+        title="Esta página no existe"
+        message="La página solicitada no existe en el archivo de sermones. Vuelve al inicio para seguir explorando."
+        backHref={firstPageHref}
+        backLabel="Ir a la primera página"
+      />
+    ) : (
+      <>
+        <ArchiveHero
+          label="Mensajes"
+          title="Sermones"
+          description="Predicaciones que nos ayudan a conocer la Palabra, crecer en fe y vivirla cada día."
+        />
+
+        <Section surface="light" spacing="lg">
+          <Container>
+      <form class="archive-filters" method="get" action="/sermones" role="search">
+        <div class="archive-filters__field">
+          <label for="sermon-search">Buscar</label>
+          <input
+            id="sermon-search"
+            name="search"
+            type="search"
+            placeholder="Título o tema"
+            value={parsed.filters.search ?? ''}
+          />
+        </div>
+        <div class="archive-filters__field">
+          <label for="sermon-preacher">Predicador</label>
+          <input
+            id="sermon-preacher"
+            name="preacher"
+            type="search"
+            placeholder="Nombre"
+            value={parsed.filters.preacher ?? ''}
+          />
+        </div>
+        <div class="archive-filters__field">
+          <label for="sermon-from">Desde</label>
+          <input
+            id="sermon-from"
+            name="from"
+            type="date"
+            value={parsed.filters.from ?? ''}
+          />
+        </div>
+        <div class="archive-filters__field">
+          <label for="sermon-to">Hasta</label>
+          <input
+            id="sermon-to"
+            name="to"
+            type="date"
+            value={parsed.filters.to ?? ''}
+          />
+        </div>
+        <div class="archive-filters__actions">
+          <Button type="submit" variant="primary">Filtrar</Button>
+          {
+            parsed.hasFilters && (
+              <a class="archive-filters__clear" href={clearHref}>
+                Limpiar filtros
+              </a>
+            )
+          }
+        </div>
+      </form>
+
+      {
+        result.status === 'unavailable' ? (
+          <EmptyState
+            title="No pudimos cargar los sermones"
+            message="El archivo no está disponible en este momento. Intenta de nuevo en unos minutos."
+          />
+        ) : result.data.length === 0 ? (
+          <EmptyState
+            title={
+              parsed.hasFilters
+                ? 'No encontramos sermones con estos criterios'
+                : 'Aún no hay sermones publicados'
+            }
+            message={
+              parsed.hasFilters
+                ? 'Prueba con otra búsqueda o quita los filtros para ver todo el archivo.'
+                : 'Estamos preparando el archivo de mensajes. Vuelve pronto.'
+            }
+          >
+            {parsed.hasFilters && (
+              <Button href={clearHref} variant="text" contrast="navy">
+                Ver todos los sermones
+              </Button>
+            )}
+          </EmptyState>
+        ) : (
+          <ul class="sermon-grid">
+            {result.data.map((sermon) => (
+              <SermonCard sermon={sermon} />
+            ))}
+          </ul>
+        )
+      }
+
+      {
+        result.status === 'ok' && result.data.length > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            prevHref={prevHref}
+            nextHref={nextHref}
+            label="sermones"
+          />
+        )
+      }
+          </Container>
+        </Section>
+      </>
+    )
+  }
+</ContentLayout>
+
+<style>
+  .archive-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-16);
+    margin-bottom: var(--space-40);
+    padding-bottom: var(--space-32);
+    border-bottom: 1px solid var(--border-on-light);
+  }
+
+  .archive-filters__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .archive-filters__field label {
+    color: var(--color-navy);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .archive-filters__field input {
+    min-height: 2.75rem;
+    padding: var(--space-8) var(--space-12);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+    color: var(--color-navy);
+    font-size: var(--font-size-body);
+  }
+
+  .archive-filters__field input:focus-visible {
+    outline: var(--focus-ring-width) solid var(--color-blue);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  .archive-filters__actions {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-16);
+  }
+
+  .archive-filters__clear {
+    color: var(--color-blue);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .archive-filters__clear:hover {
+    color: var(--color-navy);
+  }
+
+  .sermon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-24) var(--space-24);
+  }
+
+  @media (max-width: 1023px) {
+    .archive-filters {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sermon-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 639px) {
+    .archive-filters {
+      grid-template-columns: 1fr;
+    }
+
+    .sermon-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

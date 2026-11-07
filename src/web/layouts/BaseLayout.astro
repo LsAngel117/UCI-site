@@ -23,6 +23,7 @@ import '../styles/global.css';
 import logoFull from '../assets/brand/uci-logo-full.png';
 import { getChurchProfile } from '../data/site';
 import type { ChurchProfile } from '@shared/types';
+import type { JsonLdObject } from '@shared/seo';
 
 interface Props {
   title: string;
@@ -34,8 +35,15 @@ interface Props {
    * `/og-image.jpg` is referenced.
    */
   ogImageUrl?: string;
-  /** Prevent indexing when needed (e.g. previews). */
+  /** `article` for content detail pages, `website` for listings/home. */
+  ogType?: 'website' | 'article';
+  /** Prevent indexing when needed (e.g. previews, filtered utility states). */
   noindex?: boolean;
+  /**
+   * Entity-specific Schema.org objects (docs/10 §12). The church Organization
+   * object is always emitted by this layout; these are appended after it.
+   */
+  jsonLd?: JsonLdObject[];
   /**
    * Church identity resolved by the page (SSR). When omitted the layout loads
    * `settings/public` itself, so future routes never duplicate the merge.
@@ -48,7 +56,9 @@ const {
   description,
   canonicalPath = Astro.url.pathname,
   ogImageUrl,
+  ogType = 'website',
   noindex = false,
+  jsonLd = [],
   church: providedChurch,
 } = Astro.props;
 
@@ -79,6 +89,14 @@ const socialProfiles = church.socialLinks
   .map((link) => link.url)
   .filter((url) => url && url !== '#');
 
+/**
+ * Serialize JSON-LD for a `<script>` tag. Escaping `<` prevents CMS text from
+ * closing the element and turning structured data into executable markup.
+ */
+function serializeJsonLd(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, '\\u003c');
+}
+
 const organization: Record<string, unknown> = {
   '@context': 'https://schema.org',
   '@type': 'Church',
@@ -103,7 +121,8 @@ if (socialProfiles.length > 0) {
   organization.sameAs = socialProfiles;
 }
 
-const organizationJsonLd = JSON.stringify(organization);
+const organizationJsonLd = serializeJsonLd(organization);
+const extraJsonLd = jsonLd.map((entry) => serializeJsonLd(entry));
 ---
 
 <!doctype html>
@@ -120,7 +139,7 @@ const organizationJsonLd = JSON.stringify(organization);
     <link rel="canonical" href={canonical} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
 
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:site_name" content={siteName} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -138,6 +157,15 @@ const organizationJsonLd = JSON.stringify(organization);
     <meta name="twitter:image:alt" content={siteName} />
 
     <script type="application/ld+json" set:html={organizationJsonLd} />
+    {
+      extraJsonLd.map((entry, index) => (
+        <script
+          type="application/ld+json"
+          set:html={entry}
+          data-jsonld={index}
+        />
+      ))
+    }
   </head>
   <body>
     <a class="skip-link" href="#main-content">Saltar al contenido principal</a>

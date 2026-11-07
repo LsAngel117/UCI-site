@@ -1,0 +1,59 @@
+---
+/**
+ * CoverImage — CMS cover with an honest placeholder fallback (Phase 9B1).
+ *
+ * Public DTOs expose a resolved URL string; when the editor has not uploaded a
+ * cover, the shared `MediaPlaceholder` reserves the aspect ratio instead of
+ * loading borrowed stock imagery.
+ */
+import MediaPlaceholder from './MediaPlaceholder.astro';
+
+interface Props {
+  src: string | null;
+  alt: string;
+  /** CSS aspect ratio, e.g. "16 / 9" or "4 / 5". */
+  aspect?: string;
+  /** Placeholder label when no cover exists. */
+  label?: string;
+  loading?: 'eager' | 'lazy';
+  class?: string;
+}
+
+const {
+  src,
+  alt,
+  aspect = '16 / 9',
+  label = 'Imagen',
+  loading = 'lazy',
+  class: className,
+} = Astro.props;
+---
+
+{
+  src ? (
+    <img
+      class:list={['cover-image', className]}
+      src={src}
+      alt={alt}
+      loading={loading}
+      style={`aspect-ratio: ${aspect};`}
+    />
+  ) : (
+    <MediaPlaceholder
+      class={className}
+      label={label}
+      aspect={aspect}
+      asset="cover-por-confirmar.jpg"
+    />
+  )
+}
+
+<style>
+  .cover-image {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background-color: var(--color-navy-800);
+  }
+</style>

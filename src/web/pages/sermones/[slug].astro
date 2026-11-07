@@ -1,0 +1,364 @@
+---
+/**
+ * /sermones/[slug] — public sermon detail (Phase 9B1, docs/08 §11.2, docs/10 §12).
+ *
+ * Renders only published sermons. A missing/unpublished slug is a real 404
+ * (the API deliberately makes drafts indistinguishable from unknown slugs), and
+ * an API outage is an honest 503 rather than a fabricated "not found".
+ */
+import { getChurchProfile, getNavigation } from '../../data/site';
+import { getSermonDetail } from '../../data/content';
+import { formatSermonDate } from '../../lib/format';
+import { buildSermonSeo, youtubeVideo } from '../../lib/seo';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import Button from '../../components/ui/Button.astro';
+import Container from '../../components/ui/Container.astro';
+import DetailHero from '../../components/ui/DetailHero.astro';
+import NotFoundState from '../../components/ui/NotFoundState.astro';
+import Section from '../../components/ui/Section.astro';
+import SermonCard from '../../components/content/SermonCard.astro';
+
+const slug = Astro.params.slug ?? '';
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+
+const [church, navigation, result] = await Promise.all([
+  getChurchProfile(),
+  getNavigation(),
+  getSermonDetail(slug),
+]);
+
+if (result.status === 'unavailable') Astro.response.status = 503;
+
+const sermon = result.status === 'ok' ? result.data : null;
+const seo = sermon
+  ? buildSermonSeo(sermon, { siteUrl, siteName: church.name || 'Iglesia UCI' })
+  : null;
+const youtube = sermon ? youtubeVideo(sermon.video) : null;
+
+const notFound = result.status === 'not-found';
+if (notFound) Astro.response.status = 404;
+
+const errorTitle = notFound
+  ? 'Sermón no encontrado | Iglesia UCI'
+  : 'Sermón no disponible | Iglesia UCI';
+const errorMessage = notFound
+  ? 'No encontramos este sermón. Puede que el enlace sea incorrecto o que el mensaje ya no esté publicado.'
+  : 'No pudimos cargar este sermón en este momento. Intenta de nuevo en unos minutos.';
+
+const date = sermon
+  ? formatSermonDate(sermon.sermonDate ?? sermon.publishedAt)
+  : null;
+const metaParts = sermon
+  ? [
+      sermon.preacher?.displayName ?? sermon.preacherName,
+      date,
+      sermon.durationMinutes ? `${sermon.durationMinutes} min` : null,
+    ].filter((part): part is string => Boolean(part))
+  : [];
+const related = sermon
+  ? sermon.related.filter((item) => item.id !== sermon.id).slice(0, 3)
+  : [];
+const breadcrumbs = [
+  { label: 'Inicio', href: '/' },
+  { label: 'Sermones', href: '/sermones' },
+  { label: sermon?.title ?? 'Sermón' },
+];
+---
+
+{
+  sermon && seo ? (
+    <ContentLayout
+      title={seo.title}
+      description={seo.description}
+      canonicalPath={seo.canonicalUrl}
+      ogImageUrl={seo.ogImageUrl ?? undefined}
+      ogType="article"
+      jsonLd={seo.jsonLd}
+      church={church}
+      navigation={navigation}
+    >
+      <article>
+        <DetailHero
+          label={sermon.series ? `Serie · ${sermon.series.name}` : 'Sermón'}
+          title={sermon.title}
+          breadcrumbs={breadcrumbs}
+        >
+          {sermon.scriptureReference && (
+            <p class="sermon-hero__scripture">{sermon.scriptureReference}</p>
+          )}
+          {metaParts.length > 0 && (
+            <p class="sermon-hero__meta">{metaParts.join(' · ')}</p>
+          )}
+          {sermon.topics.length > 0 && (
+            <ul class="sermon-hero__topics" aria-label="Temas del sermón">
+              {sermon.topics.map((topic) => (
+                <li>{topic.name}</li>
+              ))}
+            </ul>
+          )}
+          <div class="sermon-hero__actions">
+            {youtube && (
+              <Button href={youtube.watchUrl} variant="primary" external>
+                Ver en YouTube
+              </Button>
+            )}
+            {!youtube && sermon.video?.url && (
+              <Button href={sermon.video.url} variant="primary" external>
+                Ver video
+              </Button>
+            )}
+            {sermon.notesUrl && (
+              <Button href={sermon.notesUrl} variant="secondary" external>
+                Descargar notas
+              </Button>
+            )}
+            <Button href="/sermones" variant="secondary">
+              Todos los sermones
+            </Button>
+          </div>
+        </DetailHero>
+
+        {youtube && (
+          <Section id="grabacion" surface="navy" spacing="md">
+            <Container>
+              <div class="video-embed">
+                <iframe
+                  src={youtube.embedUrl}
+                  title={`Grabación: ${sermon.title}`}
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowfullscreen
+                  referrerpolicy="strict-origin-when-cross-origin"
+                ></iframe>
+              </div>
+            </Container>
+          </Section>
+        )}
+
+        <Section surface="light" spacing="lg">
+          <Container narrow>
+            <div class="sermon-body">
+              {sermon.description && (
+                <div class="sermon-body__section">
+                  <h2 class="sermon-body__heading font-display">Mensaje</h2>
+                  <p class="sermon-body__text">{sermon.description}</p>
+                </div>
+              )}
+
+              {sermon.scriptureText && (
+                <blockquote class="sermon-body__scripture">
+                  {sermon.scriptureText}
+                  {sermon.scriptureReference && (
+                    <cite>{sermon.scriptureReference}</cite>
+                  )}
+                </blockquote>
+              )}
+
+              {sermon.notesContent && (
+                <div class="sermon-body__section">
+                  <h2 class="sermon-body__heading font-display">Notas</h2>
+                  <p class="sermon-body__text sermon-body__text--pre">
+                    {sermon.notesContent}
+                  </p>
+                </div>
+              )}
+
+              {sermon.audioUrl && (
+                <div class="sermon-body__section">
+                  <h2 class="sermon-body__heading font-display">Audio</h2>
+                  <audio
+                    class="sermon-body__audio"
+                    controls
+                    preload="none"
+                    src={sermon.audioUrl}
+                  >
+                    Tu navegador no admite la reproducción de audio.
+                  </audio>
+                </div>
+              )}
+
+              {!sermon.description &&
+                !sermon.scriptureText &&
+                !sermon.notesContent &&
+                !sermon.audioUrl && (
+                  <p class="sermon-body__text">
+                    Este sermón no tiene contenido adicional publicado.
+                  </p>
+                )}
+            </div>
+          </Container>
+        </Section>
+
+        {related.length > 0 && (
+          <Section surface="light" spacing="lg">
+            <Container>
+              <h2 class="related__heading font-display">
+                Sermones relacionados
+              </h2>
+              <ul class="sermon-grid">
+                {related.map((item) => (
+                  <SermonCard sermon={item} headingLevel="h3" />
+                ))}
+              </ul>
+            </Container>
+          </Section>
+        )}
+      </article>
+    </ContentLayout>
+  ) : (
+    <ContentLayout
+      title={errorTitle}
+      description={errorMessage}
+      canonicalPath={`/sermones/${slug}`}
+      noindex
+      church={church}
+      navigation={navigation}
+    >
+      <NotFoundState
+        title={notFound ? 'Sermón no encontrado' : 'No pudimos cargar este sermón'}
+        message={errorMessage}
+        backHref="/sermones"
+        backLabel="Ver todos los sermones"
+      />
+    </ContentLayout>
+  )
+}
+
+<style>
+  .sermon-hero__scripture {
+    color: var(--color-gold);
+    font-family: var(--font-display);
+    font-size: var(--font-size-heading-3);
+    font-style: italic;
+  }
+
+  .sermon-hero__meta {
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-small);
+    letter-spacing: var(--letter-spacing-nav);
+  }
+
+  .sermon-hero__topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8);
+    margin-top: var(--space-8);
+  }
+
+  .sermon-hero__topics li {
+    padding: var(--space-4) var(--space-12);
+    border: 1px solid var(--border-on-dark);
+    border-radius: var(--radius-pill);
+    color: var(--color-gray-light);
+    font-size: var(--font-size-caption);
+  }
+
+  .sermon-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-top: var(--space-16);
+  }
+
+  .video-embed {
+    position: relative;
+    width: 100%;
+    max-width: 60rem;
+    margin-inline: auto;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background-color: var(--color-black);
+  }
+
+  .video-embed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  .sermon-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-40);
+  }
+
+  .sermon-body__section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+  }
+
+  .sermon-body__heading {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .sermon-body__text {
+    color: var(--color-navy);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+  }
+
+  .sermon-body__text--pre {
+    white-space: pre-line;
+  }
+
+  .sermon-body__scripture {
+    padding: var(--space-24);
+    border-left: 3px solid var(--color-gold);
+    background-color: rgba(217, 164, 65, 0.08);
+    color: var(--color-navy);
+    font-family: var(--font-display);
+    font-size: var(--font-size-heading-3);
+    font-style: italic;
+    line-height: var(--line-height-body-serif);
+  }
+
+  .sermon-body__scripture cite {
+    display: block;
+    margin-top: var(--space-12);
+    color: var(--color-blue);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-body-small);
+    font-style: normal;
+  }
+
+  .sermon-body__audio {
+    width: 100%;
+  }
+
+  .related__heading {
+    margin-bottom: var(--space-32);
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .sermon-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-24);
+  }
+
+  @media (max-width: 1023px) {
+    .sermon-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 639px) {
+    .sermon-hero__actions {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .sermon-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

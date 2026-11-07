@@ -1,0 +1,42 @@
+---
+/**
+ * EmptyState — honest "nothing published yet / no matches" panel for a light
+ * listing surface. Never invents content to fill the grid.
+ */
+interface Props {
+  title: string;
+  message: string;
+}
+
+const { title, message } = Astro.props;
+---
+
+<div class="empty-state" role="status">
+  <h2 class="empty-state__title font-display">{title}</h2>
+  <p class="empty-state__message">{message}</p>
+  <slot />
+</div>
+
+<style>
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    padding-block: var(--space-48);
+    border-top: 1px solid var(--border-on-light);
+    border-bottom: 1px solid var(--border-on-light);
+  }
+
+  .empty-state__title {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .empty-state__message {
+    max-width: 56ch;
+    color: var(--color-navy);
+    opacity: 0.75;
+    font-size: var(--font-size-body-large);
+  }
+</style>

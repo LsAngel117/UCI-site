@@ -1,7 +1,6 @@
 // @ts-check
 import { fileURLToPath } from 'node:url';
 import node from '@astrojs/node';
-import sitemap from '@astrojs/sitemap';
 import { defineConfig } from 'astro/config';
 
 // SITE_URL is REQUIRED in every real deploy. It is the public origin consumed
@@ -35,7 +34,13 @@ export default defineConfig({
   // Monorepo single-package layout: the public website lives under
   // `src/web` (docs/02 §9). `public/` stays at the repo root.
   srcDir: './src/web',
-  integrations: [sitemap()],
+  // The sitemap is served by the dynamic `/sitemap.xml` route, which proxies
+  // the API's Phase 8 sitemap (published detail URLs + canonical overrides).
+  // `@astrojs/sitemap` was removed: it generated a build-time static sitemap
+  // that omitted detail routes and used an inconsistent trailing slash, so
+  // keeping both would publish conflicting sitemaps. The package may remain in
+  // package.json but is intentionally not wired here.
+  integrations: [],
   vite: {
     resolve: {
       // Runtime aliases mirroring tsconfig `paths`, so shared/domain code is
