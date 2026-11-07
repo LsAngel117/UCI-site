@@ -655,7 +655,19 @@ async function syncCoverReference(
 /** Validate an optional http(s) URL used by SEO fields. */
 function seoUrl(value: unknown, field: string): string | null {
   if (value === undefined || value === null) return null;
-  if (typeof value !== 'string' || !/^https?:\/\//i.test(value)) {
+  if (typeof value !== 'string') {
+    throw validation(`"${field}" must be an http(s) URL or null.`, { field });
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw validation(`"${field}" must be an http(s) URL or null.`, { field });
+  }
+  if (
+    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+    !parsed.hostname
+  ) {
     throw validation(`"${field}" must be an http(s) URL or null.`, { field });
   }
   return value;

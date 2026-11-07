@@ -29,6 +29,11 @@ import { loggerOptions } from './logger';
 import { prisma } from './db';
 import { registerMediaRoutes } from './media/routes';
 import { createMediaStorage, isAbsoluteUrl } from './media/storage';
+import { registerSearchRoutes } from './search/routes';
+import {
+  registerAdminSeoRoutes,
+  registerPublicSeoRoutes,
+} from './seo/routes';
 
 export const SERVICE_NAME = 'uci-api';
 export const SERVICE_VERSION = '0.0.1';
@@ -188,6 +193,21 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 
   app.register(async (instance) => {
     registerPublicNavigationRoutes(instance, config);
+  });
+
+  // SEO & discovery (Phase 8, docs/10 §8–§9, §20). Public sitemap/robots and
+  // unauthenticated search; visibility and indexability are enforced in the
+  // services. The admin SEO settings endpoints attach `seo.*` permissions.
+  app.register(async (instance) => {
+    registerPublicSeoRoutes(instance, config);
+  });
+
+  app.register(async (instance) => {
+    registerSearchRoutes(instance);
+  });
+
+  app.register(async (instance) => {
+    registerAdminSeoRoutes(instance, config);
   });
 
   // Admin sermon taxonomy API (Phase 5A): people / series / topics pickers.

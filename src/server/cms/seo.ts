@@ -25,7 +25,20 @@ const SEO_INPUT_KEYS = new Set([
 /** Validate an optional http(s) URL used by SEO fields. */
 function seoUrl(value: unknown, field: string): string | null {
   if (value === undefined || value === null) return null;
-  if (typeof value !== 'string' || !/^https?:\/\//i.test(value)) {
+  if (typeof value !== 'string') {
+    throw validation(`"${field}" must be an http(s) URL or null.`, { field });
+  }
+  // Strict: a bare scheme like "https://" has no host and must be rejected.
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw validation(`"${field}" must be an http(s) URL or null.`, { field });
+  }
+  if (
+    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') ||
+    !parsed.hostname
+  ) {
     throw validation(`"${field}" must be an http(s) URL or null.`, { field });
   }
   return value;
