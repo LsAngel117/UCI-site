@@ -1,0 +1,105 @@
+---
+/**
+ * Breadcrumbs — visible information-architecture trail for detail pages
+ * (docs/10 §12.4). The machine-readable BreadcrumbList is emitted separately
+ * by `src/web/lib/seo.ts` from the same route data.
+ */
+interface Item {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  items: Item[];
+  /** `dark` for detail heroes, `light` for light surfaces. */
+  surface?: 'dark' | 'light';
+}
+
+const { items, surface = 'dark' } = Astro.props;
+---
+
+<nav
+  class:list={['breadcrumbs', `breadcrumbs--${surface}`]}
+  aria-label="Ruta de navegación"
+>
+  <ol class="breadcrumbs__list">
+    {
+      items.map((item, index) => {
+        const isCurrent = index === items.length - 1;
+        return (
+          <li class="breadcrumbs__item">
+            {item.href && !isCurrent ? (
+              <a class="breadcrumbs__link" href={item.href}>
+                {item.label}
+              </a>
+            ) : (
+              <span
+                class="breadcrumbs__current"
+                aria-current={isCurrent ? 'page' : undefined}
+              >
+                {item.label}
+              </span>
+            )}
+            {!isCurrent && (
+              <span class="breadcrumbs__separator" aria-hidden="true">
+                /
+              </span>
+            )}
+          </li>
+        );
+      })
+    }
+  </ol>
+</nav>
+
+<style>
+  .breadcrumbs {
+    font-size: var(--font-size-body-small);
+  }
+
+  .breadcrumbs__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  .breadcrumbs__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  .breadcrumbs__separator {
+    opacity: 0.5;
+  }
+
+  .breadcrumbs--dark {
+    color: var(--color-gray);
+  }
+
+  .breadcrumbs--dark .breadcrumbs__link {
+    color: var(--color-gray-light);
+  }
+
+  .breadcrumbs--dark .breadcrumbs__link:hover {
+    color: var(--color-gold);
+  }
+
+  .breadcrumbs--light {
+    color: var(--color-navy);
+    opacity: 0.7;
+  }
+
+  .breadcrumbs--light .breadcrumbs__link {
+    color: var(--color-blue);
+  }
+
+  .breadcrumbs--light .breadcrumbs__link:hover {
+    color: var(--color-navy);
+  }
+
+  .breadcrumbs__current {
+    opacity: 0.75;
+  }
+</style>

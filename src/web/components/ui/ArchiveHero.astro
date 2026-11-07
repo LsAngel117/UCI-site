@@ -1,0 +1,66 @@
+---
+/**
+ * ArchiveHero — dark opening panel for a content listing (docs/03 §18–20).
+ *
+ * Keeps the same cinematic surface language as the homepage while leaving the
+ * listing itself on a light reading surface below. The top padding clears the
+ * fixed transparent header. Exactly one `<h1>` lives here.
+ */
+import Container from './Container.astro';
+import Section from './Section.astro';
+import SectionLabel from './SectionLabel.astro';
+
+interface Props {
+  label: string;
+  title: string;
+  description?: string;
+}
+
+const { label, title, description } = Astro.props;
+---
+
+<Section surface="dark" spacing="lg" class="archive-hero">
+  <div class="archive-hero__atmosphere" aria-hidden="true"></div>
+  <Container>
+    <div class="archive-hero__inner">
+      <SectionLabel>{label}</SectionLabel>
+      <h1 class="archive-hero__title font-display">{title}</h1>
+      {description && <p class="archive-hero__description">{description}</p>}
+    </div>
+  </Container>
+</Section>
+
+<style>
+  :global(.archive-hero) {
+    overflow: hidden;
+  }
+
+  .archive-hero__atmosphere {
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-blue-glow);
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  .archive-hero__inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+    max-width: 52rem;
+    padding-block-start: 4.5rem;
+  }
+
+  .archive-hero__title {
+    font-size: var(--font-size-heading-1);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .archive-hero__description {
+    max-width: 56ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+  }
+</style>

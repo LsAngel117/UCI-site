@@ -1,0 +1,262 @@
+---
+/**
+ * /eventos/[slug] — public event detail (Phase 9B1, docs/08 §12.2, docs/10 §12.5).
+ *
+ * Shows the real date/time, place and registration action when published. A
+ * past event stays accessible but is clearly marked as finished; structured
+ * data only claims `EventScheduled` while the event is still ahead.
+ */
+import { getChurchProfile, getNavigation } from '../../data/site';
+import { getEventDetail } from '../../data/content';
+import {
+  formatEventDateTime,
+  formatEventTime,
+  isPastEvent,
+} from '../../lib/format';
+import { buildEventSeo } from '../../lib/seo';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import Button from '../../components/ui/Button.astro';
+import Container from '../../components/ui/Container.astro';
+import DetailHero from '../../components/ui/DetailHero.astro';
+import NotFoundState from '../../components/ui/NotFoundState.astro';
+import Section from '../../components/ui/Section.astro';
+
+const slug = Astro.params.slug ?? '';
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+
+const [church, navigation, result] = await Promise.all([
+  getChurchProfile(),
+  getNavigation(),
+  getEventDetail(slug),
+]);
+
+if (result.status === 'unavailable') Astro.response.status = 503;
+
+const event = result.status === 'ok' ? result.data : null;
+const seo = event
+  ? buildEventSeo(event, { siteUrl, siteName: church.name || 'Iglesia UCI' })
+  : null;
+
+const notFound = result.status === 'not-found';
+if (notFound) Astro.response.status = 404;
+
+const errorTitle = notFound
+  ? 'Evento no encontrado | Iglesia UCI'
+  : 'Evento no disponible | Iglesia UCI';
+const errorMessage = notFound
+  ? 'No encontramos este evento. Puede que el enlace sea incorrecto o que ya no esté publicado.'
+  : 'No pudimos cargar este evento en este momento. Intenta de nuevo en unos minutos.';
+
+const start = event ? formatEventDateTime(event.startAt) : null;
+const end = event ? formatEventDateTime(event.endAt) : null;
+const startTime = event ? formatEventTime(event.startAt) : null;
+const endTime = event ? formatEventTime(event.endAt) : null;
+const place = event
+  ? [event.locationName, event.address, event.city].filter(Boolean).join(', ')
+  : '';
+const past = event ? isPastEvent(event.startAt, event.endAt) : false;
+const breadcrumbs = [
+  { label: 'Inicio', href: '/' },
+  { label: 'Eventos', href: '/eventos' },
+  { label: event?.title ?? 'Evento' },
+];
+---
+
+{
+  event && seo ? (
+    <ContentLayout
+      title={seo.title}
+      description={seo.description}
+      canonicalPath={seo.canonicalUrl}
+      ogImageUrl={seo.ogImageUrl ?? undefined}
+      ogType="article"
+      jsonLd={seo.jsonLd}
+      church={church}
+      navigation={navigation}
+    >
+      <article>
+        <DetailHero
+          label={event.category?.name ?? 'Evento'}
+          title={event.title}
+          breadcrumbs={breadcrumbs}
+        >
+          {event.summary && <p class="event-hero__summary">{event.summary}</p>}
+          {past && (
+            <p class="event-hero__status" role="status">
+              Este evento ya finalizó.
+            </p>
+          )}
+          {event.registrationUrl && (
+            <div class="event-hero__actions">
+              <Button href={event.registrationUrl} variant="primary" external>
+                Inscripción
+              </Button>
+            </div>
+          )}
+        </DetailHero>
+
+        <Section surface="light" spacing="lg">
+          <Container narrow>
+            <div class="event-info">
+              <div class="event-info__item">
+                <h2 class="event-info__label">Fecha y hora</h2>
+                {start ? (
+                  <>
+                    <p class="event-info__value">{start}</p>
+                    {end && <p class="event-info__muted">Hasta {end}</p>}
+                    {startTime && (
+                      <p class="event-info__muted">
+                        {startTime}
+                        {endTime ? `–${endTime}` : ''}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p class="event-info__muted">Fecha por confirmar.</p>
+                )}
+              </div>
+
+              <div class="event-info__item">
+                <h2 class="event-info__label">Lugar</h2>
+                {place ? (
+                  <p class="event-info__value">{place}</p>
+                ) : (
+                  <p class="event-info__muted">Lugar por confirmar.</p>
+                )}
+              </div>
+            </div>
+
+            {event.description && (
+              <div class="event-description">
+                <h2 class="event-description__heading font-display">
+                  Sobre este evento
+                </h2>
+                <p class="event-description__text">{event.description}</p>
+              </div>
+            )}
+
+            <div class="event-back">
+              <Button href="/eventos" variant="text" contrast="navy">
+                Ver todos los eventos
+              </Button>
+            </div>
+          </Container>
+        </Section>
+      </article>
+    </ContentLayout>
+  ) : (
+    <ContentLayout
+      title={errorTitle}
+      description={errorMessage}
+      canonicalPath={`/eventos/${slug}`}
+      noindex
+      church={church}
+      navigation={navigation}
+    >
+      <NotFoundState
+        title={notFound ? 'Evento no encontrado' : 'No pudimos cargar este evento'}
+        message={errorMessage}
+        backHref="/eventos"
+        backLabel="Ver todos los eventos"
+      />
+    </ContentLayout>
+  )
+}
+
+<style>
+  .event-hero__summary {
+    max-width: 52ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+  }
+
+  .event-hero__status {
+    display: inline-block;
+    padding: var(--space-4) var(--space-12);
+    border: 1px solid var(--border-on-dark);
+    border-radius: var(--radius-pill);
+    color: var(--color-gray-light);
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .event-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-top: var(--space-16);
+  }
+
+  .event-info {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-32);
+    padding-bottom: var(--space-32);
+    border-bottom: 1px solid var(--border-on-light);
+  }
+
+  .event-info__item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .event-info__label {
+    color: var(--color-blue);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .event-info__value {
+    color: var(--color-navy);
+    font-size: var(--font-size-body-large);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .event-info__muted {
+    color: var(--color-navy);
+    opacity: 0.7;
+    font-size: var(--font-size-body-small);
+  }
+
+  .event-description {
+    margin-top: var(--space-40);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+  }
+
+  .event-description__heading {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .event-description__text {
+    color: var(--color-navy);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+    white-space: pre-line;
+  }
+
+  .event-back {
+    margin-top: var(--space-40);
+  }
+
+  @media (max-width: 639px) {
+    .event-info {
+      grid-template-columns: 1fr;
+      gap: var(--space-24);
+    }
+
+    .event-hero__actions {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+</style>

@@ -3,14 +3,21 @@ node_modules/
 
 # Build output
 dist/
+dist-server/
 build/
 .astro/
+
+# Uploaded media binaries (never commit; production uses env-configured root).
+# Anchored to the repo root so it does NOT ignore source dirs like src/server/media/.
+/media/
 
 # Agents
 .agents/
 .opencode/
+.atl/
 
 # Database backups / dumps (never commit)
+/backups/
 *.dump
 *.sql.gz
 backup_*.sql

@@ -1,0 +1,89 @@
+---
+/**
+ * Pagination — accessible previous/next navigation for a public archive.
+ * Renders nothing when the result fits on one page.
+ */
+interface Props {
+  page: number;
+  totalPages: number;
+  prevHref: string | null;
+  nextHref: string | null;
+  /** Accessible label context, e.g. "sermones". */
+  label?: string;
+}
+
+const { page, totalPages, prevHref, nextHref, label = 'contenido' } = Astro.props;
+const hasPagination = totalPages > 1;
+---
+
+{
+  hasPagination && (
+    <nav class="pagination" aria-label={`Paginación de ${label}`}>
+      {prevHref ? (
+        <a class="pagination__link" href={prevHref} rel="prev">
+          ← Anterior
+        </a>
+      ) : (
+        <span class="pagination__link pagination__link--disabled" aria-disabled="true">
+          ← Anterior
+        </span>
+      )}
+
+      <span class="pagination__status">
+        Página {page} de {totalPages}
+      </span>
+
+      {nextHref ? (
+        <a class="pagination__link" href={nextHref} rel="next">
+          Siguiente →
+        </a>
+      ) : (
+        <span class="pagination__link pagination__link--disabled" aria-disabled="true">
+          Siguiente →
+        </span>
+      )}
+    </nav>
+  )
+}
+
+<style>
+  .pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-16);
+    margin-top: var(--space-48);
+    padding-top: var(--space-24);
+    border-top: 1px solid var(--border-on-light);
+  }
+
+  .pagination__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: var(--space-8) var(--space-16);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-md);
+    color: var(--color-navy);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .pagination__link:hover {
+    border-color: var(--color-blue);
+    color: var(--color-blue);
+  }
+
+  .pagination__link--disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .pagination__status {
+    color: var(--color-navy);
+    opacity: 0.7;
+    font-size: var(--font-size-body-small);
+    letter-spacing: var(--letter-spacing-nav);
+  }
+</style>

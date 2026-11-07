@@ -1,0 +1,191 @@
+# ---------------------------------------------------------------------------
+# UCI production stack (Phase 13, docs/14 §8–§12, §57–§58).
+#
+#   Internet → caddy (80/443, TLS)
+#                ├── /api/*, /panel*  → api  (Fastify :8787)
+#                ├── /media/*         → media_data volume (static)
+#                └── /*               → web  (Astro SSR :4321)
+#                          api → postgres (private, no host port)
+#
+# Usage (always pass the production env file):
+#   docker compose --env-file .env.production \
+#     -f docker-compose.production.yml config
+#   docker compose --env-file .env.production \
+#     -f docker-compose.production.yml up -d
+#
+# `.env.production` is optional at config-parse time (so `config` works in CI
+# without secrets) but REQUIRED at runtime: postgres/api fail fast without it.
+# ---------------------------------------------------------------------------
+name: uci
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+# Shared application env source. The file is injected at runtime only.
+x-app-env: &app-env
+  - path: .env.production
+    required: false
+
+services:
+  # PostgreSQL — private, persistent, internal only (docs/14 §9–§10, §58).
+  # No `ports:` mapping: the database is reachable only on the compose
+  # network. Credentials and database name come from `.env.production`.
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    env_file: *app-env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U "$${POSTGRES_USER:-uci}" -d "$${POSTGRES_DB:-uci_db}"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - private
+
+  # Fastify API + admin SPA + media storage (docs/14 §17–§19).
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: api
+      args:
+        # Keeps the shared build stage cache-compatible with `web`.
+        SITE_URL: ${SITE_URL:-https://uci.example.org}
+    restart: unless-stopped
+    logging: *default-logging
+    env_file: *app-env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: '8787'
+      MEDIA_ROOT: /app/media
+      ADMIN_DIST_ROOT: /app/dist/admin
+    volumes:
+      - media_data:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:8787/api/v1/health').then(r=>r.json()).then(j=>process.exit(j.status==='ok'?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    expose:
+      - '8787'
+    networks:
+      - private
+
+  # Astro SSR public site (docs/14 §17). API_BASE_URL points at the compose
+  # service, never at the public origin, so server-side rendering avoids a
+  # TLS hairpin through Caddy.
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: web
+      args:
+        # Astro bakes `site` at build time; override from `.env.production`.
+        SITE_URL: ${SITE_URL:-https://uci.example.org}
+    restart: unless-stopped
+    logging: *default-logging
+    env_file: *app-env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: '4321'
+      API_BASE_URL: http://api:8787
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:4321/robots.txt').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    expose:
+      - '4321'
+    networks:
+      - private
+
+  # Public TLS boundary (docs/14 §13–§15, §58). Only 80/443 are published.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    env_file: *app-env
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Media is served directly by Caddy (same volume as api, read-only).
+      - media_data:/srv/media:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:2019/config/']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - private
+
+  # One-off migration/seed runner (docs/14 §34–§35). Never starts with `up`.
+  #   docker compose ... run --rm migrate                    # migrate deploy
+  #   docker compose ... run --rm migrate pnpm db:seed       # initial seed
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: migrate
+      args:
+        SITE_URL: ${SITE_URL:-https://uci.example.org}
+    profiles: ['tools']
+    env_file: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - private
+
+networks:
+  private:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  media_data:
+  caddy_data:
+  caddy_config:

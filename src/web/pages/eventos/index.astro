@@ -1,0 +1,130 @@
+---
+/**
+ * /eventos — public upcoming-events archive (Phase 9B1, docs/08 §12.1).
+ *
+ * Only published events are returned by the API; `upcoming=true` keeps the
+ * agenda focused on what is still ahead. Past event detail pages remain
+ * accessible directly (docs/10 §14.3).
+ */
+import { getChurchProfile, getNavigation } from '../../data/site';
+import { getEventsArchive } from '../../data/content';
+import {
+  ARCHIVE_PAGE_SIZE,
+  buildArchiveHref,
+  parsePage,
+} from '../../lib/archive';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import ArchiveHero from '../../components/ui/ArchiveHero.astro';
+import Container from '../../components/ui/Container.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+import NotFoundState from '../../components/ui/NotFoundState.astro';
+import Pagination from '../../components/ui/Pagination.astro';
+import Section from '../../components/ui/Section.astro';
+import EventCard from '../../components/content/EventCard.astro';
+
+const search = Astro.url.searchParams;
+const requestedPage = parsePage(search.get('page'));
+
+const [church, navigation, result] = await Promise.all([
+  getChurchProfile(),
+  getNavigation(),
+  getEventsArchive({
+    upcoming: true,
+    page: requestedPage,
+    limit: ARCHIVE_PAGE_SIZE,
+    sort: 'startAt',
+    order: 'asc',
+  }),
+]);
+
+if (result.status === 'unavailable') Astro.response.status = 503;
+
+const meta = result.status === 'ok' ? result.meta : null;
+const page = meta?.page ?? requestedPage;
+const totalPages = meta?.totalPages ?? 1;
+const canonicalPath = page > 1 ? `/eventos?page=${page}` : '/eventos';
+const title = 'Eventos | Iglesia UCI';
+const description =
+  'Próximos encuentros y actividades de Iglesia UCI: fecha, hora, lugar y registro.';
+
+const outOfRange =
+  result.status === 'ok' && meta !== null && page > totalPages;
+if (outOfRange) Astro.response.status = 404;
+const firstPageHref = buildArchiveHref('/eventos', search, 1);
+const prevHref =
+  page > 1 ? buildArchiveHref('/eventos', search, page - 1) : null;
+const nextHref =
+  page < totalPages ? buildArchiveHref('/eventos', search, page + 1) : null;
+---
+
+<ContentLayout
+  title={title}
+  description={description}
+  canonicalPath={canonicalPath}
+  noindex={result.status === 'unavailable' || outOfRange}
+  church={church}
+  navigation={navigation}
+>
+  {
+    outOfRange ? (
+      <NotFoundState
+        title="Esta página no existe"
+        message="La página solicitada no existe en la agenda. Vuelve al inicio para ver los próximos eventos."
+        backHref={firstPageHref}
+        backLabel="Ir a la primera página"
+      />
+    ) : (
+      <>
+        <ArchiveHero
+          label="Agenda"
+          title="Eventos"
+          description="Lo que está pasando en UCI: actividades, encuentros y oportunidades para participar."
+        />
+
+        <Section surface="light" spacing="lg">
+          <Container>
+            {
+              result.status === 'unavailable' ? (
+                <EmptyState
+                  title="No pudimos cargar los eventos"
+                  message="La agenda no está disponible en este momento. Intenta de nuevo en unos minutos."
+                />
+              ) : result.data.length === 0 ? (
+                <EmptyState
+                  title="No hay eventos próximos"
+                  message="En este momento no hay actividades publicadas en la agenda. Vuelve pronto."
+                />
+              ) : (
+                <ul class="event-list">
+                  {result.data.map((event) => (
+                    <EventCard event={event} />
+                  ))}
+                </ul>
+              )
+            }
+
+            {
+              result.status === 'ok' && result.data.length > 0 && (
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  prevHref={prevHref}
+                  nextHref={nextHref}
+                  label="eventos"
+                />
+              )
+            }
+          </Container>
+        </Section>
+      </>
+    )
+  }
+</ContentLayout>
+
+<style>
+  .event-list {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border-on-light);
+  }
+</style>

@@ -1,0 +1,88 @@
+---
+/**
+ * FinalCTA — "Hay un lugar para ti." (docs/04 §17, docs/03 §23).
+ *
+ * Cinematic conclusion of the homepage narrative. The background is an
+ * atmospheric placeholder until real landscape/worship imagery is delivered
+ * (docs/04 §17.5); it is explicitly marked as temporary and will be replaced
+ * by `<Image>` without changing the composition.
+ */
+import { getFinalCtaContent } from '../../data/site';
+import Button from '../ui/Button.astro';
+import Container from '../ui/Container.astro';
+import Section from '../ui/Section.astro';
+
+const section = getFinalCtaContent();
+---
+
+<Section id="final-cta" surface="dark" spacing="lg" class="final">
+  {/* TEMPORARY: atmospheric background. Replace with `final-cta-horizon.jpg`
+      (worship/environmental image) via <Image> when delivered. */}
+  <div class="final__media" aria-hidden="true">
+    <div class="final__glow"></div>
+    <div class="final__vignette"></div>
+  </div>
+
+  <Container narrow class="final__inner">
+    <h2 class="final__heading font-display">{section.heading}</h2>
+    <p class="final__support text-body-large">{section.supportingText}</p>
+    <div class="final__cta">
+      <Button href={section.cta.href} variant="primary">{section.cta.label}</Button>
+    </div>
+  </Container>
+</Section>
+
+<style>
+  .final {
+    overflow: hidden;
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+  }
+
+  .final__media {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, var(--color-navy) 0%, var(--color-black) 100%);
+  }
+
+  .final__glow {
+    position: absolute;
+    inset: auto -10% -40% -10%;
+    height: 80%;
+    background: var(--gradient-blue-glow);
+    opacity: 0.8;
+  }
+
+  .final__vignette {
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-hero-overlay);
+    opacity: 0.8;
+  }
+
+  .final__inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-24);
+  }
+
+  .final__heading {
+    max-width: 16ch;
+    font-size: var(--font-size-display-l);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .final__support {
+    max-width: 42ch;
+    color: var(--color-gray-light);
+  }
+
+  .final__cta {
+    margin-top: var(--space-8);
+  }
+</style>

@@ -1,0 +1,197 @@
+---
+/**
+ * EventCard — scannable event row (docs/03 §19).
+ *
+ * Compact date block, category, title, time and place. Registration is a
+ * property of the event, so the row advertises it while the detail page owns
+ * the actual action (a nested link inside the card link would be invalid).
+ */
+import { CalendarCheck, Clock, MapPin } from '@lucide/astro';
+import type { PublicEventDto } from '@shared/cms';
+import {
+  formatEventDay,
+  formatEventMonth,
+  formatEventTime,
+  isPastEvent,
+} from '../../lib/format';
+
+interface Props {
+  event: PublicEventDto;
+  headingLevel?: 'h2' | 'h3';
+}
+
+const { event, headingLevel: Heading = 'h2' } = Astro.props;
+const day = formatEventDay(event.startAt);
+const month = formatEventMonth(event.startAt);
+const startTime = formatEventTime(event.startAt);
+const endTime = formatEventTime(event.endAt);
+const place = [event.locationName, event.city].filter(Boolean).join(', ');
+const past = isPastEvent(event.startAt, event.endAt);
+---
+
+<li class="event-card">
+  <a class="event-card__link" href={`/eventos/${event.slug}`}>
+    <time class="event-card__date" datetime={event.startAt ?? undefined}>
+      <span class="event-card__day">{day ?? '—'}</span>
+      <span class="event-card__month">{month ?? ''}</span>
+    </time>
+
+    <div class="event-card__body">
+      <p class="event-card__eyebrow">
+        {event.category?.name ?? 'Evento'}
+        {past && <span class="event-card__past">Evento finalizado</span>}
+      </p>
+      <Heading class="event-card__title font-display">{event.title}</Heading>
+      <p class="event-card__meta">
+        {startTime && (
+          <span>
+            <Clock size={16} stroke-width={1.75} />
+            {startTime}
+            {endTime ? `–${endTime}` : ''}
+          </span>
+        )}
+        {place && (
+          <span>
+            <MapPin size={16} stroke-width={1.75} />
+            {place}
+          </span>
+        )}
+        {event.registrationUrl && (
+          <span class="event-card__registration">
+            <CalendarCheck size={16} stroke-width={1.75} />
+            Inscripción disponible
+          </span>
+        )}
+      </p>
+    </div>
+
+    <span class="event-card__arrow" aria-hidden="true">→</span>
+  </a>
+</li>
+
+<style>
+  .event-card {
+    border-bottom: 1px solid var(--border-on-light);
+  }
+
+  .event-card__link {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-24);
+    padding-block: var(--space-24);
+    transition: background-color var(--duration-fast) var(--ease-out);
+  }
+
+  .event-card__link:hover {
+    background-color: rgba(22, 117, 209, 0.04);
+  }
+
+  .event-card__date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 4.5rem;
+    padding: var(--space-8);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-sm);
+  }
+
+  .event-card__day {
+    color: var(--color-navy);
+    font-family: var(--font-display);
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+  }
+
+  .event-card__month {
+    margin-top: var(--space-4);
+    color: var(--color-blue);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+  }
+
+  .event-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .event-card__eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8);
+    color: var(--color-blue);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .event-card__past {
+    padding: 1px var(--space-8);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-pill);
+    color: var(--color-navy);
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--letter-spacing-normal);
+    text-transform: none;
+    opacity: 0.7;
+  }
+
+  .event-card__title {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .event-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-top: var(--space-4);
+    color: var(--color-navy);
+    opacity: 0.66;
+    font-size: var(--font-size-body-small);
+  }
+
+  .event-card__meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  .event-card__registration {
+    color: var(--color-blue);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .event-card__arrow {
+    color: var(--color-blue);
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .event-card__link:hover .event-card__arrow {
+    transform: translateX(4px);
+  }
+
+  @media (max-width: 639px) {
+    .event-card__link {
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: var(--space-16);
+    }
+
+    .event-card__arrow {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .event-card__link:hover .event-card__arrow {
+      transform: none;
+    }
+  }
+</style>
