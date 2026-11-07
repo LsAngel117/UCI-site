@@ -1,29 +1,54 @@
 /**
  * Site data repository — the ONLY data access point for public components.
  *
- * Components must receive data through props or through these functions; they
- * never import fixtures or (later) the API client directly. When the CMS/API
- * arrives, replace the fixture lookups inside these functions with API calls
- * while keeping the public function signatures stable (docs/02 §66, docs/07 §48).
+ * Structural copy (hero, section labels/headings/CTAs, pillars, first-visit
+ * content, giving copy, final CTA) is product-controlled and stays here as
+ * constants (docs/04 §20). Dynamic content is fetched from the public API at
+ * request time through `src/web/lib/api.ts` (docs/15 §15, Phase 9A):
  *
- * All returned values are already filtered to publicly publishable content.
+ * - sermons / events / ministries come from the published public endpoints;
+ * - church profile, schedule, socials and giving come from `settings/public`;
+ * - header/footer navigation comes from `navigation?location=...`.
+ *
+ * Components never import fixtures or the API client directly. They receive
+ * data through props (the homepage) or through these getters (other routes).
+ *
+ * Degradation rule: when the API is unreachable the homepage must still render
+ * honestly. Dynamic collections degrade to empty arrays and detail values to
+ * `null`; product-controlled copy and navigation fall back to the approved
+ * structural defaults. Nothing is invented to fill a gap.
  */
+import { pillarsFixture } from './fixtures/profile';
 import {
-  churchProfileFixture,
-  givingConfigFixture,
-  pillarsFixture,
-  primaryActionsFixture,
-  primaryNavigationFixture,
-} from './fixtures/profile';
-import { serviceSchedulesFixture } from './fixtures/schedule';
-import {
-  eventsFixture,
   homepageHeadingsFixture,
-  ministriesFixture,
-  sermonsFixture,
   storiesFixture,
 } from './fixtures/content';
 import heroWorship from '../assets/home/hero-worship.png';
+import {
+  getEvents,
+  getMinistries,
+  getNavigation as fetchNavigation,
+  getSermons,
+  getSettingsPublic,
+} from '../lib/api';
+import {
+  buildChurchProfile,
+  buildGivingConfig,
+  buildNextService,
+  buildServiceSchedules,
+  buildSiteNavigation,
+  buildVisibleSchedules,
+  toMinutes,
+} from './mappers';
+import type { ListResponse } from '@shared/api';
+import type {
+  NavigationLocation,
+  PublicEventDto,
+  PublicMinistryDto,
+  PublicNavigationItemDto,
+  PublicSermonDto,
+} from '@shared/cms';
+import type { PublicSettingsDto } from '@shared/settings';
 import type {
   AboutSection,
   ChurchProfile,
@@ -33,9 +58,10 @@ import type {
   GivingConfig,
   HeroContent,
   HistoriasContent,
+  Location,
   MinisteriosContent,
   Ministry,
-  NavigationItem,
+  Person,
   Pillar,
   PillarsSection,
   PrimeraVezContent,
@@ -49,157 +75,22 @@ import type {
   UltimoSermonContent,
 } from '@shared/types';
 
-const DAY_MS = 86_400_000;
+/** Church-local rendering timezone for API instants (docs/05 §43). */
+const CHURCH_TIME_ZONE = 'America/Bogota';
 
-function toMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
-}
-
-/** Resolve the next concrete occurrence of a recurring weekly service. */
-function nextOccurrenceDate(schedule: ServiceSchedule, from: Date): Date | null {
-  if (!schedule.active) return null;
-
-  const candidate = new Date(
-    from.getFullYear(),
-    from.getMonth(),
-    from.getDate(),
-    Math.floor(toMinutes(schedule.startTime) / 60),
-    toMinutes(schedule.startTime) % 60,
-    0,
-    0,
-  );
-
-  let dayDelta = (schedule.dayOfWeek - candidate.getDay() + 7) % 7;
-  // If the service is today but already started, move to next week.
-  if (dayDelta === 0 && candidate.getTime() <= from.getTime()) {
-    dayDelta = 7;
-  }
-
-  const next = new Date(candidate.getTime() + dayDelta * DAY_MS);
-
-  const validFrom = new Date(schedule.validFrom);
-  if (next < validFrom) return validFrom;
-  if (schedule.validUntil && next > new Date(schedule.validUntil)) return null;
-
-  return next;
-}
-
-export function getChurchProfile(): ChurchProfile {
-  return churchProfileFixture;
-}
-
-/** Active recurring service schedules for informational display (e.g. footer). */
-export function getServiceSchedules(): ServiceSchedule[] {
-  return serviceSchedulesFixture.filter((schedule) => schedule.active);
-}
-
-/**
- * Next service occurrence across all active recurring schedules.
- * Returns null when no schedule is configured (callers decide the fallback).
- */
-export function getNextService(from: Date = new Date()): ServiceOccurrence | null {
-  const profile = getChurchProfile();
-
-  const occurrences = serviceSchedulesFixture
-    .map((schedule) => {
-      const nextDate = nextOccurrenceDate(schedule, from);
-      return nextDate ? { schedule, nextDate } : null;
-    })
-    .filter((value): value is { schedule: ServiceSchedule; nextDate: Date } =>
-      value !== null,
-    );
-
-  if (occurrences.length === 0) return null;
-
-  occurrences.sort(
-    (a, b) =>
-      a.nextDate.getTime() - b.nextDate.getTime() ||
-      toMinutes(a.schedule.startTime) - toMinutes(b.schedule.startTime),
-  );
-
-  return {
-    schedule: occurrences[0].schedule,
-    nextDate: occurrences[0].nextDate,
-    location: profile.location,
-  };
-}
-
-/** Featured sermon, falling back to the most recent published sermon. */
-export function getFeaturedSermon(): Sermon | null {
-  const published = sermonsFixture.filter((sermon) => sermon.status === 'published');
-  const featured = published.find((sermon) => sermon.featured);
-  if (featured) return featured;
-
-  return (
-    [...published].sort(
-      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-    )[0] ?? null
+function warnUnavailable(scope: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  console.warn(
+    `[uci] ${scope} unavailable — rendering an honest empty state (${message}).`,
   );
 }
 
-/** Published sermons, most recent first, for the archive preview (docs/04 §12). */
-export function getRecentSermons(limit = 4): Sermon[] {
-  return sermonsFixture
-    .filter((sermon) => sermon.status === 'published')
-    .sort(
-      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-    )
-    .slice(0, limit);
-}
-
-/** Upcoming published events, soonest first. Past events are excluded. */
-export function getUpcomingEvents(limit = 3, from: Date = new Date()): Event[] {
-  const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-
-  return eventsFixture
-    .filter((event) => {
-      if (event.status !== 'published') return false;
-      return new Date(event.startDate).getTime() >= today.getTime();
-    })
-    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-    .slice(0, limit);
-}
-
-/** Featured published ministries for the homepage subset (docs/04 §14.6). */
-export function getFeaturedMinistries(limit = 3): Ministry[] {
-  return ministriesFixture
-    .filter((ministry) => ministry.status === 'published' && ministry.featured)
-    .slice(0, limit);
-}
-
-/**
- * Featured story — only published, editorially approved stories may surface.
- * Returns null when no approved story exists (docs/04 §15.5).
- */
-export function getFeaturedStory(): Story | null {
-  return (
-    storiesFixture.find(
-      (story) =>
-        story.status === 'published' &&
-        story.editorialApproved &&
-        story.featured,
-    ) ?? null
-  );
-}
-
-export function getNavigation(): SiteNavigation {
-  const primary = primaryNavigationFixture.filter((item) => item.visible);
-
-  return {
-    primary,
-    actions: primaryActionsFixture.filter((item) => item.visible),
-    // Footer reuses the same product-controlled destinations.
-    footer: primary.map((item) => ({ ...item })) as NavigationItem[],
-  };
-}
+// ---------------------------------------------------------------------------
+// Structural copy (product-controlled, static — docs/04 §20)
+// ---------------------------------------------------------------------------
 
 export function getPillars(): Pillar[] {
   return pillarsFixture;
-}
-
-export function getGivingConfig(): GivingConfig {
-  return givingConfigFixture;
 }
 
 /**
@@ -207,8 +98,7 @@ export function getGivingConfig(): GivingConfig {
  *
  * The fixture owns the copy and keeps `backgroundImageUrl` null so the data
  * layer stays free of binary imports (docs/04 §6.3). This repository function
- * is the single place that binds the real asset, and will later map the CMS
- * image URL instead — the component contract does not change.
+ * is the single place that binds the real asset.
  */
 export function getHeroContent(): HeroContent {
   return {
@@ -261,4 +151,404 @@ export function getFinalCtaContent(): FinalCtaContent {
   return homepageHeadingsFixture.finalCta;
 }
 
-export { toMinutes };
+/**
+ * Featured story — only published, editorially approved stories may surface.
+ * No public stories endpoint exists in Phase 9A, so the homepage keeps the
+ * honest "stories being prepared" state (docs/04 §15.5).
+ */
+export function getFeaturedStory(): Story | null {
+  return (
+    storiesFixture.find(
+      (story) =>
+        story.status === 'published' &&
+        story.editorialApproved &&
+        story.featured,
+    ) ?? null
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Settings / navigation → domain mappers
+// ---------------------------------------------------------------------------
+//
+// The pure mappers live in `./mappers` so they can be unit-tested without
+// loading image assets. Re-exported here to keep the repository's public API.
+export {
+  buildChurchProfile,
+  buildGivingConfig,
+  buildNextService,
+  buildServiceSchedules,
+  buildSiteNavigation,
+  buildVisibleSchedules,
+  toMinutes,
+};
+
+// ---------------------------------------------------------------------------
+// Public API DTO → domain mapping
+// ---------------------------------------------------------------------------
+
+function mapPreacher(dto: PublicSermonDto): Person {
+  if (dto.preacher) {
+    return {
+      id: dto.preacher.id,
+      firstName: '',
+      lastName: '',
+      displayName: dto.preacher.displayName,
+      photoUrl: dto.preacher.photoUrl,
+      role: dto.preacher.role ?? undefined,
+      publicProfileEnabled: true,
+      active: true,
+    };
+  }
+
+  const displayName = dto.preacherName?.trim() || 'Predicador por confirmar';
+  return {
+    id: `preacher-${dto.id}`,
+    firstName: '',
+    lastName: '',
+    displayName,
+    photoUrl: null,
+    publicProfileEnabled: false,
+    active: true,
+  };
+}
+
+export function mapSermon(dto: PublicSermonDto): Sermon {
+  const publishedAt = dto.publishedAt ?? dto.updatedAt;
+  const videoProvider =
+    dto.video?.provider === 'youtube'
+      ? 'youtube'
+      : dto.video?.provider === 'vimeo'
+        ? 'vimeo'
+        : 'external';
+
+  return {
+    id: dto.id,
+    title: dto.title,
+    slug: dto.slug,
+    summary: dto.description ?? '',
+    preacher: mapPreacher(dto),
+    date: dto.sermonDate ?? publishedAt,
+    series: dto.series
+      ? {
+          id: dto.series.id,
+          name: dto.series.name,
+          slug: dto.series.slug,
+          coverImageUrl: dto.series.coverImageUrl,
+        }
+      : undefined,
+    topics: dto.topics.map((topic) => ({
+      id: topic.id,
+      name: topic.name,
+      slug: topic.slug,
+    })),
+    imageUrl: dto.coverImageUrl,
+    video: dto.video
+      ? {
+          provider: videoProvider,
+          externalId: dto.video.externalId ?? undefined,
+          url: dto.video.url ?? '',
+        }
+      : undefined,
+    audio: dto.audioUrl
+      ? { provider: 'external', url: dto.audioUrl }
+      : undefined,
+    notesAvailable: Boolean(dto.notesUrl || dto.notesContent),
+    notesUrl: dto.notesUrl ?? undefined,
+    scripture: dto.scriptureReference ?? '',
+    scriptureReferences: dto.scriptureReference
+      ? [dto.scriptureReference]
+      : [],
+    durationMinutes: dto.durationMinutes ?? undefined,
+    featured: dto.featured,
+    status: 'published',
+    publishedAt,
+    updatedAt: dto.updatedAt,
+  };
+}
+
+export function mapSermons(dtos: PublicSermonDto[]): Sermon[] {
+  return dtos.map(mapSermon);
+}
+
+const eventDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: CHURCH_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+const eventTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: CHURCH_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+/**
+ * Map a public event. The API exposes one ISO instant (`startAt`/`endAt`) and
+ * optional location text; the homepage presents separate date/time fields.
+ * Events without a start instant are not publishable agenda items and are
+ * dropped rather than rendered with an invented date.
+ */
+export function mapEvent(dto: PublicEventDto): Event | null {
+  if (!dto.startAt) return null;
+
+  const start = new Date(dto.startAt);
+  if (Number.isNaN(start.getTime())) return null;
+
+  const end = dto.endAt ? new Date(dto.endAt) : null;
+
+  const location: Location = {
+    id: `event-location-${dto.id}`,
+    name: dto.locationName?.trim() || 'Ubicación por confirmar',
+    address: dto.address?.trim() || 'Dirección por confirmar',
+    city: dto.city?.trim() || '',
+    state: '',
+    country: 'Colombia',
+    coordinates: { latitude: 0, longitude: 0 },
+    mapUrl: '',
+    confirmed: false,
+    isPrimary: false,
+    active: true,
+  };
+
+  return {
+    id: dto.id,
+    title: dto.title,
+    slug: dto.slug,
+    summary: dto.summary ?? '',
+    description: dto.description ?? '',
+    imageUrl: dto.coverImageUrl,
+    category: dto.category
+      ? { id: dto.category.id, name: dto.category.name, slug: dto.category.slug }
+      : { id: `category-${dto.id}`, name: 'Evento', slug: 'evento' },
+    startDate: eventDateFormatter.format(start),
+    endDate:
+      end && !Number.isNaN(end.getTime())
+        ? eventDateFormatter.format(end)
+        : undefined,
+    startTime: eventTimeFormatter.format(start),
+    endTime:
+      end && !Number.isNaN(end.getTime())
+        ? eventTimeFormatter.format(end)
+        : undefined,
+    location,
+    registrationUrl: dto.registrationUrl ?? undefined,
+    featured: dto.featured,
+    status: 'published',
+  };
+}
+
+export function mapEvents(dtos: PublicEventDto[]): Event[] {
+  return dtos
+    .map(mapEvent)
+    .filter((event): event is Event => event !== null);
+}
+
+export function mapMinistry(dto: PublicMinistryDto): Ministry {
+  return {
+    id: dto.id,
+    name: dto.name,
+    slug: dto.slug,
+    shortDescription: dto.shortDescription ?? '',
+    description: dto.description ?? '',
+    imageUrl: dto.coverImageUrl,
+    leaders: [],
+    schedule: dto.meetingInfo ?? undefined,
+    featured: dto.featured,
+    status: 'published',
+  };
+}
+
+export function mapMinistries(dtos: PublicMinistryDto[]): Ministry[] {
+  return dtos.map(mapMinistry);
+}
+
+// ---------------------------------------------------------------------------
+// Async data getters (API-backed, honestly degrading)
+// ---------------------------------------------------------------------------
+
+/** Public settings, or `null` when the API is unavailable. */
+export async function getSettings(): Promise<PublicSettingsDto | null> {
+  try {
+    return await getSettingsPublic();
+  } catch (error) {
+    warnUnavailable('settings/public', error);
+    return null;
+  }
+}
+
+async function fetchNavigationSafe(
+  location: NavigationLocation,
+): Promise<PublicNavigationItemDto[] | null> {
+  try {
+    return await fetchNavigation(location);
+  } catch (error) {
+    warnUnavailable(`navigation (${location})`, error);
+    return null;
+  }
+}
+
+export async function getChurchProfile(
+  settings?: PublicSettingsDto | null,
+): Promise<ChurchProfile> {
+  const resolved =
+    settings === undefined ? await getSettings() : settings;
+  return buildChurchProfile(resolved);
+}
+
+/** Active recurring service schedules for informational display (footer). */
+export async function getServiceSchedules(
+  settings?: PublicSettingsDto | null,
+): Promise<ServiceSchedule[]> {
+  const resolved =
+    settings === undefined ? await getSettings() : settings;
+  return buildVisibleSchedules(resolved);
+}
+
+export async function getNextService(
+  from: Date = new Date(),
+  settings?: PublicSettingsDto | null,
+): Promise<ServiceOccurrence | null> {
+  const resolved =
+    settings === undefined ? await getSettings() : settings;
+  const church = buildChurchProfile(resolved);
+  const schedules = buildServiceSchedules(resolved);
+  return buildNextService(schedules, church.location, from);
+}
+
+/**
+ * Site navigation. Header and footer are fetched together; the approved
+ * structural menu is the fallback when a menu is unavailable or empty.
+ */
+export async function getNavigation(): Promise<SiteNavigation> {
+  const [header, footer] = await Promise.all([
+    fetchNavigationSafe('HEADER'),
+    fetchNavigationSafe('FOOTER'),
+  ]);
+  return buildSiteNavigation(header, footer);
+}
+
+async function fetchSermonsSafe(
+  limit: number,
+): Promise<ListResponse<PublicSermonDto> | null> {
+  try {
+    return await getSermons({
+      limit,
+      sort: 'sermonDate',
+      order: 'desc',
+    });
+  } catch (error) {
+    warnUnavailable('sermons', error);
+    return null;
+  }
+}
+
+/** Featured sermon, falling back to the most recent published sermon. */
+export async function getFeaturedSermon(): Promise<Sermon | null> {
+  const response = await fetchSermonsSafe(12);
+  if (!response || response.data.length === 0) return null;
+
+  const featured = response.data.find((sermon) => sermon.featured);
+  return mapSermon(featured ?? response.data[0]!);
+}
+
+/** Published sermons, most recent first, for the archive preview (docs/04 §12). */
+export async function getRecentSermons(limit = 4): Promise<Sermon[]> {
+  const response = await fetchSermonsSafe(Math.max(limit, 4));
+  if (!response) return [];
+  return mapSermons(response.data.slice(0, limit));
+}
+
+/** Upcoming published events, soonest first. */
+export async function getUpcomingEvents(limit = 3): Promise<Event[]> {
+  try {
+    const response = await getEvents({
+      upcoming: true,
+      limit,
+      sort: 'startAt',
+      order: 'asc',
+    });
+    return mapEvents(response.data);
+  } catch (error) {
+    warnUnavailable('events', error);
+    return [];
+  }
+}
+
+/** Featured published ministries for the homepage subset (docs/04 §14.6). */
+export async function getFeaturedMinistries(limit = 3): Promise<Ministry[]> {
+  try {
+    const response = await getMinistries({
+      featured: true,
+      limit,
+      sort: 'publishedAt',
+      order: 'desc',
+    });
+    return mapMinistries(response.data);
+  } catch (error) {
+    warnUnavailable('ministries', error);
+    return [];
+  }
+}
+
+/** Giving copy from `settings/public`, with the approved structural fallback. */
+export async function getGivingConfig(
+  settings?: PublicSettingsDto | null,
+): Promise<GivingConfig> {
+  const resolved =
+    settings === undefined ? await getSettings() : settings;
+  return buildGivingConfig(resolved);
+}
+
+/**
+ * Everything the homepage needs, fetched in parallel.
+ *
+ * One round of concurrent requests keeps the page fast and — critically —
+ * bounds the failure latency when the API is down: every request shares the
+ * same timeout window instead of blocking the render sequentially.
+ */
+export interface HomeData {
+  church: ChurchProfile;
+  hero: HeroContent;
+  nextService: ServiceOccurrence | null;
+  schedules: ServiceSchedule[];
+  navigation: SiteNavigation;
+  giving: GivingConfig;
+  featuredSermon: Sermon | null;
+  recentSermons: Sermon[];
+  upcomingEvents: Event[];
+  featuredMinistries: Ministry[];
+}
+
+export async function getHomeData(from: Date = new Date()): Promise<HomeData> {
+  const [settings, headerNav, footerNav, sermonResponse, events, ministries] =
+    await Promise.all([
+      getSettings(),
+      fetchNavigationSafe('HEADER'),
+      fetchNavigationSafe('FOOTER'),
+      fetchSermonsSafe(12),
+      getUpcomingEvents(3),
+      getFeaturedMinistries(3),
+    ]);
+
+  const church = buildChurchProfile(settings);
+  const schedules = buildServiceSchedules(settings);
+  const sermonDtos = sermonResponse?.data ?? [];
+  const featuredSermonDto =
+    sermonDtos.find((sermon) => sermon.featured) ?? sermonDtos[0] ?? null;
+
+  return {
+    church,
+    hero: getHeroContent(),
+    nextService: buildNextService(schedules, church.location, from),
+    schedules: buildVisibleSchedules(settings),
+    navigation: buildSiteNavigation(headerNav, footerNav),
+    giving: buildGivingConfig(settings),
+    featuredSermon: featuredSermonDto ? mapSermon(featuredSermonDto) : null,
+    recentSermons: mapSermons(sermonDtos.slice(0, 4)),
+    upcomingEvents: events,
+    featuredMinistries: ministries,
+  };
+}

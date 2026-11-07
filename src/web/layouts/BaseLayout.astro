@@ -22,6 +22,7 @@ import '../styles/global.css';
 
 import logoFull from '../assets/brand/uci-logo-full.png';
 import { getChurchProfile } from '../data/site';
+import type { ChurchProfile } from '@shared/types';
 
 interface Props {
   title: string;
@@ -35,6 +36,11 @@ interface Props {
   ogImageUrl?: string;
   /** Prevent indexing when needed (e.g. previews). */
   noindex?: boolean;
+  /**
+   * Church identity resolved by the page (SSR). When omitted the layout loads
+   * `settings/public` itself, so future routes never duplicate the merge.
+   */
+  church?: ChurchProfile;
 }
 
 const {
@@ -43,9 +49,10 @@ const {
   canonicalPath = Astro.url.pathname,
   ogImageUrl,
   noindex = false,
+  church: providedChurch,
 } = Astro.props;
 
-const church = getChurchProfile();
+const church = providedChurch ?? (await getChurchProfile());
 const siteName = 'Iglesia UCI';
 const siteOrigin = Astro.site ?? new URL(Astro.url.origin);
 const canonical = new URL(canonicalPath, siteOrigin).href;

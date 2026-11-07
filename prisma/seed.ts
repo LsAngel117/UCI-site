@@ -21,6 +21,7 @@ import {
 } from '@server/auth/permissions';
 import { prisma } from '@server/db';
 import { loadEnvFile } from '@server/env';
+import { seedPublicSettings } from '../src/db/seed/settings';
 
 /** Initial roles and their descriptions (docs/11 §8). */
 const ROLES = [
@@ -134,8 +135,9 @@ async function main(): Promise<void> {
   loadEnvFile();
   const roleIds = await seedRolesAndPermissions();
   await seedInitialAdmin(roleIds);
+  await seedPublicSettings();
   console.log(
-    `[seed] Done: ${PERMISSIONS.length} permissions, ${ROLES.length} roles.`,
+    `[seed] Done: ${PERMISSIONS.length} permissions, ${ROLES.length} roles, public settings.`,
   );
 }
 

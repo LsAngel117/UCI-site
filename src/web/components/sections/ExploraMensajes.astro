@@ -20,9 +20,17 @@ import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
 import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
 import Section from '../ui/Section.astro';
 import SectionLabel from '../ui/SectionLabel.astro';
+import type { Sermon } from '@shared/types';
+
+interface Props {
+  sermons?: Sermon[];
+}
 
 const section = getExploraMensajesContent();
-const sermons = getRecentSermons(4);
+const sermons =
+  Astro.props.sermons === undefined
+    ? await getRecentSermons(4)
+    : Astro.props.sermons;
 
 const dateFormatter = new Intl.DateTimeFormat('es-CO', {
   day: '2-digit',
@@ -56,6 +64,12 @@ const dateFormatter = new Intl.DateTimeFormat('es-CO', {
       </ul>
     </header>
 
+    {
+      sermons.length === 0 ? (
+        <p class="mensajes__empty">
+          Aún no hay sermones publicados. Vuelve pronto.
+        </p>
+      ) : (
     <ul class="mensajes__grid">
       {
         sermons.map((sermon) => (
@@ -99,6 +113,8 @@ const dateFormatter = new Intl.DateTimeFormat('es-CO', {
         ))
       }
     </ul>
+      )
+    }
 
     <div class="mensajes__actions">
       <Button href={section.cta.href} variant="text" contrast="navy">
@@ -155,6 +171,15 @@ const dateFormatter = new Intl.DateTimeFormat('es-CO', {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--space-24);
+  }
+
+  .mensajes__empty {
+    padding-block: var(--space-40);
+    border-top: 1px solid var(--border-on-light);
+    border-bottom: 1px solid var(--border-on-light);
+    color: var(--color-navy);
+    opacity: 0.7;
+    font-size: var(--font-size-body-large);
   }
 
   .mensaje__link {

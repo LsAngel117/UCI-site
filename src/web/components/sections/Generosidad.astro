@@ -14,8 +14,16 @@ import { getGivingConfig } from '../../data/site';
 import Button from '../ui/Button.astro';
 import Container from '../ui/Container.astro';
 import Section from '../ui/Section.astro';
+import type { GivingConfig } from '@shared/types';
 
-const giving = getGivingConfig();
+interface Props {
+  giving?: GivingConfig;
+}
+
+const giving =
+  Astro.props.giving === undefined
+    ? await getGivingConfig()
+    : Astro.props.giving;
 const hasGivingUrl = typeof giving.url === 'string' && giving.url.length > 0;
 ---
 

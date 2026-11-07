@@ -15,6 +15,7 @@ import { Prisma } from '@prisma/client';
 import type { SiteSeoConfig, SiteSeoDto, UpdateSiteSeoInput } from '@shared/seo';
 import { validation } from '../cms/errors';
 import { prisma } from '../db';
+import { isHttpUrl } from '../url';
 
 /** Stable key of the site SEO defaults row. */
 export const SEO_SETTINGS_KEY = 'seo.site';
@@ -59,24 +60,6 @@ function storedNullableUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const text = value.trim();
   return isHttpUrl(text) ? text : null;
-}
-
-/**
- * True only for an absolute http(s) URL with a real host. `new URL()` alone
- * accepts `https://` shapes that should never be persisted, so the protocol and
- * hostname are checked explicitly (docs/08 §30).
- */
-function isHttpUrl(value: string): boolean {
-  let parsed: URL;
-  try {
-    parsed = new URL(value);
-  } catch {
-    return false;
-  }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    return false;
-  }
-  return parsed.hostname.length > 0;
 }
 
 function readStored(value: Prisma.JsonValue | null): StoredSiteSeo {

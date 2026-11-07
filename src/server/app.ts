@@ -34,6 +34,10 @@ import {
   registerAdminSeoRoutes,
   registerPublicSeoRoutes,
 } from './seo/routes';
+import {
+  registerAdminSettingsRoutes,
+  registerPublicSettingsRoutes,
+} from './settings/routes';
 
 export const SERVICE_NAME = 'uci-api';
 export const SERVICE_VERSION = '0.0.1';
@@ -195,6 +199,13 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     registerPublicNavigationRoutes(instance, config);
   });
 
+  // Public settings API (Phase 9A1, docs/08 §17.1). One unauthenticated,
+  // read-only endpoint returning the normalized church profile, schedule,
+  // social links and giving copy. No internal values are exposed.
+  app.register(async (instance) => {
+    registerPublicSettingsRoutes(instance, config);
+  });
+
   // SEO & discovery (Phase 8, docs/10 §8–§9, §20). Public sitemap/robots and
   // unauthenticated search; visibility and indexability are enforced in the
   // services. The admin SEO settings endpoints attach `seo.*` permissions.
@@ -208,6 +219,13 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 
   app.register(async (instance) => {
     registerAdminSeoRoutes(instance, config);
+  });
+
+  // Admin settings API (Phase 9A1, docs/08 §17.2). Protected by
+  // `settings.read` / `settings.update`; PATCH is strictly validated and
+  // audited as `settings.update`.
+  app.register(async (instance) => {
+    registerAdminSettingsRoutes(instance, config);
   });
 
   // Admin sermon taxonomy API (Phase 5A): people / series / topics pickers.

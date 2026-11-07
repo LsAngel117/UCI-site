@@ -3,7 +3,7 @@
  * Footer — dark, information-rich closing surface (docs/03 §24, docs/04 §18).
  * All data comes from the repository layer.
  */
-import { Mail, Phone } from '@lucide/astro';
+import { Mail, MessageCircle, Phone } from '@lucide/astro';
 import { Image } from 'astro:assets';
 import logoFull from '../../assets/brand/uci-logo-full.png';
 import {
@@ -13,16 +13,42 @@ import {
 } from '../../data/site';
 import Container from '../ui/Container.astro';
 import SocialIcon from '../ui/SocialIcon.astro';
+import type {
+  ChurchProfile,
+  ServiceSchedule,
+  SiteNavigation,
+} from '@shared/types';
 
-const church = getChurchProfile();
-const navigation = getNavigation();
-const schedules = getServiceSchedules();
+interface Props {
+  /** Page-resolved identity (SSR). Falls back to settings/public. */
+  church?: ChurchProfile;
+  /** Page-resolved CMS navigation. Falls back to the API. */
+  navigation?: SiteNavigation;
+  /** Active recurring schedules. Falls back to settings/public. */
+  schedules?: ServiceSchedule[];
+}
+
+const church = Astro.props.church ?? (await getChurchProfile());
+const navigation = Astro.props.navigation ?? (await getNavigation());
+const schedules = Astro.props.schedules ?? (await getServiceSchedules());
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const formatSchedule = (schedule: (typeof schedules)[number]) =>
   `${DAY_NAMES[schedule.dayOfWeek]} · ${schedule.startTime}`;
 
 const year = new Date().getFullYear();
+
+// Honest degradation (docs/04 §6.6, §24): settings may leave contact, socials
+// and the address unfilled. Never fall back to fictitious fixture values —
+// hide the block or show a "por confirmar" state instead.
+const locationCityLine = [church.location.city, church.location.state]
+  .filter(Boolean)
+  .join(', ');
+const hasRoute = church.location.confirmed && Boolean(church.location.mapUrl);
+const whatsappHref = church.whatsapp
+  ? `https://wa.me/${church.whatsapp.replace(/[^\d]/g, '')}`
+  : null;
+const hasContact = Boolean(church.phone || church.email || whatsappHref);
 ---
 
 <footer class="footer">
@@ -40,22 +66,24 @@ const year = new Date().getFullYear();
           loading="lazy"
         />
         <p class="footer__tagline">{church.shortDescription}</p>
-        <ul class="footer__social" aria-label="Redes sociales">
-          {
-            church.socialLinks.map((social) => (
-              <li>
-                <a
-                  href={social.url}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  aria-label={social.label}
-                >
-                  <SocialIcon name={social.platform} size={20} />
-                </a>
-              </li>
-            ))
-          }
-        </ul>
+        {
+          church.socialLinks.length > 0 && (
+            <ul class="footer__social" aria-label="Redes sociales">
+              {church.socialLinks.map((social) => (
+                <li>
+                  <a
+                    href={social.url}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                    aria-label={social.label}
+                  >
+                    <SocialIcon name={social.platform} size={20} />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )
+        }
       </div>
 
       <nav class="footer__column" aria-label="Navegación del pie de página">
@@ -63,7 +91,15 @@ const year = new Date().getFullYear();
         <ul class="footer__list">
           {
             navigation.footer.map((item) => (
-              <li><a href={item.href}>{item.label}</a></li>
+              <li>
+                <a
+                  href={item.href}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noopener noreferrer' : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
             ))
           }
         </ul>
@@ -72,12 +108,20 @@ const year = new Date().getFullYear();
       <div class="footer__column">
         <h2 class="footer__heading">Ubicación</h2>
         <address class="footer__address">
-          <span>{church.location.name}</span>
-          <span>{church.location.address}</span>
-          <span>{church.location.city}, {church.location.state}</span>
-          <a href={church.location.mapUrl} rel="noopener noreferrer" target="_blank">
-            Cómo llegar
-          </a>
+          {church.location.name && <span>{church.location.name}</span>}
+          <span>{church.location.address || 'Dirección por confirmar'}</span>
+          {locationCityLine && <span>{locationCityLine}</span>}
+          {
+            hasRoute && (
+              <a
+                href={church.location.mapUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                Cómo llegar
+              </a>
+            )
+          }
         </address>
       </div>
 
@@ -101,20 +145,42 @@ const year = new Date().getFullYear();
 
       <div class="footer__column">
         <h2 class="footer__heading">Contacto</h2>
-        <ul class="footer__list footer__contact">
-          <li>
-            <a href={`tel:${church.phone.replace(/\s+/g, '')}`}>
-              <Phone size={16} stroke-width={1.75} />
-              {church.phone}
-            </a>
-          </li>
-          <li>
-            <a href={`mailto:${church.email}`}>
-              <Mail size={16} stroke-width={1.75} />
-              {church.email}
-            </a>
-          </li>
-        </ul>
+        {
+          hasContact ? (
+            <ul class="footer__list footer__contact">
+              {church.phone && (
+                <li>
+                  <a href={`tel:${church.phone.replace(/\s+/g, '')}`}>
+                    <Phone size={16} stroke-width={1.75} />
+                    {church.phone}
+                  </a>
+                </li>
+              )}
+              {church.email && (
+                <li>
+                  <a href={`mailto:${church.email}`}>
+                    <Mail size={16} stroke-width={1.75} />
+                    {church.email}
+                  </a>
+                </li>
+              )}
+              {whatsappHref && (
+                <li>
+                  <a
+                    href={whatsappHref}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    <MessageCircle size={16} stroke-width={1.75} />
+                    WhatsApp
+                  </a>
+                </li>
+              )}
+            </ul>
+          ) : (
+            <p class="footer__muted">Contacto por confirmar.</p>
+          )
+        }
       </div>
     </div>
 

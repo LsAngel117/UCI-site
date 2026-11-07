@@ -16,9 +16,17 @@ import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
 import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
 import Section from '../ui/Section.astro';
 import SectionLabel from '../ui/SectionLabel.astro';
+import type { Ministry } from '@shared/types';
+
+interface Props {
+  ministries?: Ministry[];
+}
 
 const section = getMinisteriosContent();
-const ministries = getFeaturedMinistries(3);
+const ministries =
+  Astro.props.ministries === undefined
+    ? await getFeaturedMinistries(3)
+    : Astro.props.ministries;
 ---
 
 <Section id="ministerios" surface="dark" spacing="lg" class="ministerios">
@@ -36,6 +44,12 @@ const ministries = getFeaturedMinistries(3);
       </div>
     </header>
 
+    {
+      ministries.length === 0 ? (
+        <p class="ministerios__empty">
+          Estamos preparando el directorio de ministerios.
+        </p>
+      ) : (
     <ul class="ministerios__grid">
       {
         ministries.map((ministry) => (
@@ -85,6 +99,8 @@ const ministries = getFeaturedMinistries(3);
         ))
       }
     </ul>
+      )
+    }
   </Container>
 </Section>
 
@@ -137,6 +153,12 @@ const ministries = getFeaturedMinistries(3);
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-24);
+  }
+
+  .ministerios__empty {
+    max-width: 44ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
   }
 
   .ministerio__media {

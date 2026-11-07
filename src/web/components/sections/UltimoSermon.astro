@@ -18,9 +18,17 @@ import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
 import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
 import Section from '../ui/Section.astro';
 import SectionLabel from '../ui/SectionLabel.astro';
+import type { Sermon } from '@shared/types';
+
+interface Props {
+  sermon?: Sermon | null;
+}
 
 const section = getUltimoSermonContent();
-const sermon = getFeaturedSermon();
+const sermon =
+  Astro.props.sermon === undefined
+    ? await getFeaturedSermon()
+    : Astro.props.sermon;
 
 const dateFormatter = new Intl.DateTimeFormat('es-CO', {
   day: 'numeric',
@@ -43,17 +51,21 @@ const sermonHref = sermon ? `/sermones/${sermon.slug}` : section.archiveHref;
           <>
             <h2 class="sermon__title font-display">{sermon.title}</h2>
 
-            <p class="sermon__scripture">
-              <svg
-                class="sermon__scripture-ring"
-                viewBox="0 0 220 60"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                <path d="M8 30c18-20 176-24 204-4-16 22-182 26-204 4z" />
-              </svg>
-              <span>{sermon.scripture}</span>
-            </p>
+            {
+              sermon.scripture && (
+                <p class="sermon__scripture">
+                  <svg
+                    class="sermon__scripture-ring"
+                    viewBox="0 0 220 60"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                  >
+                    <path d="M8 30c18-20 176-24 204-4-16 22-182 26-204 4z" />
+                  </svg>
+                  <span>{sermon.scripture}</span>
+                </p>
+              )
+            }
 
             <p class="sermon__preacher">
               {sermon.preacher.displayName}

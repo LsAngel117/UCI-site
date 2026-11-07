@@ -1,7 +1,8 @@
 // @ts-check
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'astro/config';
+import node from '@astrojs/node';
 import sitemap from '@astrojs/sitemap';
+import { defineConfig } from 'astro/config';
 
 // SITE_URL is REQUIRED in every real deploy. It is the public origin consumed
 // by canonical tags, Open Graph, the sitemap and JSON-LD (docs/14 §61).
@@ -25,6 +26,12 @@ if (SITE === SITE_URL_PLACEHOLDER) {
 // https://astro.build/config
 export default defineConfig({
   site: SITE,
+  // SSR (docs/15 §15, Phase 9A). The public website renders on demand against
+  // the HTTP API on every request so CMS content is always fresh and no rebuild
+  // is needed after an editorial change. Astro never talks to Postgres
+  // (docs/07 §59); `src/web/lib/api.ts` is the only outbound boundary.
+  output: 'server',
+  adapter: node({ mode: 'standalone' }),
   // Monorepo single-package layout: the public website lives under
   // `src/web` (docs/02 §9). `public/` stays at the repo root.
   srcDir: './src/web',

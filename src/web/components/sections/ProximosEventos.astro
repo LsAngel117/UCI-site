@@ -14,9 +14,17 @@ import Button from '../ui/Button.astro';
 import Container from '../ui/Container.astro';
 import Section from '../ui/Section.astro';
 import SectionLabel from '../ui/SectionLabel.astro';
+import type { Event } from '@shared/types';
+
+interface Props {
+  events?: Event[];
+}
 
 const section = getProximosEventosContent();
-const events = getUpcomingEvents(3);
+const events =
+  Astro.props.events === undefined
+    ? await getUpcomingEvents(3)
+    : Astro.props.events;
 
 const monthFormatter = new Intl.DateTimeFormat('es-CO', { month: 'short' });
 const dayFormatter = new Intl.DateTimeFormat('es-CO', { day: '2-digit' });

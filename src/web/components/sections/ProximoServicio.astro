@@ -12,15 +12,31 @@
  * or time.
  */
 import { ArrowUpRight, Calendar, Clock, MapPin } from '@lucide/astro';
-import { getChurchProfile, getNextService, getProximoServicioContent } from '../../data/site';
+import {
+  getChurchProfile,
+  getNextService,
+  getProximoServicioContent,
+} from '../../data/site';
 import Button from '../ui/Button.astro';
 import Container from '../ui/Container.astro';
 import Section from '../ui/Section.astro';
 import SectionLabel from '../ui/SectionLabel.astro';
+import type { ChurchProfile, ServiceOccurrence } from '@shared/types';
+
+interface Props {
+  church?: ChurchProfile;
+  nextService?: ServiceOccurrence | null;
+}
 
 const section = getProximoServicioContent();
-const nextService = getNextService();
-const church = getChurchProfile();
+const church =
+  Astro.props.church === undefined
+    ? await getChurchProfile()
+    : Astro.props.church;
+const nextService =
+  Astro.props.nextService === undefined
+    ? await getNextService()
+    : Astro.props.nextService;
 
 const dateFormatter = new Intl.DateTimeFormat('es-CO', {
   weekday: 'long',
@@ -35,9 +51,19 @@ const serviceTime = nextService
   ? nextService.schedule.startTime
   : 'Por confirmar';
 const serviceType = nextService?.schedule.name ?? 'Horario por confirmar';
-const locationName = church.location.name;
-const locationLine = `${church.location.address} · ${church.location.city}, ${church.location.state}`;
-const hasRoute = church.location.confirmed;
+// Honest degradation: never show the placeholder venue name or a dangling
+// "· ," separator when the address fields have not been configured.
+const locationName =
+  church.location.name ||
+  (church.location.confirmed ? 'Sede UCI' : 'Sede por confirmar');
+const locationCityLine = [church.location.city, church.location.state]
+  .filter(Boolean)
+  .join(', ');
+const locationLine =
+  [church.location.address || 'Dirección por confirmar', locationCityLine]
+    .filter(Boolean)
+    .join(' · ');
+const hasRoute = church.location.confirmed && Boolean(church.location.mapUrl);
 ---
 
 <Section id="proximo-servicio" surface="light" spacing="lg" class="servicio">

@@ -16,9 +16,17 @@ import { Image } from 'astro:assets';
 import logoFull from '../../assets/brand/uci-logo-full.png';
 import { getChurchProfile, getNavigation } from '../../data/site';
 import Container from '../ui/Container.astro';
+import type { ChurchProfile, SiteNavigation } from '@shared/types';
 
-const navigation = getNavigation();
-const church = getChurchProfile();
+interface Props {
+  /** Page-resolved identity (SSR). Falls back to settings/public. */
+  church?: ChurchProfile;
+  /** Page-resolved CMS navigation. Falls back to the API. */
+  navigation?: SiteNavigation;
+}
+
+const navigation = Astro.props.navigation ?? (await getNavigation());
+const church = Astro.props.church ?? (await getChurchProfile());
 
 const currentPath = Astro.url.pathname;
 const isActive = (href: string) =>
@@ -55,9 +63,14 @@ const menuId = 'primary-navigation';
           primary.map((item) => (
             <li>
               <a
-                class:list={['site-header__link', { 'is-active': isActive(item.href) }]}
+                class:list={[
+                  'site-header__link',
+                  { 'is-active': !item.external && isActive(item.href) },
+                ]}
                 href={item.href}
-                aria-current={isActive(item.href) ? 'page' : undefined}
+                target={item.external ? '_blank' : undefined}
+                rel={item.external ? 'noopener noreferrer' : undefined}
+                aria-current={!item.external && isActive(item.href) ? 'page' : undefined}
               >
                 {item.label}
               </a>

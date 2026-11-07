@@ -9,6 +9,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "start:web": "node ./dist/server/entry.mjs",
     "astro": "astro",
     "check": "astro check",
     "check:server": "tsc --noEmit -p tsconfig.server.json",
@@ -26,6 +27,7 @@
     "db:seed": "prisma db seed"
   },
   "dependencies": {
+    "@astrojs/node": "^11.1.11",
     "@astrojs/sitemap": "^3.7.4",
     "@fastify/cookie": "^11.1.3",
     "@fastify/multipart": "^10.1.7",
