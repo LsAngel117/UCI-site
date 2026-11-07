@@ -5,6 +5,8 @@
  * port. `server.ts` is the only place that calls `listen`, so integration
  * tests can inject the app directly later (docs/02 §67).
  */
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
@@ -42,6 +44,14 @@ import {
 
 export const SERVICE_NAME = 'uci-api';
 export const SERVICE_VERSION = '0.0.1';
+
+/**
+ * Built admin SPA (`pnpm build:admin` → `dist/admin`). Resolved from this
+ * module so it is independent of the process working directory.
+ */
+const ADMIN_DIST_ROOT = fileURLToPath(
+  new URL('../../dist/admin', import.meta.url),
+);
 
 export interface BuildServerOptions {
   /** Disable the logger (used by tests that want a quiet instance). */
@@ -123,6 +133,50 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
       maxAge: '365d',
       immutable: true,
     });
+  }
+
+  // Admin SPA (feature doc 10A, docs/09 §4). Served same-origin under
+  // `/panel` so the HttpOnly session cookie reaches `/api/v1` without CORS.
+  // The build is optional at runtime (tests and API-only deployments run
+  // without it), so registration is skipped when `dist/admin` is absent.
+  if (existsSync(ADMIN_DIST_ROOT)) {
+    app.register(async (instance) => {
+      await instance.register(fastifyStatic, {
+        root: ADMIN_DIST_ROOT,
+        prefix: '/panel/',
+        // Explicit file routes + index handling, no static wildcard: the
+        // wildcard route below is the SPA fallback instead.
+        wildcard: false,
+        index: ['index.html'],
+        redirect: true,
+        cacheControl: true,
+        maxAge: '365d',
+        immutable: true,
+        // Hashed assets are immutable; the entry document must always be
+        // revalidated so a deploy is picked up on the next navigation.
+        setHeaders(reply, filePath) {
+          if (filePath.endsWith('index.html')) {
+            reply.header('Cache-Control', 'no-cache');
+          }
+        },
+      });
+
+      // Client-side routes (e.g. `/panel/contenido/sermones`) resolve to the
+      // SPA shell and are handled by React Router. Missing asset files keep a
+      // real 404 so a broken deploy is visible instead of returning HTML.
+      instance.get('/panel/*', (request, reply) => {
+        const pathname = (request.raw.url ?? '').split('?')[0] ?? '';
+        if (/\.[a-z0-9]+$/i.test(pathname)) {
+          return reply.callNotFound();
+        }
+        return reply.sendFile('index.html');
+      });
+    });
+  } else {
+    app.log.warn(
+      { root: ADMIN_DIST_ROOT },
+      'Admin panel build not found — /panel is not served. Run `pnpm build:admin`.',
+    );
   }
 
   // 404 handler — consistent error envelope (docs/02 §38).

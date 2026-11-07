@@ -284,6 +284,32 @@ The sidebar must be permission-aware.
 
 A user without permission for a module should not see the corresponding navigation item.
 
+Permission mapping implemented by the shell (a user needs at least one of the
+listed permissions; the group is hidden when all of its children are hidden):
+
+| Item | Permission | Delivered |
+| --- | --- | --- |
+| Panel | — | 10A |
+| Contenido | `sermons.read`, `pages.read`, `events.read`, `ministries.read` | 10B |
+| Sermones | `sermons.read` | 10B |
+| Páginas | `pages.read` | 10B |
+| Eventos | `events.read` | 10B |
+| Ministerios | `ministries.read` | 10B |
+| Multimedia | `media.read` | 10C |
+| Biblioteca multimedia | `media.read` | 10C |
+| Sitio | `navigation.read`, `seo.read` | 10D |
+| Navegación | `navigation.read` | 10D |
+| SEO | `seo.read` | 10D |
+| Administración | `users.read`, `roles.read`, `settings.read`, `audit.read` | 10D |
+| Usuarios | `users.read` | 10D |
+| Roles y permisos | `roles.read` | 10D |
+| Configuración | `settings.read` | 10D |
+| Auditoría | `audit.read` | 10D |
+
+The filter is a UX affordance only: the API authorizes every request
+regardless of what the sidebar renders (docs/09 §7). Until the delivery phase
+lands, each item renders an honest "en construcción" placeholder.
+
 ---
 
 # 11. Breadcrumbs

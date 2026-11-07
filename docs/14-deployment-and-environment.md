@@ -341,6 +341,31 @@ The administrative application remains conceptually available at:
 
 The panel must communicate with the versioned API.
 
+## 19.1 Implementation (Phase 10A)
+
+The panel is built to `dist/admin` (`pnpm build:admin`, Vite `base: '/panel/'`)
+and the API process serves it same-origin. `pnpm build` runs the Astro build
+first and the admin build second, because Astro clears `dist/` on every build;
+the admin artifact must be emitted last.
+
+- `@fastify/static` mounts `dist/admin` at `/panel/`.
+- Client-side routes (for example `/panel/contenido/sermones`) fall back to
+  `index.html` so React Router can resolve them. Missing asset files keep a
+  real `404`.
+- Because the panel and `/api/v1` share an origin, the HttpOnly
+  `uci_session` cookie is sent with every API request without CORS.
+- Registration is conditional: when `dist/admin` is absent the API still
+  starts, logs a warning and does not mount `/panel`. API-only deployments and
+  the backend test suite therefore do not depend on a frontend build.
+
+A reverse proxy may serve the same directory instead of the API process
+(Caddy `root`/`try_files` for `/panel/*` with an `index.html` fallback). The
+frontend contract does not change: same origin, cookie auth, `/api/v1` prefix.
+
+In development `pnpm dev:admin` serves the SPA at
+`http://localhost:5173/panel/` and proxies `/api` to
+`http://127.0.0.1:8787`, preserving the same-origin cookie behaviour.
+
 ---
 
 # 20. Internal Service Communication
