@@ -1232,6 +1232,32 @@ Contact submissions may be persisted or forwarded to the configured notification
 
 The endpoint must not expose internal contact records publicly.
 
+## 19.1 Administrative Contact Inbox
+
+Stored submissions are read and managed exclusively through the authenticated
+administrative API (Phase 11A/11B):
+
+```http
+GET   /api/v1/admin/contact-submissions
+GET   /api/v1/admin/contact-submissions/:id
+PATCH /api/v1/admin/contact-submissions/:id
+```
+
+- `GET` list and `GET` by id require `contact.read`.
+- `PATCH` requires `contact.manage`.
+- The list accepts `search` (name, email or message, case-insensitive),
+  `status` (`NEW` or `HANDLED`), `from`/`to` (inclusive ISO 8601 bounds on
+  `createdAt`) and the standard `page`/`limit` pagination. Results are always
+  newest-first.
+- The only writable field is `status`. `handledAt` is derived server-side: it is
+  set the first time a submission is marked handled and cleared when it is
+  reopened. Every real transition is written to `audit_logs`.
+- The administrative projection is `ContactSubmissionDto`; it is never returned
+  by a public route. The public `POST /api/v1/contact` still answers only with
+  `{ "received": true }`.
+
+The panel screen consuming these endpoints is documented in docs/09 §110.
+
 ---
 
 # 20. Search API

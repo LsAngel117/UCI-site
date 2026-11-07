@@ -533,9 +533,25 @@ settings.read
 settings.update
 
 audit.read
+
+contact.read
+contact.manage
 ```
 
 This is an initial vocabulary, not an exhaustive immutable list.
+
+Phase 11A extends it with `contact.read` (see the public contact inbox) and
+`contact.manage` (mark a submission as handled). Keeping the two actions
+separate lets a role triage messages without being able to change their state.
+The baseline `EDITOR` grant receives `contact.read` only; `contact.manage`
+remains an administrator-controlled grant.
+
+The Phase 11B panel entry (`/panel/administracion/contacto`) is visible only
+with `contact.read`, and the detail dialog offers status actions only with
+`contact.manage`. Those checks are a UX projection, not an authorization
+boundary: the administrative API re-evaluates the session and the exact
+permission on every list, read and state-transition request, and no contact
+submission is ever served publicly.
 
 ---
 

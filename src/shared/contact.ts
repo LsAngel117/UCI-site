@@ -31,3 +31,61 @@ export interface ContactSubmissionInput {
 export interface ContactSubmissionReceipt {
   received: true;
 }
+
+// ---------------------------------------------------------------------------
+// Admin inbox contracts (Phase 11A, docs/08 §19, docs/11 §9).
+//
+// These DTOs are the only shape in which a stored submission ever leaves the
+// API. They are served exclusively under `/api/v1/admin/contact-submissions`
+// behind `contact.read` / `contact.manage`; no public route may return them
+// (docs/08 §19).
+// ---------------------------------------------------------------------------
+
+/** Lifecycle of a contact submission as exposed to administrators. */
+export const CONTACT_SUBMISSION_STATUSES = ['NEW', 'HANDLED'] as const;
+
+export type ContactSubmissionStatus =
+  (typeof CONTACT_SUBMISSION_STATUSES)[number];
+
+/** True for a value in the canonical contact-submission status set. */
+export function isContactSubmissionStatus(
+  value: unknown,
+): value is ContactSubmissionStatus {
+  return (
+    typeof value === 'string' &&
+    (CONTACT_SUBMISSION_STATUSES as readonly string[]).includes(value)
+  );
+}
+
+/** Administrative projection of a stored contact submission. */
+export interface ContactSubmissionDto {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  status: ContactSubmissionStatus;
+  /** Set the first time the submission is marked handled; null while new. */
+  handledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Filters accepted by `GET /api/v1/admin/contact-submissions`.
+ *
+ * `search` matches name, email or message (case-insensitive). `from`/`to` are
+ * inclusive ISO 8601 bounds on `createdAt`. Results are always newest-first.
+ */
+export interface ContactSubmissionListQuery {
+  page?: number | string;
+  limit?: number | string;
+  search?: string;
+  status?: ContactSubmissionStatus | string;
+  from?: string;
+  to?: string;
+}
+
+/** Body of `PATCH /api/v1/admin/contact-submissions/:id`. */
+export interface UpdateContactSubmissionInput {
+  status: ContactSubmissionStatus;
+}

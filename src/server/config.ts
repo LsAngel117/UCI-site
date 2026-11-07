@@ -43,6 +43,20 @@ export interface CookieConfig {
   path: string;
 }
 
+/**
+ * Email delivery configuration (Phase 11A, docs/14 §24, docs/15 §17.3).
+ *
+ * Phase 11A ships the delivery *foundation* only: a provider that logs the
+ * simulated send (development) and one that does nothing (no integration).
+ * Real SMTP/API credentials belong to Phase 13 and are never hardcoded here.
+ */
+export interface EmailConfig {
+  /** `log` renders the message to the server log; `none` disables delivery. */
+  provider: 'log' | 'none';
+  /** Admin inbox that receives contact-form notifications, or null. */
+  contactNotifyTo: string | null;
+}
+
 /** Media storage configuration (docs/12 §7, docs/14 §24). */
 export interface MediaConfig {
   /** Directory the filesystem provider writes to. Absolute after loading. */
@@ -69,6 +83,7 @@ export interface ServerConfig {
   session: SessionConfig;
   cookie: CookieConfig;
   media: MediaConfig;
+  email: EmailConfig;
 }
 
 const DEFAULT_HOST = '127.0.0.1';
@@ -187,6 +202,50 @@ function readTrustProxy(raw: string | undefined): boolean | string {
   return value;
 }
 
+/** Pragmatic single-address check; the notification recipient is trusted ops config. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Read the email provider. `log` is the safe development default (it never
+ * sends anything and only records a redacted simulation); production defaults
+ * to `none` so an unconfigured deploy never pretends to deliver mail.
+ */
+function readEmailProvider(
+  raw: string | undefined,
+  nodeEnv: NodeEnv,
+): EmailConfig['provider'] {
+  const value = raw?.trim().toLowerCase();
+  if (value === 'log' || value === 'none') return value;
+  if (value) {
+    throw new Error(
+      `Invalid EMAIL_PROVIDER value "${raw}". Expected "log" or "none".`,
+    );
+  }
+  return nodeEnv === 'production' ? 'none' : 'log';
+}
+
+/** Optional admin recipient for contact notifications; invalid values fail fast. */
+function readContactNotifyTo(raw: string | undefined): string | null {
+  const value = raw?.trim();
+  if (!value) return null;
+  if (!EMAIL_PATTERN.test(value)) {
+    throw new Error(
+      `Invalid CONTACT_NOTIFY_TO value "${value}". Expected an email address.`,
+    );
+  }
+  return value.toLowerCase();
+}
+
+function readEmailConfig(
+  env: NodeJS.ProcessEnv,
+  nodeEnv: NodeEnv,
+): EmailConfig {
+  return {
+    provider: readEmailProvider(env.EMAIL_PROVIDER, nodeEnv),
+    contactNotifyTo: readContactNotifyTo(env.CONTACT_NOTIFY_TO),
+  };
+}
+
 /** Read the media storage configuration; never hardcodes a filesystem path. */
 function readMediaConfig(env: NodeJS.ProcessEnv): MediaConfig {
   const rootRaw = env.MEDIA_ROOT?.trim() || DEFAULT_MEDIA_ROOT;
@@ -233,5 +292,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
       path: '/',
     },
     media: readMediaConfig(env),
+    email: readEmailConfig(env, nodeEnv),
   };
 }

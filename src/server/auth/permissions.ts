@@ -22,6 +22,11 @@ import type { PermissionName } from '@shared/api';
  * media and SEO. Deliberately excludes every publish/archive/delete action and
  * all of users, roles, audit, settings and navigation. Publishing is controlled
  * by explicit permission rather than assumed from the role name.
+ *
+ * Phase 11A adds `contact.read`: reading the public contact inbox is editorial
+ * triage work (same shape as the other `.read` baselines). `contact.manage` is
+ * deliberately NOT granted — changing a submission's handled state is an
+ * administrative action reserved for roles an administrator grants it to.
  */
 export const EDITOR_PERMISSIONS: readonly PermissionName[] = [
   'pages.read',
@@ -41,6 +46,7 @@ export const EDITOR_PERMISSIONS: readonly PermissionName[] = [
   'media.update',
   'seo.read',
   'seo.update',
+  'contact.read',
 ];
 
 /**

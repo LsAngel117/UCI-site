@@ -56,6 +56,16 @@ enum MediaType {
   @@map("media_type")
 }
 
+/// Administrative triage state of a public contact submission (Phase 11A).
+/// `NEW` is the initial state; `HANDLED` means an administrator has processed
+/// the message. Mirrors `ContactSubmissionStatus` in `src/shared/contact.ts`.
+enum ContactSubmissionStatus {
+  NEW
+  HANDLED
+
+  @@map("contact_submission_status")
+}
+
 // ---------------------------------------------------------------------------
 // Identity & access (foundation only — auth logic is Phase 2).
 // ---------------------------------------------------------------------------
@@ -647,14 +657,17 @@ model Setting {
 /// Inbound contact-form submission. Append-only in practice but keeps
 /// `updatedAt` for uniform tooling.
 model ContactSubmission {
-  id        String   @id @default(uuid())
+  id        String                  @id @default(uuid())
   name      String
   email     String
   message   String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  status    ContactSubmissionStatus @default(NEW)
+  handledAt DateTime?               @map("handled_at")
+  createdAt DateTime                @default(now()) @map("created_at")
+  updatedAt DateTime                @updatedAt @map("updated_at")
 
   @@index([email])
+  @@index([status, createdAt])
   @@map("contact_submissions")
 }
 

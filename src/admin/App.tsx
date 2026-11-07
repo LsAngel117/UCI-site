@@ -22,6 +22,7 @@ import { NotFoundPage } from './src/pages/NotFoundPage';
 import { SectionIndexPage } from './src/pages/SectionIndexPage';
 import { SectionPlaceholderPage } from './src/pages/SectionPlaceholderPage';
 import { AuditPage } from './src/pages/admin/AuditPage';
+import { ContactPage } from './src/pages/admin/ContactPage';
 import { RolesPage } from './src/pages/admin/RolesPage';
 import { SettingsPage } from './src/pages/admin/SettingsPage';
 import { UsersPage } from './src/pages/admin/UsersPage';
@@ -50,6 +51,7 @@ const IMPLEMENTED_PATHS = new Set([
   '/administracion/roles',
   '/administracion/auditoria',
   '/administracion/configuracion',
+  '/administracion/contacto',
 ]);
 
 const modules = moduleLinks().filter(
@@ -160,6 +162,7 @@ export default function App() {
                     'roles.read',
                     'settings.read',
                     'audit.read',
+                    'contact.read',
                   ]}
                 >
                   <SectionIndexPage sectionTo="/administracion" />
@@ -195,6 +198,14 @@ export default function App() {
               element={
                 <RequirePermission permission="audit.read">
                   <AuditPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="administracion/contacto"
+              element={
+                <RequirePermission permission="contact.read">
+                  <ContactPage />
                 </RequirePermission>
               }
             />

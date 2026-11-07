@@ -9,7 +9,7 @@
 import type { PermissionName } from '@shared/api';
 
 /** Sub-phase that will deliver a module still showing the honest placeholder. */
-export type ModulePhase = '10B' | '10C' | '10D';
+export type ModulePhase = '10B' | '10C' | '10D' | '11B';
 
 export interface NavItem {
   /** Panel-relative path, e.g. `/contenido/sermones`. */
@@ -125,8 +125,15 @@ export const NAV: readonly NavItem[] = [
   {
     to: '/administracion',
     label: 'Administración',
-    permissions: ['users.read', 'roles.read', 'settings.read', 'audit.read'],
-    description: 'Usuarios, roles, configuración del sitio y auditoría.',
+    permissions: [
+      'users.read',
+      'roles.read',
+      'settings.read',
+      'audit.read',
+      'contact.read',
+    ],
+    description:
+      'Usuarios, roles, configuración del sitio, auditoría y mensajes de contacto.',
     phase: '10D',
     implemented: true,
     children: [
@@ -160,6 +167,15 @@ export const NAV: readonly NavItem[] = [
         permissions: ['audit.read'],
         description: 'Registro de cambios realizados en el panel.',
         phase: '10D',
+        implemented: true,
+      },
+      {
+        to: '/administracion/contacto',
+        label: 'Contacto',
+        permissions: ['contact.read'],
+        description:
+          'Mensajes enviados desde el formulario público y su estado de gestión.',
+        phase: '11B',
         implemented: true,
       },
     ],

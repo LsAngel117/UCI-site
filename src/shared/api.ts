@@ -160,6 +160,11 @@ export const PERMISSIONS = [
   'settings.read',
   'settings.update',
   'audit.read',
+  // Phase 11A extension of the docs/11 §9 vocabulary: administration of the
+  // public contact inbox. `manage` is deliberately separate from `read` so a
+  // role can triage messages without being able to change their state.
+  'contact.read',
+  'contact.manage',
 ] as const;
 
 export type PermissionName = (typeof PERMISSIONS)[number];

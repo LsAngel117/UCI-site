@@ -14,6 +14,7 @@ import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type { ApiErrorEnvelope, HealthResponse } from '@shared/api';
 import { registerAdminAuditRoutes } from './admin/audit/routes';
+import { registerAdminContactRoutes } from './admin/contact/routes';
 import { registerAdminRoleRoutes } from './admin/roles/routes';
 import { registerAdminUserRoutes } from './admin/users/routes';
 import { registerAuthRoutes } from './auth/routes';
@@ -362,6 +363,13 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 
   app.register(async (instance) => {
     registerAdminAuditRoutes(instance, config);
+  });
+
+  // Admin contact inbox (Phase 11A, docs/08 §19, docs/11 §9). Protected by
+  // `contact.read` for visibility and `contact.manage` for state transitions.
+  // The public contact endpoint remains write-only and never returns rows.
+  app.register(async (instance) => {
+    registerAdminContactRoutes(instance, config);
   });
 
   return app;

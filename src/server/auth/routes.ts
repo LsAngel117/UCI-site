@@ -10,7 +10,7 @@
  * yield the same generic 401 so the endpoint cannot be used to enumerate
  * accounts (docs/11 §5.2).
  */
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyBaseLogger, FastifyInstance, FastifyReply } from 'fastify';
 import type {
   ApiResponse,
   CurrentUserResponse,
@@ -18,6 +18,7 @@ import type {
   LoginResponse,
 } from '@shared/api';
 import type { ServerConfig } from '../config';
+import { recordAudit, type AuditEvent } from '../cms/audit';
 import { prisma } from '../db';
 import { toAuthUser } from './authorization';
 import { invalidCredentialsEnvelope, validationEnvelope } from './errors';
@@ -35,6 +36,22 @@ function isLoginRequest(value: unknown): value is LoginRequest {
     typeof candidate.password === 'string' &&
     candidate.password.length > 0
   );
+}
+
+/**
+ * Append an authentication audit event without ever changing the auth
+ * response. Telemetry is important, but a failed audit insert must not turn a
+ * valid login into a 500 — or a documented 401 into something else.
+ */
+async function recordAuthAudit(
+  logger: FastifyBaseLogger,
+  event: AuditEvent,
+): Promise<void> {
+  try {
+    await recordAudit(event);
+  } catch (error) {
+    logger.warn({ err: error }, 'Failed to record auth audit event');
+  }
 }
 
 /** Set the session cookie: HttpOnly, Secure (prod) and SameSite=Lax. */
@@ -91,6 +108,15 @@ export function registerAuthRoutes(
         ? await verifyPassword(user.passwordHash, request.body.password)
         : false;
       if (!user || !user.active || !passwordOk) {
+        // The attempted address is useful for security forensics and is only
+        // readable through the `audit.read`-protected trail. The password and
+        // any account-state detail are never recorded (docs/11 §31–32).
+        await recordAuthAudit(request.log, {
+          actorId: null,
+          action: 'auth.login_failed',
+          entityType: 'AUTH',
+          metadata: { email, ip: request.ip },
+        });
         return reply.code(401).send(invalidCredentialsEnvelope());
       }
 
@@ -110,6 +136,14 @@ export function registerAuthRoutes(
         config.session,
       );
       setSessionCookie(reply, config, token, expiresAt);
+
+      await recordAuthAudit(request.log, {
+        actorId: user.id,
+        action: 'auth.login',
+        entityType: 'AUTH',
+        entityId: user.id,
+        metadata: { ip: request.ip },
+      });
 
       const data: LoginResponse = { user: toAuthUser(user) };
       return reply
@@ -137,6 +171,13 @@ export function registerAuthRoutes(
       if (token) {
         await revokeSession(token);
       }
+      await recordAuthAudit(request.log, {
+        actorId: request.user!.id,
+        action: 'auth.logout',
+        entityType: 'AUTH',
+        entityId: request.user!.id,
+        metadata: { ip: request.ip },
+      });
       reply.clearCookie(cookieName, { path: config.cookie.path });
       return reply.code(204).send();
     },

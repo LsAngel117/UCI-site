@@ -57,8 +57,11 @@ function parseTerm(value: unknown): string {
  * Escape SQL LIKE metacharacters so a user query matches them literally.
  * PostgreSQL's default LIKE escape character is the backslash, and Prisma
  * parameterizes the value, so escaping here is sufficient (docs/10 §20).
+ *
+ * Exported so other admin filters over `contains` (e.g. the contact inbox)
+ * apply the same literal-wildcard rule instead of re-implementing it.
  */
-function escapeLikePattern(value: string): string {
+export function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, (character) => `\\${character}`);
 }
 

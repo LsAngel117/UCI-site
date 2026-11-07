@@ -2455,7 +2455,8 @@ The final conceptual model is:
 │  Administration                                      │
 │  ├── Users                                           │
 │  ├── Roles & Permissions                             │
-│  └── Audit                                           │
+│  ├── Audit                                           │
+│  └── Contact                                         │
 │                                                     │
 └───────────────────────┬─────────────────────────────┘
                         │
@@ -2475,3 +2476,44 @@ The final conceptual model is:
 The UCI `/panel` is therefore an **advanced editorial CMS interface**, not a collection of database forms.
 
 Its primary purpose is to make content management safe, understandable, efficient, and scalable while keeping all business rules and security enforcement inside the backend architecture defined by the previous specifications.
+---
+
+# 110. Contact Inbox
+
+The public contact form stores submissions; administrators read and triage them
+in the panel at:
+
+```text
+/panel/administracion/contacto
+```
+
+The screen requires `contact.read`. It lists submissions newest-first with:
+
+```text
+Fecha
+Nombre
+Correo
+Estado (Nueva / Gestionada)
+Vista previa del mensaje
+Acciones (ver detalle)
+```
+
+Filters:
+
+- free-text search across name, email and message;
+- status (`Nueva` / `Gestionada`);
+- inclusive `desde` / `hasta` date range;
+- pagination, with the same responsive table and honest loading, empty and
+  error states as the other administration modules.
+
+Selecting a row opens an accessible detail dialog with the full message, the
+received date, the sender's name and email, and the handled timestamp. The
+action changes the submission status:
+
+- `Marcar gestionada` (direct) moves `NEW → HANDLED`;
+- `Reabrir` asks for confirmation and moves `HANDLED → NEW`.
+
+Both actions require `contact.manage`; without it the dialog is read-only. The
+API authorizes every request and writes real transitions to the audit log, so
+hiding the buttons is only a UX convenience. No contact submission is exposed
+through the public website (docs/08 §19).

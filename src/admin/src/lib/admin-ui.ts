@@ -22,6 +22,10 @@ import type {
   NavigationTarget,
 } from '@shared/cms';
 import type {
+  ContactSubmissionListQuery,
+  ContactSubmissionStatus,
+} from '@shared/contact';
+import type {
   AdminSettingsDto,
   UpdateSettingsInput,
 } from '@shared/settings';
@@ -99,6 +103,18 @@ export interface AuditPagePermissions {
 
 export function auditPagePermissions(has: HasPermission): AuditPagePermissions {
   return { read: has('audit.read') };
+}
+
+/** The inbox is readable by triage roles; only `contact.manage` changes state. */
+export interface ContactPagePermissions {
+  read: boolean;
+  manage: boolean;
+}
+
+export function contactPagePermissions(
+  has: HasPermission,
+): ContactPagePermissions {
+  return { read: has('contact.read'), manage: has('contact.manage') };
 }
 
 // ---------------------------------------------------------------------------
@@ -249,11 +265,11 @@ function dateOnlyTime(value: string): number | null {
 }
 
 /**
- * Date-input guard. The audit API accepts an inverted range with a 400; the
- * panel catches it first so a malformed range never replaces the list with a
- * misleading error state.
+ * Date-input guard. The audit and contact APIs accept an inverted range with a
+ * 400; the panel catches it first so a malformed range never replaces the list
+ * with a misleading error state.
  */
-export function auditDateRangeError(from: string, to: string): string | null {
+function dateRangeError(from: string, to: string): string | null {
   if (from.length > 0 && dateOnlyTime(from) === null) {
     return 'La fecha "desde" no es válida.';
   }
@@ -268,6 +284,17 @@ export function auditDateRangeError(from: string, to: string): string | null {
     }
   }
   return null;
+}
+
+export function auditDateRangeError(from: string, to: string): string | null {
+  return dateRangeError(from, to);
+}
+
+export function contactDateRangeError(
+  from: string,
+  to: string,
+): string | null {
+  return dateRangeError(from, to);
 }
 
 export function buildAuditListQuery(
@@ -294,6 +321,97 @@ export function buildAuditListQuery(
 }
 
 // ---------------------------------------------------------------------------
+// Contact inbox: filters, status projection and previews
+// ---------------------------------------------------------------------------
+
+export type ContactStatusFilter = '' | ContactSubmissionStatus;
+
+export interface ContactFilters {
+  /** Matches name, email or message (case-insensitive). */
+  search: string;
+  /** Canonical status filter; empty means "all". */
+  status: ContactStatusFilter;
+  /** Date-only input value (`YYYY-MM-DD`), inclusive lower bound. */
+  from: string;
+  /** Date-only input value (`YYYY-MM-DD`), inclusive upper bound. */
+  to: string;
+}
+
+export function emptyContactFilters(): ContactFilters {
+  return { search: '', status: '', from: '', to: '' };
+}
+
+export function contactFiltersActive(filters: ContactFilters): boolean {
+  return (
+    filters.search.trim().length > 0 ||
+    filters.status !== '' ||
+    filters.from.length > 0 ||
+    filters.to.length > 0
+  );
+}
+
+/**
+ * Serialize the inbox filters. The API treats `from`/`to` as inclusive ISO
+ * instants, so date-only inputs expand to the first and last millisecond of the
+ * chosen calendar day in UTC instead of being sent as ambiguous local dates.
+ */
+export function buildContactSubmissionListQuery(
+  filters: ContactFilters,
+  page: number,
+  limit: number,
+): ContactSubmissionListQuery {
+  const query: ContactSubmissionListQuery = { page, limit };
+  const search = filters.search.trim();
+  if (search.length > 0) query.search = search;
+  if (filters.status !== '') query.status = filters.status;
+  if (filters.from.length > 0 && DATE_ONLY.test(filters.from)) {
+    query.from = `${filters.from}T00:00:00.000Z`;
+  }
+  if (filters.to.length > 0 && DATE_ONLY.test(filters.to)) {
+    query.to = `${filters.to}T23:59:59.999Z`;
+  }
+  return query;
+}
+
+/** Human label for the two canonical inbox states. */
+export function contactStatusLabel(status: ContactSubmissionStatus): string {
+  return status === 'HANDLED' ? 'Gestionada' : 'Nueva';
+}
+
+export interface ContactStatusAction {
+  /** Status the action moves the submission to. */
+  next: ContactSubmissionStatus;
+  label: string;
+  /** Reopening is consequential, so the UI asks for confirmation first. */
+  confirm: boolean;
+}
+
+/** The single state transition offered for a submission in this state. */
+export function contactStatusAction(
+  status: ContactSubmissionStatus,
+): ContactStatusAction {
+  return status === 'HANDLED'
+    ? { next: 'NEW', label: 'Reabrir', confirm: true }
+    : { next: 'HANDLED', label: 'Marcar gestionada', confirm: false };
+}
+
+export const CONTACT_PREVIEW_MAX_LENGTH = 140;
+
+/**
+ * Compact one-line preview for the inbox table. Whitespace is collapsed so a
+ * multi-line message cannot break the row, and the full text stays available in
+ * the detail dialog.
+ */
+export function contactMessagePreview(
+  message: string,
+  maxLength = CONTACT_PREVIEW_MAX_LENGTH,
+): string {
+  const compact = message.replace(/\s+/g, ' ').trim();
+  if (compact.length <= maxLength) return compact;
+  return `${compact.slice(0, maxLength).trimEnd()}…`;
+}
+
+// ---------------------------------------------------------------------------
 // Roles: permission matrix
 // ---------------------------------------------------------------------------
 
@@ -309,6 +427,7 @@ const PERMISSION_DOMAIN_LABELS: Record<string, string> = {
   seo: 'SEO',
   settings: 'Configuración',
   audit: 'Auditoría',
+  contact: 'Contacto',
 };
 
 export interface PermissionGroup {

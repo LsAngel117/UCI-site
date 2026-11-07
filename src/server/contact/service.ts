@@ -102,8 +102,18 @@ export function parseContactSubmissionInput(
   return { name, email, message };
 }
 
+/**
+ * Result of persisting a submission.
+ *
+ * `name`/`email`/`message` are returned so the notification layer can use them
+ * without re-reading the row. They are internal values only: the public
+ * response never exposes them (docs/08 §19).
+ */
 export interface CreatedContactSubmission {
   id: string;
+  name: string;
+  email: string;
+  message: string;
   createdAt: Date;
 }
 
@@ -118,7 +128,13 @@ export async function createContactSubmission(
       email: input.email,
       message: input.message,
     },
-    select: { id: true, createdAt: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      message: true,
+      createdAt: true,
+    },
   });
   return row;
 }

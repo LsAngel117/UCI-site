@@ -37,6 +37,7 @@ if (HAS_DB) {
 }
 
 const TEST_EMAIL = 'e2e-auth-test@uci.local';
+const UNKNOWN_EMAIL = 'e2e-does-not-exist@uci.local';
 const TEST_PASSWORD = 'E2e-Auth-Passw0rd!';
 const LOGIN_URL = '/api/v1/auth/login';
 const ME_URL = '/api/v1/auth/me';
@@ -85,6 +86,8 @@ describe(
   'auth e2e (requires DATABASE_URL)',
   { skip: HAS_DB ? false : 'DATABASE_URL is not set — skipping e2e suite' },
   () => {
+    let testUserId: string;
+
     before(async () => {
       const adminRoleId = await ensureAdminRole();
       const passwordHash = await hashPassword(TEST_PASSWORD);
@@ -104,9 +107,20 @@ describe(
         update: {},
         create: { userId: user.id, roleId: adminRoleId },
       });
+      testUserId = user.id;
     });
 
     after(async () => {
+      await prisma.auditLog.deleteMany({ where: { actorId: testUserId } });
+      await prisma.auditLog.deleteMany({
+        where: {
+          action: 'auth.login_failed',
+          OR: [
+            { metadata: { path: ['email'], equals: TEST_EMAIL } },
+            { metadata: { path: ['email'], equals: UNKNOWN_EMAIL } },
+          ],
+        },
+      });
       await prisma.session.deleteMany({ where: { user: { email: TEST_EMAIL } } });
       await prisma.user.deleteMany({ where: { email: TEST_EMAIL } });
       await prisma.$disconnect();
@@ -185,7 +199,7 @@ describe(
         const unknownEmail = await app.inject({
           method: 'POST',
           url: LOGIN_URL,
-          payload: { email: 'e2e-does-not-exist@uci.local', password: 'whatever' },
+          payload: { email: UNKNOWN_EMAIL, password: 'whatever' },
         });
 
         assert.equal(wrongPassword.statusCode, 401);
@@ -223,6 +237,70 @@ describe(
           headers: { cookie },
         });
         assert.equal(me.statusCode, 401);
+      } finally {
+        await app.close();
+      }
+    });
+
+    test('records auth.login, auth.login_failed and auth.logout in the audit trail', async () => {
+      const app = makeApp();
+      try {
+        const login = await app.inject({
+          method: 'POST',
+          url: LOGIN_URL,
+          payload: { email: TEST_EMAIL, password: TEST_PASSWORD },
+        });
+        assert.equal(login.statusCode, 200);
+        const cookie = sessionCookie(login.headers['set-cookie']);
+
+        const loginAudit = await prisma.auditLog.findFirst({
+          where: { actorId: testUserId, action: 'auth.login' },
+          orderBy: { createdAt: 'desc' },
+        });
+        assert.ok(loginAudit, 'a successful login is audited');
+        assert.equal(loginAudit.entityType, 'AUTH');
+        assert.equal(loginAudit.entityId, testUserId);
+        assert.equal(
+          (loginAudit.metadata as { password?: unknown }).password,
+          undefined,
+          'the password is never recorded',
+        );
+
+        const failed = await app.inject({
+          method: 'POST',
+          url: LOGIN_URL,
+          payload: { email: TEST_EMAIL, password: 'definitely-wrong' },
+        });
+        assert.equal(failed.statusCode, 401);
+
+        const failedAudit = await prisma.auditLog.findFirst({
+          where: {
+            action: 'auth.login_failed',
+            metadata: { path: ['email'], equals: TEST_EMAIL },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        assert.ok(failedAudit, 'a failed login is audited');
+        assert.equal(failedAudit.actorId, null, 'a failed login has no actor');
+        assert.equal(failedAudit.entityType, 'AUTH');
+        const serialized = JSON.stringify(failedAudit);
+        assert.equal(serialized.includes('definitely-wrong'), false);
+        assert.equal(serialized.includes('password'), false);
+
+        const logout = await app.inject({
+          method: 'POST',
+          url: LOGOUT_URL,
+          headers: { cookie },
+        });
+        assert.equal(logout.statusCode, 204);
+
+        const logoutAudit = await prisma.auditLog.findFirst({
+          where: { actorId: testUserId, action: 'auth.logout' },
+          orderBy: { createdAt: 'desc' },
+        });
+        assert.ok(logoutAudit, 'logout is audited');
+        assert.equal(logoutAudit.entityType, 'AUTH');
+        assert.equal(logoutAudit.entityId, testUserId);
       } finally {
         await app.close();
       }

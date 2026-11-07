@@ -2339,6 +2339,58 @@ strong {
   color: #8a1f1f;
 }
 
+/* --- Contact inbox ------------------------------------------------------ */
+.badge--contact-new {
+  background-color: rgba(217, 164, 65, 0.14);
+  border-color: rgba(217, 164, 65, 0.45);
+  color: var(--admin-gold-ink);
+}
+
+.badge--contact-handled {
+  background-color: #e8f5ec;
+  border-color: #9fd0b0;
+  color: #1d6b3a;
+}
+
+.contact-preview {
+  display: -webkit-box;
+  max-width: 36ch;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--admin-ink-muted);
+}
+
+.contact-detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-12) var(--space-16);
+  margin: 0;
+}
+
+.contact-detail dt {
+  color: var(--admin-ink-muted);
+  font-size: var(--font-size-caption);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.contact-detail dd {
+  margin: var(--space-4) 0 0;
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.contact-message__body {
+  margin-top: var(--space-8);
+  padding: var(--space-12);
+  background-color: var(--admin-surface-muted);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 /* --- Settings form ------------------------------------------------------ */
 .settings-fieldset {
   display: flex;

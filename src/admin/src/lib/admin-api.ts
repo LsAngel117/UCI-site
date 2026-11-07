@@ -23,6 +23,11 @@ import type {
   NavigationReorderInput,
   UpdateNavigationInput,
 } from '@shared/cms';
+import type {
+  ContactSubmissionDto,
+  ContactSubmissionListQuery,
+  UpdateContactSubmissionInput,
+} from '@shared/contact';
 import type { AdminSettingsDto, UpdateSettingsInput } from '@shared/settings';
 import type { SiteSeoDto, UpdateSiteSeoInput } from '@shared/seo';
 import { apiRequest, apiRequestList } from './api';
@@ -112,6 +117,45 @@ export function listAuditLogs(
   return apiRequestList<AuditLogDto>(
     `/admin/audit${buildQuery({ ...query })}`,
     { signal },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Contact inbox (Phase 11B)
+// ---------------------------------------------------------------------------
+
+/**
+ * Administrative contact inbox. Rows are only ever served behind
+ * `contact.read` / `contact.manage`; nothing here is reachable publicly
+ * (docs/08 §19).
+ */
+export function listContactSubmissions(
+  query: ContactSubmissionListQuery = {},
+  signal?: AbortSignal,
+) {
+  return apiRequestList<ContactSubmissionDto>(
+    `/admin/contact-submissions${buildQuery({ ...query })}`,
+    { signal },
+  );
+}
+
+export function getContactSubmission(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ContactSubmissionDto> {
+  return apiRequest<ContactSubmissionDto>(
+    `/admin/contact-submissions/${idPath(id)}`,
+    { signal },
+  );
+}
+
+export function updateContactSubmission(
+  id: string,
+  input: UpdateContactSubmissionInput,
+): Promise<ContactSubmissionDto> {
+  return apiRequest<ContactSubmissionDto>(
+    `/admin/contact-submissions/${idPath(id)}`,
+    { method: 'PATCH', body: input },
   );
 }
 

@@ -265,6 +265,22 @@ describe('role matrix', () => {
     );
   });
 
+  test('contact permissions get their own labeled domain group', () => {
+    const groups = groupPermissions([
+      permissionFixture('contact.read'),
+      permissionFixture('contact.manage'),
+    ]);
+    assert.deepEqual(
+      groups.map((group) => group.key),
+      ['contact'],
+    );
+    assert.equal(groups[0]?.label, 'Contacto');
+    assert.deepEqual(
+      groups[0]?.permissions.map((permission) => permission.name),
+      ['contact.read', 'contact.manage'],
+    );
+  });
+
   test('toggling adds or removes one permission without duplicates', () => {
     const selected = togglePermission([], 'roles.read');
     assert.deepEqual(selected, ['roles.read']);

@@ -124,8 +124,8 @@ describe('password hashing (Argon2id)', () => {
 describe('permission vocabulary (docs/11 §9)', () => {
   test('PERMISSIONS matches docs/11 §9 exactly, in the same order', () => {
     const documented = documentedPermissions();
-    assert.equal(documented.length, 40, 'docs/11 §9 must list 40 permissions');
-    assert.equal(PERMISSIONS.length, 40, 'PERMISSIONS must hold 40 entries');
+    assert.equal(documented.length, 42, 'docs/11 §9 must list 42 permissions');
+    assert.equal(PERMISSIONS.length, 42, 'PERMISSIONS must hold 42 entries');
     assert.deepEqual([...PERMISSIONS], documented);
   });
 
