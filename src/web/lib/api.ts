@@ -377,17 +377,52 @@ export async function getPages(
   return assertListResponse<PublicPageDto>(body, path);
 }
 
-/** `GET /api/v1/pages/:slug` (docs/08 §10.2). `null` when not found. */
+/** Outcome of resolving a public CMS page by slug (docs/08 §10.1). */
+export type PageLookupResult =
+  | { status: 'ok'; data: PublicPageDetailDto }
+  | { status: 'not-found' }
+  /**
+   * The requested slug moved. The API answers 404 with
+   * `error.details.redirectTo`, a rooted destination path; the HTTP layer is
+   * responsible for validating it and issuing the permanent redirect.
+   */
+  | { status: 'redirect'; redirectTo: string };
+
+/** Extract a non-empty `redirectTo` string from an API error's details. */
+function readRedirectTo(details: unknown): string | null {
+  if (details === null || typeof details !== 'object') return null;
+  const value = (details as { redirectTo?: unknown }).redirectTo;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * `GET /api/v1/pages/:slug` (docs/08 §10.1).
+ *
+ * Distinguishes an honest 404 (`not-found`) from the redirect foundation: an
+ * old published slug answers 404 with `details.redirectTo` (docs/08 §10.1).
+ *
+ * @throws {ApiError} on transport failures or non-404 errors.
+ */
 export async function getPage(
   slug: string,
   options: ApiRequestOptions = {},
-): Promise<PublicPageDetailDto | null> {
+): Promise<PageLookupResult> {
   const path = `/api/v1/pages/${encodeURIComponent(slug)}`;
   try {
     const body = await apiFetch<unknown>(path, options);
-    return assertDataResponse<PublicPageDetailDto>(body, path);
+    return {
+      status: 'ok',
+      data: assertDataResponse<PublicPageDetailDto>(body, path),
+    };
   } catch (error) {
-    if (error instanceof ApiError && error.isNotFound) return null;
+    if (error instanceof ApiError && error.isNotFound) {
+      const redirectTo = readRedirectTo(error.details);
+      return redirectTo
+        ? { status: 'redirect', redirectTo }
+        : { status: 'not-found' };
+    }
     throw error;
   }
 }

@@ -1,0 +1,658 @@
+---
+/**
+ * /contacto — contact information + accessible form (Phase 9B2, docs/01 §18,
+ * docs/08 §19).
+ *
+ * Channels come from `GET /api/v1/settings/public`; unconfigured values are
+ * shown honestly as "por confirmar" instead of being invented. The form posts
+ * same-origin to `/api/contact` (an Astro proxy), which forwards to the real
+ * API endpoint `POST /api/v1/contact`. Delivery is not claimed as an email
+ * send: the success state says the message was received.
+ */
+import { Mail, MapPin, MessageCircle, Phone } from '@lucide/astro';
+import { getChurchProfile, getNavigation, getSettings } from '../data/site';
+import { buildStaticPageJsonLd } from '../lib/seo';
+import ContentLayout from '../layouts/ContentLayout.astro';
+import Container from '../components/ui/Container.astro';
+import Section from '../components/ui/Section.astro';
+import SectionLabel from '../components/ui/SectionLabel.astro';
+import SocialIcon from '../components/ui/SocialIcon.astro';
+
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+
+const [settings, navigation] = await Promise.all([getSettings(), getNavigation()]);
+const church = await getChurchProfile(settings);
+
+const locationCityLine = [church.location.city, church.location.state]
+  .filter(Boolean)
+  .join(', ');
+const whatsappHref = church.whatsapp
+  ? `https://wa.me/${church.whatsapp.replace(/[^\d]/g, '')}`
+  : null;
+const hasChannels = Boolean(
+  church.phone || church.email || whatsappHref,
+);
+
+const title = 'Contacto | Iglesia UCI';
+const description =
+  'Escríbenos o visítanos. Encuentra la dirección, el teléfono, el correo y las redes sociales de Iglesia UCI.';
+const jsonLd = buildStaticPageJsonLd({
+  name: 'Contacto',
+  description,
+  path: '/contacto',
+  siteUrl,
+});
+---
+
+<ContentLayout
+  title={title}
+  description={description}
+  canonicalPath="/contacto"
+  jsonLd={jsonLd}
+  church={church}
+  navigation={navigation}
+>
+  <Section surface="dark" spacing="lg" class="contact-hero">
+    <div class="contact-hero__atmosphere" aria-hidden="true"></div>
+    <Container>
+      <div class="contact-hero__inner">
+        <SectionLabel>CONTACTO</SectionLabel>
+        <h1 class="contact-hero__title font-display">Contacto</h1>
+        <p class="contact-hero__support text-body-large">
+          Estamos para escucharte. Escríbenos y con gusto te responderemos.
+        </p>
+      </div>
+    </Container>
+  </Section>
+
+  <Section surface="light" spacing="lg" ariaLabel="Información de contacto y formulario">
+    <Container>
+      <div class="contact-layout">
+        <section class="contact-info" aria-labelledby="contact-info-heading">
+          <h2 id="contact-info-heading" class="contact-section__heading font-display">
+            Información de contacto
+          </h2>
+
+          <div class="contact-info__block">
+            <span class="contact-info__icon" aria-hidden="true">
+              <MapPin size={20} stroke-width={1.75} />
+            </span>
+            <div>
+              <h3 class="contact-info__label">Dirección</h3>
+              <address class="contact-info__address">
+                <span>{church.location.address || 'Dirección por confirmar'}</span>
+                {locationCityLine && <span>{locationCityLine}</span>}
+              </address>
+              {church.location.confirmed && church.location.mapUrl ? (
+                <a
+                  class="contact-info__link"
+                  href={church.location.mapUrl}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  Cómo llegar
+                </a>
+              ) : (
+                <p class="contact-info__muted">Ruta por confirmar.</p>
+              )}
+            </div>
+          </div>
+
+          {hasChannels ? (
+            <div class="contact-info__block">
+              <span class="contact-info__icon" aria-hidden="true">
+                <Mail size={20} stroke-width={1.75} />
+              </span>
+              <div>
+                <h3 class="contact-info__label">Canales</h3>
+                <ul class="contact-info__channels">
+                  {church.phone && (
+                    <li>
+                      <a href={`tel:${church.phone.replace(/\s+/g, '')}`}>
+                        <Phone size={16} stroke-width={1.75} />
+                        {church.phone}
+                      </a>
+                    </li>
+                  )}
+                  {church.email && (
+                    <li>
+                      <a href={`mailto:${church.email}`}>
+                        <Mail size={16} stroke-width={1.75} />
+                        {church.email}
+                      </a>
+                    </li>
+                  )}
+                  {whatsappHref && (
+                    <li>
+                      <a
+                        href={whatsappHref}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        <MessageCircle size={16} stroke-width={1.75} />
+                        WhatsApp
+                      </a>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          ) : (
+            <p class="contact-info__muted">
+              Teléfono, correo y WhatsApp por confirmar. El formulario queda
+              disponible para escribirnos.
+            </p>
+          )}
+
+          {church.socialLinks.length > 0 && (
+            <div class="contact-info__block">
+              <span class="contact-info__icon" aria-hidden="true">
+                <MessageCircle size={20} stroke-width={1.75} />
+              </span>
+              <div>
+                <h3 class="contact-info__label">Redes sociales</h3>
+                <ul class="contact-info__social">
+                  {church.socialLinks.map((social) => (
+                    <li>
+                      <a
+                        href={social.url}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                        aria-label={social.label}
+                      >
+                        <SocialIcon name={social.platform} size={20} />
+                        <span>{social.label}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section class="contact-form-card" aria-labelledby="contact-form-heading">
+          <h2 id="contact-form-heading" class="contact-section__heading font-display">
+            Envíanos un mensaje
+          </h2>
+          <p class="contact-form__intro">
+            Completa el formulario y te responderemos lo antes posible. Usaremos
+            tus datos únicamente para atender tu mensaje.
+          </p>
+
+          <form
+            id="contact-form"
+            class="contact-form"
+            method="post"
+            action="/api/contact"
+            novalidate
+          >
+            <div class="contact-form__field">
+              <label class="contact-form__label" for="contact-name">
+                Nombre <span class="contact-form__required">(requerido)</span>
+              </label>
+              <input
+                class="contact-form__input"
+                id="contact-name"
+                name="name"
+                type="text"
+                autocomplete="name"
+                maxlength="120"
+                required
+                aria-required="true"
+                aria-describedby="contact-name-error"
+              />
+              <p
+                class="contact-form__error"
+                id="contact-name-error"
+                data-error-for="name"
+              ></p>
+            </div>
+
+            <div class="contact-form__field">
+              <label class="contact-form__label" for="contact-email">
+                Correo electrónico <span class="contact-form__required">(requerido)</span>
+              </label>
+              <input
+                class="contact-form__input"
+                id="contact-email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                inputmode="email"
+                maxlength="254"
+                required
+                aria-required="true"
+                aria-describedby="contact-email-error"
+              />
+              <p
+                class="contact-form__error"
+                id="contact-email-error"
+                data-error-for="email"
+              ></p>
+            </div>
+
+            <div class="contact-form__field">
+              <label class="contact-form__label" for="contact-message">
+                Mensaje <span class="contact-form__required">(requerido)</span>
+              </label>
+              <textarea
+                class="contact-form__input contact-form__textarea"
+                id="contact-message"
+                name="message"
+                rows="6"
+                maxlength="5000"
+                required
+                aria-required="true"
+                aria-describedby="contact-message-error"
+              ></textarea>
+              <p
+                class="contact-form__error"
+                id="contact-message-error"
+                data-error-for="message"
+              ></p>
+            </div>
+
+            <button
+              class="contact-form__submit"
+              type="submit"
+              aria-busy="false"
+            >
+              Enviar mensaje
+            </button>
+
+            <p
+              class="contact-form__status"
+              id="contact-status"
+              role="status"
+              aria-live="polite"
+              tabindex="-1"
+            ></p>
+          </form>
+
+          <noscript>
+            <p class="contact-form__status contact-form__status--error">
+              Activa JavaScript para enviar el formulario o utiliza los canales
+              de contacto de esta página.
+            </p>
+          </noscript>
+        </section>
+      </div>
+    </Container>
+  </Section>
+</ContentLayout>
+
+<script is:inline>
+  (() => {
+    const form = document.getElementById('contact-form');
+    if (!(form instanceof HTMLFormElement)) return;
+
+    const status = document.getElementById('contact-status');
+    const submit = form.querySelector('button[type="submit"]');
+    const fields = ['name', 'email', 'message'];
+
+    const setStatus = (message, state) => {
+      if (!status) return;
+      status.textContent = message;
+      status.dataset.state = state;
+      status.focus();
+    };
+
+    const clearErrors = () => {
+      for (const field of fields) {
+        const input = form.elements.namedItem(field);
+        const error = form.querySelector(`[data-error-for="${field}"]`);
+        if (input instanceof HTMLElement) input.removeAttribute('aria-invalid');
+        if (error) error.textContent = '';
+      }
+    };
+
+    const showFieldError = (field, message) => {
+      const input = form.elements.namedItem(field);
+      const error = form.querySelector(`[data-error-for="${field}"]`);
+      if (input instanceof HTMLElement) input.setAttribute('aria-invalid', 'true');
+      if (error) error.textContent = message;
+    };
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearErrors();
+
+      if (!form.reportValidity()) return;
+
+      const data = new FormData(form);
+      const payload = {
+        name: data.get('name') ?? '',
+        email: data.get('email') ?? '',
+        message: data.get('message') ?? '',
+      };
+
+      if (submit instanceof HTMLButtonElement) {
+        submit.disabled = true;
+        submit.setAttribute('aria-busy', 'true');
+      }
+
+      try {
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        let body = null;
+        try {
+          body = await response.json();
+        } catch {
+          body = null;
+        }
+
+        if (response.status === 201 || response.status === 200) {
+          form.reset();
+          setStatus(
+            '¡Gracias! Recibimos tu mensaje. Te responderemos lo antes posible.',
+            'success',
+          );
+          return;
+        }
+
+        if (response.status === 400) {
+          const field = body?.error?.details?.field;
+          const message =
+            body?.error?.message ??
+            'Revisa los campos e intenta de nuevo.';
+          if (field) showFieldError(field, message);
+          setStatus(message, 'error');
+          return;
+        }
+
+        if (response.status === 429) {
+          setStatus(
+            'Recibimos varios mensajes seguidos. Espera un minuto e intenta de nuevo.',
+            'error',
+          );
+          return;
+        }
+
+        if (response.status === 503) {
+          setStatus(
+            'El formulario no está disponible en este momento. Intenta de nuevo en unos minutos.',
+            'error',
+          );
+          return;
+        }
+
+        setStatus(
+          'No pudimos enviar tu mensaje. Intenta de nuevo en unos minutos.',
+          'error',
+        );
+      } catch {
+        setStatus(
+          'No pudimos enviar tu mensaje. Revisa tu conexión e intenta de nuevo.',
+          'error',
+        );
+      } finally {
+        if (submit instanceof HTMLButtonElement) {
+          submit.disabled = false;
+          submit.setAttribute('aria-busy', 'false');
+        }
+      }
+    });
+  })();
+</script>
+
+<style>
+  .contact-hero {
+    overflow: hidden;
+  }
+
+  .contact-hero__atmosphere {
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-blue-glow);
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .contact-hero__inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+    max-width: 52rem;
+    padding-block-start: 4.5rem;
+  }
+
+  .contact-hero__title {
+    font-size: var(--font-size-display-l);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .contact-hero__support {
+    max-width: 48ch;
+    color: var(--color-gray-light);
+  }
+
+  .contact-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: var(--space-48);
+    align-items: start;
+  }
+
+  .contact-section__heading {
+    margin-bottom: var(--space-24);
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .contact-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+  }
+
+  .contact-info__block {
+    display: flex;
+    gap: var(--space-16);
+    padding-bottom: var(--space-24);
+    border-bottom: 1px solid var(--border-on-light);
+  }
+
+  .contact-info__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-md);
+    color: var(--color-blue);
+  }
+
+  .contact-info__label {
+    margin-bottom: var(--space-8);
+    color: var(--color-navy);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .contact-info__address {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    color: var(--color-navy);
+    font-size: var(--font-size-body);
+    font-style: normal;
+  }
+
+  .contact-info__channels,
+  .contact-info__social {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    font-size: var(--font-size-body);
+  }
+
+  .contact-info__channels a,
+  .contact-info__social a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    color: var(--color-blue);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .contact-info__channels a:hover,
+  .contact-info__social a:hover {
+    color: var(--color-navy);
+  }
+
+  .contact-info__link {
+    display: inline-block;
+    margin-top: var(--space-8);
+    color: var(--color-blue);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .contact-info__link:hover {
+    color: var(--color-navy);
+  }
+
+  .contact-info__muted {
+    color: var(--color-navy);
+    opacity: 0.7;
+    font-size: var(--font-size-body-small);
+  }
+
+  .contact-form-card {
+    padding: var(--space-32);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+  }
+
+  .contact-form__intro {
+    margin-bottom: var(--space-24);
+    color: var(--color-navy);
+    opacity: 0.8;
+    font-size: var(--font-size-body);
+    line-height: var(--line-height-body);
+  }
+
+  .contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+  }
+
+  .contact-form__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .contact-form__label {
+    color: var(--color-navy);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .contact-form__required {
+    font-weight: var(--font-weight-regular, 400);
+    letter-spacing: normal;
+    text-transform: none;
+    opacity: 0.7;
+  }
+
+  .contact-form__input {
+    min-height: 2.75rem;
+    padding: var(--space-8) var(--space-12);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+    color: var(--color-navy);
+    font-size: var(--font-size-body);
+    font-family: inherit;
+  }
+
+  .contact-form__textarea {
+    resize: vertical;
+    min-height: 9rem;
+  }
+
+  .contact-form__input[aria-invalid='true'] {
+    border-color: #b3261e;
+  }
+
+  .contact-form__error {
+    min-height: 1.25rem;
+    color: #b3261e;
+    font-size: var(--font-size-body-small);
+  }
+
+  .contact-form__submit {
+    align-self: flex-start;
+    padding: var(--space-12) var(--space-24);
+    border: 1px solid var(--color-gold);
+    border-radius: var(--radius-md);
+    background-color: var(--color-gold);
+    color: var(--color-black);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-navigation);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-nav);
+    cursor: pointer;
+  }
+
+  .contact-form__submit:hover {
+    background-color: var(--color-gold-light);
+    border-color: var(--color-gold-light);
+  }
+
+  .contact-form__submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .contact-form__status {
+    min-height: 1.5rem;
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .contact-form__status[data-state='success'] {
+    color: #1e6b3a;
+  }
+
+  .contact-form__status[data-state='error'],
+  .contact-form__status--error {
+    color: #b3261e;
+  }
+
+  @media (max-width: 899px) {
+    .contact-layout {
+      grid-template-columns: 1fr;
+      gap: var(--space-32);
+    }
+  }
+
+  @media (max-width: 639px) {
+    .contact-form-card {
+      padding: var(--space-24);
+    }
+  }
+</style>

@@ -1,9 +1,10 @@
 ---
 /**
- * NotFoundState — honest 404 body for a content detail route.
+ * NotFoundState — honest error body for a content detail route.
  *
- * The route sets `Astro.response.status = 404` before rendering, so the HTTP
- * status matches the message. The single `<h1>` belongs here.
+ * The route sets the real HTTP status before rendering, so the visible code
+ * must match it: pass `code={503}` for a temporary outage instead of showing a
+ * misleading "404". The single `<h1>` belongs here.
  */
 import Container from './Container.astro';
 import Section from './Section.astro';
@@ -13,15 +14,17 @@ interface Props {
   message: string;
   backHref: string;
   backLabel: string;
+  /** HTTP status shown to the reader. Defaults to 404. */
+  code?: number | string;
 }
 
-const { title, message, backHref, backLabel } = Astro.props;
+const { title, message, backHref, backLabel, code = 404 } = Astro.props;
 ---
 
 <Section surface="light" spacing="lg" class="not-found">
   <Container narrow>
     <div class="not-found__content">
-      <p class="not-found__code">404</p>
+      <p class="not-found__code">{code}</p>
       <h1 class="not-found__title font-display">{title}</h1>
       <p class="not-found__message">{message}</p>
       <a class="not-found__link" href={backHref}>{backLabel}</a>

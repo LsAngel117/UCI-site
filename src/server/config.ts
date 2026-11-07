@@ -59,6 +59,13 @@ export interface ServerConfig {
   port: number;
   /** Canonical public origin used to build absolute SEO URLs (docs/10 §6.2). */
   siteUrl: string;
+  /**
+   * Fastify `trustProxy` value. The API sits behind the same-origin Astro
+   * proxy, which sets `X-Forwarded-For` with the real client IP; only that
+   * proxy may be trusted. Defaults to loopback so a directly reachable API
+   * cannot let a client spoof its way around the per-IP rate limit.
+   */
+  trustProxy: boolean | string;
   session: SessionConfig;
   cookie: CookieConfig;
   media: MediaConfig;
@@ -66,6 +73,13 @@ export interface ServerConfig {
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8787;
+
+/**
+ * Default reverse-proxy trust: loopback only. The Astro proxy and the API run
+ * on the same host in the supported deployment (same-origin bridge), so the
+ * forwarded client IP is trusted from `127.0.0.1`/`::1` and nowhere else.
+ */
+const DEFAULT_TRUST_PROXY = 'loopback';
 
 /**
  * Non-production placeholder mirrored from `astro.config.mjs`. A deploy that
@@ -160,6 +174,19 @@ function readPositiveInt(
   return value;
 }
 
+/**
+ * Read the proxy trust list for Fastify. `"true"`/`"false"` map to booleans;
+ * any other value is an IP/CIDR list or proxy-addr name (e.g. `loopback`).
+ * An explicit override is for deployments where the proxy is not loopback.
+ */
+function readTrustProxy(raw: string | undefined): boolean | string {
+  const value = raw?.trim();
+  if (!value) return DEFAULT_TRUST_PROXY;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+}
+
 /** Read the media storage configuration; never hardcodes a filesystem path. */
 function readMediaConfig(env: NodeJS.ProcessEnv): MediaConfig {
   const rootRaw = env.MEDIA_ROOT?.trim() || DEFAULT_MEDIA_ROOT;
@@ -184,6 +211,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     host: env.HOST ?? DEFAULT_HOST,
     port: readPort(env.PORT),
     siteUrl: readSiteUrl(env.SITE_URL),
+    trustProxy: readTrustProxy(env.TRUST_PROXY),
     session: {
       cookieName: SESSION_COOKIE_NAME,
       absoluteTtlMs: readTtlMs(

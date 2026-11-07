@@ -15,6 +15,7 @@
 import type {
   PublicEventDto,
   PublicMinistryDto,
+  PublicPageDetailDto,
   PublicSermonDto,
   PublicSermonVideoDto,
 } from '@shared/cms';
@@ -141,6 +142,78 @@ function breadcrumbsJsonLd(
       },
     ],
   };
+}
+
+/**
+ * Two-level trail for a top-level page (`Inicio › <page>`). Used by the
+ * institutional CMS pages and the static `/soy-nuevo` and `/contacto` routes.
+ */
+function topLevelBreadcrumbsJsonLd(
+  itemName: string,
+  itemUrl: string,
+  siteUrl: string,
+): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Inicio',
+        item: buildCanonicalUrl(siteUrl, '/'),
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: itemName,
+        item: itemUrl,
+      },
+    ],
+  };
+}
+
+/** A `WebPage` object describing one institutional/static page. */
+function webPageJsonLd(options: {
+  name: string;
+  description: string;
+  url: string;
+  publishedAt?: string;
+  updatedAt?: string;
+  image?: string | null;
+}): JsonLdObject {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: options.name,
+    description: options.description,
+    url: options.url,
+    inLanguage: 'es',
+    ...(options.publishedAt ? { datePublished: options.publishedAt } : {}),
+    ...(options.updatedAt ? { dateModified: options.updatedAt } : {}),
+    ...(options.image ? { image: options.image } : {}),
+  };
+}
+
+/**
+ * JSON-LD for a product-controlled static page (`/soy-nuevo`, `/contacto`).
+ * These pages have no CMS row, so the caller supplies the visible copy.
+ */
+export function buildStaticPageJsonLd(options: {
+  name: string;
+  description: string;
+  path: string;
+  siteUrl: string;
+}): JsonLdObject[] {
+  const url = buildCanonicalUrl(options.siteUrl, options.path);
+  return [
+    webPageJsonLd({
+      name: options.name,
+      description: options.description,
+      url,
+    }),
+    topLevelBreadcrumbsJsonLd(options.name, url, options.siteUrl),
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -413,4 +486,46 @@ export function buildMinistrySeo(
       ),
     ],
   };
+}
+
+/**
+ * SEO payload for a public CMS page served at `/{slug}` (Phase 9B2, docs/08
+ * §10.1, docs/10 §6). The API always resolves a canonical URL, but the route
+ * still falls back to `/{slug}` so a partially configured row can never emit
+ * an empty canonical.
+ *
+ * Structured data is a `WebPage` (the page genuinely is one) plus the visible
+ * top-level breadcrumb trail. No `Article` is claimed: institutional pages are
+ * not articles, and inventing author/publisher data would be dishonest.
+ */
+export function buildPageSeo(
+  page: PublicPageDetailDto,
+  context: SeoContext,
+): ContentSeo {
+  const canonicalUrl =
+    absoluteUrl(page.seo.canonicalUrl, context.siteUrl) ??
+    buildCanonicalUrl(context.siteUrl, `/${page.slug}`);
+  const title = withSiteName(page.seo.title || page.title, context.siteName);
+  const description = descriptionOf(
+    [page.seo.description, page.excerpt],
+    context.siteName,
+  );
+  const image = absoluteUrl(
+    page.seo.ogImageUrl ?? page.coverImageUrl,
+    context.siteUrl,
+  );
+
+  const jsonLd: JsonLdObject[] = [
+    webPageJsonLd({
+      name: page.title,
+      description,
+      url: canonicalUrl,
+      publishedAt: toIso(page.publishedAt),
+      updatedAt: toIso(page.updatedAt),
+      image,
+    }),
+    topLevelBreadcrumbsJsonLd(page.title, canonicalUrl, context.siteUrl),
+  ];
+
+  return { title, description, canonicalUrl, ogImageUrl: image, jsonLd };
 }

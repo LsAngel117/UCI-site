@@ -24,6 +24,7 @@ import { registerPageRoutes } from './cms/pages/routes';
 import { registerPublicSermonRoutes } from './cms/sermons/public-routes';
 import { registerSermonRoutes } from './cms/sermons/routes';
 import { registerTaxonomyRoutes } from './cms/taxonomy/routes';
+import { registerPublicContactRoutes } from './contact/routes';
 import { loadConfig, type ServerConfig } from './config';
 import { loggerOptions } from './logger';
 import { prisma } from './db';
@@ -84,6 +85,11 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   const config = options.config ?? loadConfig();
   const app = Fastify({
     logger: options.logger === false ? false : loggerOptions,
+    // The same-origin Astro proxy forwards the real client IP in
+    // `X-Forwarded-For`. Trusting only that proxy (loopback by default) keeps
+    // `request.ip` — and therefore the per-IP rate limiter — honest without
+    // letting direct clients spoof their address.
+    trustProxy: config.trustProxy,
   });
 
   // Cookie transport for the session token (docs/11 §6.2). Registered before
@@ -204,6 +210,13 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   // social links and giving copy. No internal values are exposed.
   app.register(async (instance) => {
     registerPublicSettingsRoutes(instance, config);
+  });
+
+  // Public contact form (Phase 9B2, docs/08 §19, §40). Unauthenticated write,
+  // rate limited per IP, validated server-side and persisted as a
+  // ContactSubmission row. Delivery/notification stays a Phase 11 concern.
+  app.register(async (instance) => {
+    registerPublicContactRoutes(instance, config);
   });
 
   // SEO & discovery (Phase 8, docs/10 §8–§9, §20). Public sitemap/robots and

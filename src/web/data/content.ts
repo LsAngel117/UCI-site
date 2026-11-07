@@ -16,6 +16,7 @@ import type {
   PublicEventListQuery,
   PublicMinistryDto,
   PublicMinistryListQuery,
+  PublicPageDetailDto,
   PublicSermonDetailDto,
   PublicSermonDto,
   PublicSermonListQuery,
@@ -25,6 +26,7 @@ import {
   getEvents,
   getMinistries,
   getMinistry,
+  getPage,
   getSermon,
   getSermons,
 } from '../lib/api';
@@ -37,6 +39,15 @@ export type DetailResult<T> =
   | { status: 'ok'; data: T }
   | { status: 'not-found' }
   | { status: 'unavailable' };
+
+/**
+ * Page detail adds the redirect foundation: an old published slug answers 404
+ * with `details.redirectTo`, which the HTTP layer turns into a permanent
+ * redirect after validating the destination.
+ */
+export type PageDetailResult =
+  | DetailResult<PublicPageDetailDto>
+  | { status: 'redirect'; redirectTo: string };
 
 function warnUnavailable(scope: string, error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
@@ -127,6 +138,30 @@ export async function getMinistryDetail(
       : { status: 'not-found' };
   } catch (error) {
     warnUnavailable(`ministry ${slug}`, error);
+    return { status: 'unavailable' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// CMS pages (`/{slug}`)
+// ---------------------------------------------------------------------------
+
+/**
+ * `GET /api/v1/pages/:slug` for the public institutional page route.
+ *
+ * Drafts, scheduled, archived and unknown slugs all answer 404 from the API,
+ * so they map to `not-found` here (an honest 404 page). A 404 that carries
+ * `details.redirectTo` maps to `redirect` so `/{slug}` can answer a permanent
+ * redirect instead of pretending the page vanished. An API outage stays
+ * `unavailable` (503) instead of masquerading as a missing page.
+ */
+export async function getPageDetail(
+  slug: string,
+): Promise<PageDetailResult> {
+  try {
+    return await getPage(slug);
+  } catch (error) {
+    warnUnavailable(`page ${slug}`, error);
     return { status: 'unavailable' };
   }
 }

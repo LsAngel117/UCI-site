@@ -1191,17 +1191,26 @@ Example:
 {
   "name": "Juan Pérez",
   "email": "juan@example.com",
-  "subject": "Información",
   "message": "Quisiera conocer los horarios."
 }
 ```
+
+The accepted body is strict: only `name`, `email` and `message` are read. Any
+other field (for example `subject`) is rejected with `400 VALIDATION_ERROR`
+instead of being silently discarded, because the persisted model only stores
+those three values.
 
 The API must validate:
 
 - required fields;
 - email format;
 - message length;
+- unknown/unsupported fields (400 `VALIDATION_ERROR`);
 - abuse/rate limits.
+
+Transport errors precede semantic validation: a body larger than Fastify's
+1 MiB limit is rejected with `413` before the route runs, so a `413` can be
+returned even when the JSON would also be invalid (`400`).
 
 Contact submissions may be persisted or forwarded to the configured notification mechanism according to the final implementation.
 

@@ -1,0 +1,350 @@
+---
+/**
+ * /soy-nuevo — first-visit page (Phase 9B2, docs/04 §10, docs/01 §9,
+ * docs/03 §16).
+ *
+ * Product-controlled copy (what to expect) stays static; the practical
+ * information (address and weekly schedule) comes from
+ * `GET /api/v1/settings/public`. Missing settings render an honest
+ * "por confirmar" state instead of invented times or addresses.
+ */
+import { Clock, Heart, MapPin } from '@lucide/astro';
+import {
+  getChurchProfile,
+  getNavigation,
+  getPrimeraVezContent,
+  getSettings,
+} from '../data/site';
+import { buildStaticPageJsonLd } from '../lib/seo';
+import ContentLayout from '../layouts/ContentLayout.astro';
+import Button from '../components/ui/Button.astro';
+import Container from '../components/ui/Container.astro';
+import Section from '../components/ui/Section.astro';
+import SectionLabel from '../components/ui/SectionLabel.astro';
+import type { PublicScheduleEntryDto } from '@shared/settings';
+
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+const DAY_NAMES = [
+  'Domingo',
+  'Lunes',
+  'Martes',
+  'Miércoles',
+  'Jueves',
+  'Viernes',
+  'Sábado',
+];
+
+const [settings, navigation] = await Promise.all([getSettings(), getNavigation()]);
+const church = await getChurchProfile(settings);
+const primeraVez = getPrimeraVezContent();
+
+// Settings expose recurring weekly services with an explicit `active` flag.
+// Inactive/placeholder entries are not presented as real meeting times.
+const activeSchedules = (settings?.schedule ?? []).filter(
+  (entry) => entry.active,
+);
+const formatDay = (entry: PublicScheduleEntryDto) =>
+  `${DAY_NAMES[entry.dayOfWeek] ?? ''} · ${entry.startTime}${
+    entry.endTime ? `–${entry.endTime}` : ''
+  }`;
+
+const locationCityLine = [church.location.city, church.location.state]
+  .filter(Boolean)
+  .join(', ');
+const hasRoute = church.location.confirmed && Boolean(church.location.mapUrl);
+const expectBlock = primeraVez.blocks.find(
+  (block) => block.id === 'que-puedes-esperar',
+);
+
+const title = 'Soy nuevo | Iglesia UCI';
+const description =
+  '¿Es tu primera vez en UCI? Conoce qué puedes esperar, cuándo nos reunimos y cómo llegar. Queremos que te sientas como en casa.';
+const jsonLd = buildStaticPageJsonLd({
+  name: 'Soy nuevo',
+  description,
+  path: '/soy-nuevo',
+  siteUrl,
+});
+---
+
+<ContentLayout
+  title={title}
+  description={description}
+  canonicalPath="/soy-nuevo"
+  jsonLd={jsonLd}
+  church={church}
+  navigation={navigation}
+>
+  <Section surface="dark" spacing="lg" class="newcomer-hero">
+    <div class="newcomer-hero__atmosphere" aria-hidden="true"></div>
+    <Container>
+      <div class="newcomer-hero__inner">
+        <SectionLabel>SOY NUEVO</SectionLabel>
+        <h1 class="newcomer-hero__title font-display">
+          ¿Es tu primera vez en UCI?
+        </h1>
+        <p class="newcomer-hero__support text-body-large">
+          {primeraVez.supportingText}
+        </p>
+        <div class="newcomer-hero__actions">
+          <Button href="/contacto" variant="primary">Escríbenos</Button>
+          <Button href="/sermones" variant="secondary">
+            Escucha un mensaje
+          </Button>
+        </div>
+      </div>
+    </Container>
+  </Section>
+
+  <Section surface="light" spacing="lg" ariaLabel="Información para tu primera visita">
+    <Container>
+      <div class="newcomer-grid">
+        <article class="newcomer-card" aria-labelledby="newcomer-where">
+          <span class="newcomer-card__icon" aria-hidden="true">
+            <MapPin size={24} stroke-width={1.75} />
+          </span>
+          <h2 id="newcomer-where" class="newcomer-card__title font-display">
+            ¿Dónde estamos?
+          </h2>
+          <address class="newcomer-card__address">
+            <span>
+              {church.location.address || 'Dirección por confirmar'}
+            </span>
+            {locationCityLine && <span>{locationCityLine}</span>}
+          </address>
+          {hasRoute ? (
+            <a
+              class="newcomer-card__link"
+              href={church.location.mapUrl}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Cómo llegar
+            </a>
+          ) : (
+            <p class="newcomer-card__muted">Ruta por confirmar.</p>
+          )}
+        </article>
+
+        <article class="newcomer-card" aria-labelledby="newcomer-when">
+          <span class="newcomer-card__icon" aria-hidden="true">
+            <Clock size={24} stroke-width={1.75} />
+          </span>
+          <h2 id="newcomer-when" class="newcomer-card__title font-display">
+            ¿Cuándo nos reunimos?
+          </h2>
+          {activeSchedules.length > 0 ? (
+            <ul class="newcomer-card__schedule">
+              {activeSchedules.map((entry) => (
+                <li>
+                  <span class="newcomer-card__schedule-name">{entry.name}</span>
+                  <span class="newcomer-card__muted">{formatDay(entry)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="newcomer-card__muted">
+              Horarios por confirmar. Escríbenos y te contamos la próxima
+              reunión.
+            </p>
+          )}
+        </article>
+
+        <article class="newcomer-card" aria-labelledby="newcomer-expect">
+          <span class="newcomer-card__icon" aria-hidden="true">
+            <Heart size={24} stroke-width={1.75} />
+          </span>
+          <h2 id="newcomer-expect" class="newcomer-card__title font-display">
+            ¿Qué puedes esperar?
+          </h2>
+          <p class="newcomer-card__body">
+            {expectBlock?.body ??
+              'Un servicio cálido con adoración, enseñanza bíblica y un equipo listo para recibirte con los brazos abiertos.'}
+          </p>
+        </article>
+      </div>
+    </Container>
+  </Section>
+
+  <Section surface="navy" spacing="lg" ariaLabel="Planea tu visita">
+    <Container narrow>
+      <div class="newcomer-cta">
+        <SectionLabel accent="light">PLANEA TU VISITA</SectionLabel>
+        <h2 class="newcomer-cta__heading font-display">
+          Queremos que te sientas como en casa.
+        </h2>
+        <p class="newcomer-cta__text text-body-large">
+          Si tienes preguntas antes de venir, escríbenos. También puedes
+          conocer nuestros ministerios y escuchar un mensaje mientras tanto.
+        </p>
+        <div class="newcomer-cta__actions">
+          <Button href="/contacto" variant="primary">Contáctanos</Button>
+          <Button href="/ministerios" variant="secondary">
+            Conoce los ministerios
+          </Button>
+        </div>
+      </div>
+    </Container>
+  </Section>
+</ContentLayout>
+
+<style>
+  .newcomer-hero {
+    overflow: hidden;
+  }
+
+  .newcomer-hero__atmosphere {
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-blue-glow);
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .newcomer-hero__inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+    max-width: 52rem;
+    padding-block-start: 4.5rem;
+  }
+
+  .newcomer-hero__title {
+    font-size: var(--font-size-display-l);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .newcomer-hero__support {
+    max-width: 48ch;
+    color: var(--color-gray-light);
+  }
+
+  .newcomer-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-top: var(--space-8);
+  }
+
+  .newcomer-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-32);
+  }
+
+  .newcomer-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    padding: var(--space-32);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-md);
+  }
+
+  .newcomer-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-md);
+    color: var(--color-blue);
+  }
+
+  .newcomer-card__title {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .newcomer-card__address {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    color: var(--color-navy);
+    font-size: var(--font-size-body);
+    font-style: normal;
+  }
+
+  .newcomer-card__schedule {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    font-size: var(--font-size-body);
+  }
+
+  .newcomer-card__schedule-name {
+    display: block;
+    color: var(--color-navy);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .newcomer-card__body {
+    color: var(--color-navy);
+    font-size: var(--font-size-body);
+    line-height: var(--line-height-body);
+  }
+
+  .newcomer-card__muted {
+    color: var(--color-navy);
+    opacity: 0.7;
+    font-size: var(--font-size-body-small);
+  }
+
+  .newcomer-card__link {
+    align-self: flex-start;
+    color: var(--color-blue);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .newcomer-card__link:hover {
+    color: var(--color-navy);
+  }
+
+  .newcomer-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+  }
+
+  .newcomer-cta__heading {
+    color: var(--color-white);
+    font-size: var(--font-size-heading-1);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .newcomer-cta__text {
+    max-width: 56ch;
+    color: var(--color-gray-light);
+  }
+
+  .newcomer-cta__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-top: var(--space-8);
+  }
+
+  @media (max-width: 1023px) {
+    .newcomer-grid {
+      grid-template-columns: 1fr;
+      gap: var(--space-24);
+    }
+  }
+
+  @media (max-width: 639px) {
+    .newcomer-hero__actions,
+    .newcomer-cta__actions {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+</style>
