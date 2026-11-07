@@ -34,12 +34,20 @@ export class ApiError extends Error {
   readonly status: number;
   /** Stable machine-readable code from the error envelope (docs/08 §30). */
   readonly code: string;
+  /**
+   * Optional machine-readable details from the error envelope (docs/08 §30).
+   * Administration safeguards put their stable reason here (for example
+   * `{ reason: 'LAST_ACTIVE_ADMIN' }`) so the UI can explain the rejection
+   * without parsing human text.
+   */
+  readonly details?: unknown;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, details?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 
   /** The session expired or was never established (docs/09 §7). */
@@ -127,6 +135,7 @@ async function send(
       response.status,
       envelope?.error?.code ?? 'REQUEST_ERROR',
       envelope?.error?.message ?? 'La solicitud no se pudo completar.',
+      envelope?.error?.details,
     );
   }
 

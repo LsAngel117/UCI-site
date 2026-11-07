@@ -1,5 +1,5 @@
 /**
- * Admin SPA routes (feature docs 10A–10C).
+ * Admin SPA routes (feature docs 10A–10D2).
  *
  * `/login` is public; everything else lives under the authenticated shell and
  * is guarded by `RequireAuth`. Implemented modules get explicit routes and are
@@ -9,29 +9,47 @@
  */
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './src/components/RequireAuth';
-import { RequirePermission } from './src/components/content/RequirePermission';
+import {
+  RequireAnyPermission,
+  RequirePermission,
+} from './src/components/content/RequirePermission';
 import { AdminLayout } from './src/layout/AdminLayout';
 import { AuthProvider } from './src/lib/auth';
 import { moduleLinks } from './src/lib/navigation';
 import { DashboardPage } from './src/pages/DashboardPage';
 import { LoginPage } from './src/pages/LoginPage';
 import { NotFoundPage } from './src/pages/NotFoundPage';
+import { SectionIndexPage } from './src/pages/SectionIndexPage';
 import { SectionPlaceholderPage } from './src/pages/SectionPlaceholderPage';
+import { AuditPage } from './src/pages/admin/AuditPage';
+import { RolesPage } from './src/pages/admin/RolesPage';
+import { SettingsPage } from './src/pages/admin/SettingsPage';
+import { UsersPage } from './src/pages/admin/UsersPage';
 import { ContentIndexPage } from './src/pages/content/ContentIndexPage';
 import { SermonEditorPage } from './src/pages/content/sermons/SermonEditorPage';
 import { SermonListPage } from './src/pages/content/sermons/SermonListPage';
 import { SermonPreviewPage } from './src/pages/content/sermons/SermonPreviewPage';
 import { MediaLibraryPage } from './src/pages/media/MediaLibraryPage';
+import { NavigationPage } from './src/pages/site/NavigationPage';
+import { SeoPage } from './src/pages/site/SeoPage';
 
 /** Vite's `base` is `/panel/`; React Router wants it without the trailing slash. */
 const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/';
 
-/** Modules delivered by 10B/10C keep their nav entry but no longer get a placeholder. */
+/** Delivered modules keep their nav entry but no longer get a placeholder. */
 const IMPLEMENTED_PATHS = new Set([
   '/contenido',
   '/contenido/sermones',
   '/media',
   '/media/biblioteca',
+  '/sitio',
+  '/sitio/navegacion',
+  '/sitio/seo',
+  '/administracion',
+  '/administracion/usuarios',
+  '/administracion/roles',
+  '/administracion/auditoria',
+  '/administracion/configuracion',
 ]);
 
 const modules = moduleLinks().filter(
@@ -102,6 +120,81 @@ export default function App() {
               element={
                 <RequirePermission permission="media.read">
                   <MediaLibraryPage />
+                </RequirePermission>
+              }
+            />
+
+            <Route
+              path="sitio"
+              element={
+                <RequireAnyPermission
+                  permissions={['navigation.read', 'seo.read']}
+                >
+                  <SectionIndexPage sectionTo="/sitio" />
+                </RequireAnyPermission>
+              }
+            />
+            <Route
+              path="sitio/navegacion"
+              element={
+                <RequirePermission permission="navigation.read">
+                  <NavigationPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="sitio/seo"
+              element={
+                <RequirePermission permission="seo.read">
+                  <SeoPage />
+                </RequirePermission>
+              }
+            />
+
+            <Route
+              path="administracion"
+              element={
+                <RequireAnyPermission
+                  permissions={[
+                    'users.read',
+                    'roles.read',
+                    'settings.read',
+                    'audit.read',
+                  ]}
+                >
+                  <SectionIndexPage sectionTo="/administracion" />
+                </RequireAnyPermission>
+              }
+            />
+            <Route
+              path="administracion/usuarios"
+              element={
+                <RequirePermission permission="users.read">
+                  <UsersPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="administracion/roles"
+              element={
+                <RequirePermission permission="roles.read">
+                  <RolesPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="administracion/configuracion"
+              element={
+                <RequirePermission permission="settings.read">
+                  <SettingsPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="administracion/auditoria"
+              element={
+                <RequirePermission permission="audit.read">
+                  <AuditPage />
                 </RequirePermission>
               }
             />

@@ -22,8 +22,10 @@ export interface NavItem {
   permissions: readonly PermissionName[];
   /** Short, honest description used by the placeholder and dashboard. */
   description?: string;
-  /** Upcoming sub-phase, when the module is not implemented yet. */
+  /** Sub-phase that delivered the module (kept for traceability). */
   phase?: ModulePhase;
+  /** True once the module has a real screen behind the link. */
+  implemented?: boolean;
   children?: readonly NavItem[];
 }
 
@@ -51,6 +53,7 @@ export const NAV: readonly NavItem[] = [
         permissions: ['sermons.read'],
         description: 'Archivo de sermones: borradores, publicación y revisiones.',
         phase: '10B',
+        implemented: true,
       },
       {
         to: '/contenido/paginas',
@@ -81,6 +84,7 @@ export const NAV: readonly NavItem[] = [
     permissions: ['media.read'],
     description: 'Biblioteca de imágenes y archivos del sitio.',
     phase: '10C',
+    implemented: true,
     children: [
       {
         to: '/media/biblioteca',
@@ -88,6 +92,7 @@ export const NAV: readonly NavItem[] = [
         permissions: ['media.read'],
         description: 'Búsqueda, carga, metadata y referencias de archivos.',
         phase: '10C',
+        implemented: true,
       },
     ],
   },
@@ -97,6 +102,7 @@ export const NAV: readonly NavItem[] = [
     permissions: ['navigation.read', 'seo.read'],
     description: 'Estructura del sitio, navegación pública y SEO.',
     phase: '10D',
+    implemented: true,
     children: [
       {
         to: '/sitio/navegacion',
@@ -104,6 +110,7 @@ export const NAV: readonly NavItem[] = [
         permissions: ['navigation.read'],
         description: 'Menús del sitio público, orden y jerarquía de enlaces.',
         phase: '10D',
+        implemented: true,
       },
       {
         to: '/sitio/seo',
@@ -111,6 +118,7 @@ export const NAV: readonly NavItem[] = [
         permissions: ['seo.read'],
         description: 'Metadatos, títulos y descripciones para buscadores.',
         phase: '10D',
+        implemented: true,
       },
     ],
   },
@@ -120,6 +128,7 @@ export const NAV: readonly NavItem[] = [
     permissions: ['users.read', 'roles.read', 'settings.read', 'audit.read'],
     description: 'Usuarios, roles, configuración del sitio y auditoría.',
     phase: '10D',
+    implemented: true,
     children: [
       {
         to: '/administracion/usuarios',
@@ -127,6 +136,7 @@ export const NAV: readonly NavItem[] = [
         permissions: ['users.read'],
         description: 'Cuentas del panel, roles y acceso.',
         phase: '10D',
+        implemented: true,
       },
       {
         to: '/administracion/roles',
@@ -134,6 +144,7 @@ export const NAV: readonly NavItem[] = [
         permissions: ['roles.read'],
         description: 'Roles del panel y su matriz de permisos.',
         phase: '10D',
+        implemented: true,
       },
       {
         to: '/administracion/configuracion',
@@ -141,6 +152,7 @@ export const NAV: readonly NavItem[] = [
         permissions: ['settings.read'],
         description: 'Perfil de la iglesia, horarios y enlaces sociales.',
         phase: '10D',
+        implemented: true,
       },
       {
         to: '/administracion/auditoria',
@@ -148,6 +160,7 @@ export const NAV: readonly NavItem[] = [
         permissions: ['audit.read'],
         description: 'Registro de cambios realizados en el panel.',
         phase: '10D',
+        implemented: true,
       },
     ],
   },

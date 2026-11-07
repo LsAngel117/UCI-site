@@ -17,7 +17,9 @@ function SectionCard({ item }: { item: NavItem }) {
         <h2 className="card__title">
           <Link to={item.to}>{item.label}</Link>
         </h2>
-        {item.phase ? (
+        {item.implemented ? (
+          <span className="badge badge--status-published">Disponible</span>
+        ) : item.phase ? (
           <span className="badge badge--pending">Fase {item.phase}</span>
         ) : null}
       </div>
@@ -78,9 +80,11 @@ export function DashboardPage() {
             <p>
               La fase 10A habilitó la sesión, la navegación por permisos y el
               acceso a cada módulo. La fase 10B sumó el archivo y el editor de
-              sermones en Contenido. El resumen operativo (conteos, actividad
-              reciente y contenido programado) todavía no está implementado; las
-              secciones restantes muestran un aviso de construcción.
+              sermones; 10C, la biblioteca multimedia; y 10D, la administración
+              de usuarios, roles, auditoría, configuración, navegación y SEO. El
+              resumen operativo (conteos, actividad reciente y contenido
+              programado) todavía no está implementado; páginas, eventos y
+              ministerios siguen en construcción.
             </p>
           </div>
         </div>

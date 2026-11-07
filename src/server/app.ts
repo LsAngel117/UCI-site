@@ -13,6 +13,9 @@ import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type { ApiErrorEnvelope, HealthResponse } from '@shared/api';
+import { registerAdminAuditRoutes } from './admin/audit/routes';
+import { registerAdminRoleRoutes } from './admin/roles/routes';
+import { registerAdminUserRoutes } from './admin/users/routes';
 import { registerAuthRoutes } from './auth/routes';
 import { registerEventCategoryRoutes } from './cms/event-categories/routes';
 import { registerEventRoutes } from './cms/events/routes';
@@ -343,6 +346,22 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
       },
     });
     registerMediaRoutes(instance, config, mediaStorage);
+  });
+
+  // Administration API (Phase 10D1, docs/08 §8–§9, §21). Users CRUD, the role
+  // permission matrix, the canonical permission vocabulary and the read-only
+  // audit trail. Every route is protected by `requireAuth` + the exact
+  // `users.*` / `roles.*` / `audit.read` permission inside its module.
+  app.register(async (instance) => {
+    registerAdminUserRoutes(instance, config);
+  });
+
+  app.register(async (instance) => {
+    registerAdminRoleRoutes(instance, config);
+  });
+
+  app.register(async (instance) => {
+    registerAdminAuditRoutes(instance, config);
   });
 
   return app;

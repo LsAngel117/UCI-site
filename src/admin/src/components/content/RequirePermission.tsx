@@ -22,3 +22,21 @@ export function RequirePermission({
   }
   return <>{children}</>;
 }
+
+/**
+ * Any-of variant for section landing pages whose children have different
+ * permissions (an operator with only `seo.read` still reaches `/sitio`).
+ */
+export function RequireAnyPermission({
+  permissions,
+  children,
+}: {
+  permissions: readonly PermissionName[];
+  children: ReactNode;
+}) {
+  const { hasAnyPermission } = useAuth();
+  if (!hasAnyPermission(permissions)) {
+    return <ForbiddenPanel permission={permissions.join(' | ')} />;
+  }
+  return <>{children}</>;
+}

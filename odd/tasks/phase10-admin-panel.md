@@ -83,3 +83,48 @@ Implementar el entorno editorial completo (roadmap §16): shell autenticado, das
   - Helpers puros de formulario/permisos/fechas en
     `tests/admin-sermons.unit.test.ts`; smoke con `app.inject` verificó crear,
     listar con búsqueda, editar, 409 por versión obsoleta y preview noindex.
+- **10D1 — completada (backends).** Administración de usuarios, roles,
+  permisos y lectura de auditoría.
+  - Endpoints bajo `/api/v1/admin/*` (decisión documentada: consistencia con el
+    namespace del panel y la tabla canónica de docs/08 §53, frente al bosquejo
+    `/api/v1/users` de §8): `GET/POST /admin/users`, `GET/PATCH
+    /admin/users/:id`, `POST /admin/users/:id/disable`, `GET /admin/roles`,
+    `PATCH /admin/roles/:id`, `GET /admin/permissions`, `GET /admin/audit`.
+  - Contratos en `@shared/admin` (`AdminUserDto`, `RoleDto`, `PermissionDto`,
+    `AuditLogDto` + inputs). Nunca se serializa `passwordHash`.
+  - Authz server-side: `users.read/create/update/disable`, `roles.read/update`
+    y `audit.read`. `GET /admin/permissions` exige `roles.read` (leer la
+    matriz es una operación de lectura).
+  - Safeguards: no se puede deshabilitar, desactivar ni quitar el rol ADMIN al
+    último administrador activo (409 `LAST_ACTIVE_ADMIN`); el rol ADMIN debe
+    conservar `roles.update` (409 `ADMIN_CRITICAL_PERMISSION`).
+  - Deshabilitar (endpoint o PATCH `active:false`) revoca todas las sesiones.
+    Cada mutación de usuario/rol se audita (`user.create`, `user.update`,
+    `user.disable`, `role.update`).
+  - Cobertura: `tests/admin-users.unit.test.ts` (validación pura) y
+    `tests/admin-users.e2e.test.ts` (authz, CRUD, safeguards, auditoría).
+- **10D2 — completada (UI de administración).** Páginas permission-aware sobre
+  los backends de 10D1 y de settings/navigation/SEO.
+  - Rutas: `/administracion/usuarios` (listado con búsqueda/rol/estado,
+    paginación, crear, editar y deshabilitar), `/administracion/roles`
+    (matriz rol × permiso y editor de permisos), `/administracion/auditoria`
+    (filtros actor/acción/entidad/fechas + paginación) y
+    `/administracion/configuracion` (iglesia/contacto, horarios, redes y
+    ofrendas). En el sitio: `/sitio/navegacion` (CRUD, jerarquía, visibilidad,
+    target y reorder por botones) y `/sitio/seo` (title/description/OG image/
+    robots). `/sitio` y `/administracion` tienen índices de sección.
+  - Cliente `lib/admin-api.ts` y helpers puros `lib/admin-ui.ts`: proyección de
+    permisos, serialización de filtros, validación de formularios, agrupación
+    de la matriz, detección de safeguards y árbol/orden de navegación.
+  - Los 409 `LAST_ACTIVE_ADMIN` y `ADMIN_CRITICAL_PERMISSION` se muestran con
+    copy propio (el `reason` viaja en `details` del sobre de error), además de
+    la validación server-side.
+  - `ApiError` conserva `details`; `NavItem.implemented` hace que el dashboard
+    y los índices de sección distingan módulos disponibles de pendientes.
+  - Estados loading/empty/error en todas las páginas; acciones ocultas o
+    deshabilitadas sin permiso; sin tokens en storage (cookie HttpOnly); la
+    autorización real sigue en el servidor.
+  - Cobertura pura: `tests/admin-ui.unit.test.ts` (28 casos). Smoke con
+    `app.inject`: users/roles/audit, PATCH role/settings/nav/seo, reorder,
+    disable safeguard y shells SPA de `/panel/administracion/*` y
+    `/panel/sitio/*`.

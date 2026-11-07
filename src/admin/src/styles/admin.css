@@ -2294,3 +2294,258 @@ strong {
     flex-direction: column;
   }
 }
+
+/* ==========================================================================
+   Phase 10D2 — administration, roles, audit, settings, navigation and SEO
+   ========================================================================== */
+
+.form-grid__full {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-8);
+}
+
+.form-actions--start {
+  justify-content: flex-start;
+  margin-top: var(--space-12);
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.badge--role {
+  background-color: #eef1f5;
+  border-color: #c8d0da;
+  color: #39424f;
+}
+
+.badge--state-active {
+  background-color: #e8f5ec;
+  border-color: #9fd0b0;
+  color: #1d6b3a;
+}
+
+.badge--state-inactive {
+  background-color: #fdf3f2;
+  border-color: #e3b7b4;
+  color: #8a1f1f;
+}
+
+/* --- Settings form ------------------------------------------------------ */
+.settings-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: end;
+  gap: var(--space-12);
+  padding: var(--space-12);
+  background-color: var(--admin-surface-muted);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-sm);
+}
+
+.settings-row__check {
+  justify-content: flex-end;
+}
+
+.settings-row__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --- Role matrix -------------------------------------------------------- */
+.matrix-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-sm);
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--admin-surface);
+  font-size: var(--font-size-body-small);
+}
+
+.matrix-table th,
+.matrix-table td {
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--admin-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.matrix-table thead th {
+  background-color: var(--admin-surface-muted);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.matrix-table__group th {
+  background-color: #f0f3f7;
+  color: var(--admin-ink-muted);
+  font-size: var(--font-size-caption);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.matrix-table td {
+  text-align: center;
+}
+
+.matrix-table td.is-granted {
+  background-color: #f2faf5;
+  color: #1d6b3a;
+  font-weight: var(--font-weight-semibold);
+}
+
+.role-permissions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-16);
+}
+
+.role-permissions__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-12);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-sm);
+}
+
+.role-permissions__legend {
+  padding: 0 var(--space-4);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* --- Navigation tree ---------------------------------------------------- */
+.nav-tree {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.nav-tree__children {
+  margin-top: var(--space-8);
+  margin-left: var(--space-24);
+  padding-left: var(--space-16);
+  border-left: 2px solid var(--admin-border);
+}
+
+.nav-tree__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  background-color: var(--admin-surface-muted);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-sm);
+}
+
+.nav-tree__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.nav-tree__label {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* --- Audit metadata ----------------------------------------------------- */
+.audit-detail summary {
+  color: var(--color-blue);
+  cursor: pointer;
+  font-size: var(--font-size-body-small);
+}
+
+.audit-detail__pre {
+  max-width: 420px;
+  max-height: 220px;
+  margin: var(--space-8) 0 0;
+  padding: var(--space-8);
+  overflow: auto;
+  background-color: #0b1220;
+  border-radius: var(--radius-sm);
+  color: #e6ecf5;
+  font-size: var(--font-size-caption);
+  white-space: pre-wrap;
+}
+
+/* --- SEO preview -------------------------------------------------------- */
+.seo-preview {
+  max-width: 640px;
+  padding: var(--space-16);
+  background-color: var(--admin-surface-muted);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-sm);
+}
+
+.seo-preview__url {
+  color: #1d6b3a;
+  font-size: var(--font-size-caption);
+}
+
+.seo-preview__title {
+  margin-top: var(--space-4);
+  color: #1a0dab;
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+.seo-preview__description {
+  margin-top: var(--space-4);
+  color: var(--admin-ink-muted);
+  font-size: var(--font-size-body-small);
+}
+
+.seo-preview__robots {
+  margin-top: var(--space-8);
+  color: var(--admin-ink-muted);
+  font-size: var(--font-size-caption);
+}
+
+@media (max-width: 767px) {
+  .settings-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nav-tree__children {
+    margin-left: var(--space-12);
+    padding-left: var(--space-8);
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+}

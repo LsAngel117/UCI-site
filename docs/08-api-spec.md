@@ -300,10 +300,16 @@ sort
 order
 ```
 
+`status` accepts `ACTIVE` or `INACTIVE` (case-insensitive) and filters by
+account state; it is an alias of the `active` boolean filter. Any other
+`status` value is rejected with `400 VALIDATION_ERROR` rather than silently
+ignored. Supplying `active` and `status` with contradictory values is also a
+`400`.
+
 Example:
 
 ```http
-GET /api/v1/users?page=1&limit=20&search=juan&role=EDITOR
+GET /api/v1/users?page=1&limit=20&search=juan&role=EDITOR&status=ACTIVE
 ```
 
 ---
@@ -328,10 +334,16 @@ Example:
 {
   "name": "Juan Pérez",
   "email": "juan@example.org",
+  "password": "a-long-enough-password",
   "role": "EDITOR",
   "status": "ACTIVE"
 }
 ```
+
+`role` is a single role name and is accepted as an alias of a `roles` array;
+supplying both is a `400`. An unknown role name is a `400`. `status` accepts
+`ACTIVE` or `INACTIVE` (case-insensitive), defaults to `ACTIVE` when omitted,
+and is normalized into the stored `active` flag.
 
 ---
 
