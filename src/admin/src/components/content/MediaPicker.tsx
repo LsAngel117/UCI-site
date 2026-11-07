@@ -1,19 +1,27 @@
 /**
- * Basic media picker (feature doc 10B; full library is 10C).
+ * Reusable media picker (Phase 10C, docs/09 §50, docs/12 §14).
  *
- * It lists media through the admin API and stores the canonical asset id, never
- * a URL, so an asset can be replaced without rewriting content. Operators with
- * `media.read` can browse and search; everyone else can still paste an id — the
- * server validates that the referenced asset exists.
+ * It opens the real media library with search, folder filtering and pagination,
+ * and stores the canonical asset id — never a URL — so an asset can be replaced
+ * without rewriting content. Operators without `media.read` can still paste an
+ * id; the server validates that the referenced asset exists.
  */
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import type { MediaDto, MediaType } from '@shared/media';
+import { ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { describeError } from '../../lib/errors';
-import { listMedia } from '../../lib/sermons-api';
+import {
+  formatBytes,
+  formatDimensions,
+  mediaDisplayName,
+  mediaTypeLabel,
+  mediaTypeMismatchMessage,
+} from '../../lib/media';
+import { getMedia } from '../../lib/media-api';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
-import { EmptyPanel, ErrorPanel, LoadingPanel } from './States';
-import { Dialog } from './Dialog';
+import { Dialog } from '../content/Dialog';
+import { MediaLibraryBrowser } from '../media/MediaLibraryBrowser';
 
 interface MediaPickerProps {
   id: string;
@@ -23,12 +31,6 @@ interface MediaPickerProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function MediaPicker({
@@ -43,40 +45,43 @@ export function MediaPicker({
   const { hasPermission } = useAuth();
   const canBrowse = hasPermission('media.read');
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const debouncedSearch = useDebouncedValue(search, 300);
-  const [items, setItems] = useState<MediaDto[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<MediaDto | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const debouncedValue = useDebouncedValue(value, 300);
 
+  // Resolve the current id so the field can show the stored asset even when the
+  // value came from an existing record instead of a fresh picker selection.
   useEffect(() => {
-    if (!open || !canBrowse) return;
+    if (!canBrowse || !debouncedValue) {
+      setSelected(null);
+      setLookupError(null);
+      return;
+    }
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
 
-    listMedia({ type: accept, search: debouncedSearch }, controller.signal)
-      .then((result) => {
+    getMedia(debouncedValue, controller.signal)
+      .then((asset) => {
         if (controller.signal.aborted) return;
-        setItems(result.data);
-        setTotal(result.meta.total);
-        setSelected(
-          result.data.find((asset) => asset.id === value) ?? null,
-        );
+        // The library is filtered by `accept`, but a manually typed id can
+        // still point at another type and the server only checks existence.
+        const mismatch = mediaTypeMismatchMessage(asset.type, accept);
+        setSelected(mismatch ? null : asset);
+        setLookupError(mismatch);
       })
       .catch((reason: unknown) => {
         if (controller.signal.aborted) return;
-        setError(describeError(reason));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        setSelected(null);
+        // A missing id is normal for a typo in manual mode; only surface other
+        // failures (permission/session/network) as an error.
+        setLookupError(
+          reason instanceof ApiError && reason.status === 404
+            ? null
+            : describeError(reason),
+        );
       });
 
     return () => controller.abort();
-  }, [open, canBrowse, accept, debouncedSearch, value, reloadKey]);
+  }, [accept, canBrowse, debouncedValue]);
 
   function choose(asset: MediaDto) {
     onChange(asset.id);
@@ -84,7 +89,7 @@ export function MediaPicker({
     setOpen(false);
   }
 
-  /** Enter in these fields must not implicitly submit the sermon form. */
+  /** Enter in these fields must not implicitly submit the host form. */
   function preventEnterSubmit(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Enter') event.preventDefault();
   }
@@ -104,6 +109,7 @@ export function MediaPicker({
           onKeyDown={preventEnterSubmit}
           placeholder="ID del archivo multimedia"
           disabled={disabled}
+          aria-describedby={description ? `${id}-help` : undefined}
         />
         {canBrowse ? (
           <button
@@ -126,13 +132,27 @@ export function MediaPicker({
           </button>
         ) : null}
       </div>
-      {description ? <p className="field__help">{description}</p> : null}
+      {description ? (
+        <p className="field__help" id={`${id}-help`}>
+          {description}
+        </p>
+      ) : null}
       {selected && selected.id === value ? (
         <p className="media-picker__selected">
-          <span className="media-picker__name">{selected.title || selected.filename}</span>
-          <span className="media-picker__meta">
-            {selected.mimeType} · {formatSize(selected.size)}
+          <span className="media-picker__name">
+            {mediaDisplayName(selected)}
           </span>
+          <span className="media-picker__meta">
+            {mediaTypeLabel(selected.type)} · {formatBytes(selected.size)}
+            {selected.width && selected.height
+              ? ` · ${formatDimensions(selected.width, selected.height)}`
+              : ''}
+          </span>
+        </p>
+      ) : null}
+      {lookupError ? (
+        <p className="field__error" role="alert">
+          {lookupError}
         </p>
       ) : null}
       {!canBrowse ? (
@@ -149,73 +169,13 @@ export function MediaPicker({
         title={accept === 'IMAGE' ? 'Elegir imagen' : 'Elegir documento'}
         description="La selección guarda el id del archivo; no copia el archivo."
       >
-        <div className="field">
-          <label className="field__label" htmlFor={`${id}-search`}>
-            Buscar en la biblioteca
-          </label>
-          <input
-            id={`${id}-search`}
-            className="field__input"
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            onKeyDown={preventEnterSubmit}
-            placeholder="Nombre, título o descripción"
-          />
-        </div>
-
-        <div className="media-grid" aria-live="polite">
-          {loading && items.length === 0 ? (
-            <LoadingPanel label="Buscando archivos…" />
-          ) : null}
-          {error ? (
-            <ErrorPanel
-              title="No pudimos cargar la biblioteca"
-              message={error}
-              onRetry={() => setReloadKey((key) => key + 1)}
-            />
-          ) : null}
-          {!loading && !error && items.length === 0 ? (
-            <EmptyPanel
-              title="No hay archivos que coincidan"
-              message={
-                accept === 'IMAGE'
-                  ? 'Probá con otro término o subí una imagen desde la biblioteca multimedia.'
-                  : 'Probá con otro término o subí un documento PDF desde la biblioteca multimedia.'
-              }
-            />
-          ) : null}
-          {items.map((asset) => (
-            <article className="media-card" key={asset.id}>
-              <div className="media-card__preview">
-                {asset.type === 'IMAGE' ? (
-                  <img src={asset.url} alt="" loading="lazy" />
-                ) : (
-                  <span className="media-card__filetype">PDF</span>
-                )}
-              </div>
-              <div className="media-card__body">
-                <p className="media-card__name">{asset.title || asset.filename}</p>
-                <p className="media-card__meta">
-                  {asset.mimeType} · {formatSize(asset.size)}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="button button--quiet button--small"
-                onClick={() => choose(asset)}
-              >
-                {asset.id === value ? 'Seleccionado' : 'Elegir'}
-              </button>
-            </article>
-          ))}
-        </div>
-        {!loading && !error && total > items.length ? (
-          <p className="field__help">
-            Mostrando {items.length} de {total} archivos. Usá la búsqueda para
-            acotar el resultado.
-          </p>
-        ) : null}
+        <MediaLibraryBrowser
+          active={open}
+          accept={accept}
+          selectedId={value}
+          onSelect={choose}
+          selectLabel="Seleccionar"
+        />
       </Dialog>
     </div>
   );

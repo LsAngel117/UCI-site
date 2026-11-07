@@ -54,7 +54,7 @@ export class ApiError extends Error {
 }
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH';
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
   /** Lets a screen cancel an in-flight request when its filters change. */
   signal?: AbortSignal;

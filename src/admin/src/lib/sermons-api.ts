@@ -1,5 +1,5 @@
 /**
- * Sermon + taxonomy API calls for the admin panel (docs/08 §11, §15).
+ * Sermon + taxonomy API calls for the admin panel (docs/08 §11).
  *
  * The relay is intentionally thin: every endpoint is declared once here with
  * its shared DTO type, so the editor and list screens cannot drift from the
@@ -19,7 +19,6 @@ import type {
   TopicListQuery,
   UpdateSermonInput,
 } from '@shared/cms';
-import type { MediaDto, MediaListQuery } from '@shared/media';
 import { apiRequest, apiRequestList } from './api';
 import { buildQuery } from './query';
 
@@ -146,16 +145,6 @@ export function listTopics(
 ): Promise<ListResponse<TopicDto>> {
   return apiRequestList<TopicDto>(
     `/admin/topics${buildQuery({ limit: PICKER_LIMIT, ...query })}`,
-    { signal },
-  );
-}
-
-export function listMedia(
-  query: MediaListQuery = {},
-  signal?: AbortSignal,
-): Promise<ListResponse<MediaDto>> {
-  return apiRequestList<MediaDto>(
-    `/admin/media${buildQuery({ limit: 24, ...query })}`,
     { signal },
   );
 }
