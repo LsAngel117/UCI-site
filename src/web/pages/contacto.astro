@@ -282,7 +282,7 @@ const jsonLd = buildStaticPageJsonLd({
   </Section>
 </ContentLayout>
 
-<script is:inline>
+<script is:inline nonce={Astro.locals.cspNonce}>
   (() => {
     const form = document.getElementById('contact-form');
     if (!(form instanceof HTMLFormElement)) return;

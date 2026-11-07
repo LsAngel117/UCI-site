@@ -13,6 +13,12 @@ import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type { ApiErrorEnvelope, HealthResponse } from '@shared/api';
+import {
+  buildSecurityHeaders,
+  isMutatingMethod,
+  isSameOriginRequest,
+  shouldSendHsts,
+} from '@shared/security';
 import { registerAdminAuditRoutes } from './admin/audit/routes';
 import { registerAdminContactRoutes } from './admin/contact/routes';
 import { registerAdminRoleRoutes } from './admin/roles/routes';
@@ -73,6 +79,30 @@ function notFoundEnvelope(method: string, url: string): ApiErrorEnvelope {
   };
 }
 
+/** Mutation rejected by the same-origin (CSRF) guard (docs/11 §16). */
+function csrfRejectedEnvelope(): ApiErrorEnvelope {
+  return {
+    error: {
+      code: 'CSRF_REJECTED',
+      message: 'Cross-origin request rejected.',
+    },
+  };
+}
+
+/**
+ * Canonical origins accepted in addition to the request's own host. The public
+ * site origin (`SITE_URL`) is allowed so a browser posting directly to the API
+ * from the site's origin still passes if the deployment ever splits the two
+ * hosts; the normal same-origin proxy path needs no allowance at all.
+ */
+function allowedRequestOrigins(siteUrl: string): string[] {
+  try {
+    return [new URL(siteUrl).origin];
+  } catch {
+    return [];
+  }
+}
+
 function errorEnvelope(statusCode: number): ApiErrorEnvelope {
   // Rate-limit and other 4xx responses raised by plugins keep their status but
   // get a stable, actionable code (docs/08 §31, docs/11 §18).
@@ -113,6 +143,45 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   // Rate limiting is opt-in per route (`global: false`), so only the login
   // endpoint is throttled and ordinary reads are unaffected (docs/11 §18).
   app.register(rateLimit, { global: false });
+
+  const allowedOrigins = allowedRequestOrigins(config.siteUrl);
+
+  // CSRF guard for cookie-authenticated mutations (Phase 12A, docs/11 §16).
+  // SameSite=Lax already defeats most cross-site writes; this is the second
+  // layer: a browser that sends `Origin` must be talking about this very
+  // origin. Requests without `Origin` (server-side proxy, non-browser
+  // clients) are allowed because CSRF requires a browser to attach the
+  // victim's cookie. The panel and the public contact form are same-origin and
+  // therefore unaffected.
+  app.addHook('onRequest', async (request, reply) => {
+    if (!isMutatingMethod(request.method)) return;
+    const requestOrigin = `${request.protocol}://${request.host}`;
+    if (
+      isSameOriginRequest({
+        origin: request.headers.origin,
+        requestOrigin,
+        allowedOrigins,
+      })
+    ) {
+      return;
+    }
+    request.log.warn(
+      { origin: request.headers.origin, requestOrigin },
+      'CSRF: cross-origin mutation rejected',
+    );
+    return reply.code(403).send(csrfRejectedEnvelope());
+  });
+
+  // Security headers on every response (Phase 12A, docs/11 §28–§30). HSTS is
+  // emitted only over TLS or in production, never on plain-HTTP development.
+  app.addHook('onSend', async (request, reply) => {
+    const headers = buildSecurityHeaders({
+      secure: shouldSendHsts(request.protocol, config.nodeEnv),
+    });
+    for (const [name, value] of Object.entries(headers)) {
+      reply.header(name, value);
+    }
+  });
 
   // Media storage is created once per app. The filesystem provider ensures its
   // root exists before `@fastify/static` is registered below (docs/12 §7).

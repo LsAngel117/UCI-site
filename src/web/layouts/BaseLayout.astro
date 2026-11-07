@@ -156,11 +156,16 @@ const extraJsonLd = jsonLd.map((entry) => serializeJsonLd(entry));
     <meta name="twitter:image" content={socialImage} />
     <meta name="twitter:image:alt" content={siteName} />
 
-    <script type="application/ld+json" set:html={organizationJsonLd} />
+    <script
+      type="application/ld+json"
+      nonce={Astro.locals.cspNonce}
+      set:html={organizationJsonLd}
+    />
     {
       extraJsonLd.map((entry, index) => (
         <script
           type="application/ld+json"
+          nonce={Astro.locals.cspNonce}
           set:html={entry}
           data-jsonld={index}
         />

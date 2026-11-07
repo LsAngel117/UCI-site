@@ -358,13 +358,17 @@ const menuId = 'primary-navigation';
   }
 </style>
 
-<script>
+<script is:inline nonce={Astro.locals.cspNonce}>
   // Minimal, dependency-free header behavior:
   // 1. Toggle the solid surface after a small scroll threshold.
   // 2. Accessible mobile menu (aria-expanded, Escape, focus management).
-  const header = document.querySelector<HTMLElement>('[data-header]');
-  const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
-  const nav = document.querySelector<HTMLElement>('[data-nav]');
+  //
+  // Kept as an inline script (with the CSP nonce) because Astro inlines
+  // hoisted scripts in SSR mode; a bundled external file would be blocked by
+  // the strict `script-src` policy (Phase 12A).
+  const header = document.querySelector('[data-header]');
+  const toggle = document.querySelector('[data-menu-toggle]');
+  const nav = document.querySelector('[data-nav]');
 
   if (header && toggle && nav) {
     let ticking = false;
@@ -383,14 +387,14 @@ const menuId = 'primary-navigation';
     window.addEventListener('scroll', onScroll, { passive: true });
     applyScrollState();
 
-    const setMenu = (open: boolean) => {
+    const setMenu = (open) => {
       nav.classList.toggle('is-open', open);
       header.classList.toggle('is-menu-open', open);
       toggle.setAttribute('aria-expanded', String(open));
       document.body.style.overflow = open ? 'hidden' : '';
 
       if (open) {
-        nav.querySelector<HTMLElement>('a')?.focus();
+        nav.querySelector('a')?.focus();
       } else {
         toggle.focus();
       }
@@ -401,7 +405,8 @@ const menuId = 'primary-navigation';
     });
 
     nav.addEventListener('click', (event) => {
-      if ((event.target as HTMLElement).closest('a')) setMenu(false);
+      const target = event.target;
+      if (target instanceof Element && target.closest('a')) setMenu(false);
     });
 
     document.addEventListener('keydown', (event) => {
