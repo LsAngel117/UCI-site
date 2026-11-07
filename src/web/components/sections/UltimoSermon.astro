@@ -111,6 +111,7 @@ const sermonHref = sermon ? `/sermones/${sermon.slug}` : section.archiveHref;
             widths={[360, 540, 720]}
             sizes="(min-width: 1024px) 42vw, 90vw"
             loading="lazy"
+            decoding="async"
           />
         ) : isRemoteAsset(sermon?.imageUrl) ? (
           <img
@@ -118,6 +119,7 @@ const sermonHref = sermon ? `/sermones/${sermon.slug}` : section.archiveHref;
             src={sermon.imageUrl}
             alt={`Predicador: ${sermon.preacher.displayName}`}
             loading="lazy"
+            decoding="async"
           />
         ) : (
           <MediaPlaceholder

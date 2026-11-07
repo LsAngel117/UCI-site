@@ -73,6 +73,7 @@ const pageDescription = church.shortDescription;
             class="hero__image"
             src={hero.backgroundImageUrl}
             alt=""
+            aria-hidden="true"
             width={2307}
             height={794}
             widths={[720, 1200, 1600, 2307]}
@@ -80,9 +81,16 @@ const pageDescription = church.shortDescription;
             format="webp"
             loading="eager"
             fetchpriority="high"
+            decoding="async"
           />
         ) : isRemoteAsset(hero.backgroundImageUrl) ? (
-          <img class="hero__image" src={hero.backgroundImageUrl} alt="" />
+          <img
+            class="hero__image"
+            src={hero.backgroundImageUrl}
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+          />
         ) : (
           <MediaPlaceholder
             class="hero__image"

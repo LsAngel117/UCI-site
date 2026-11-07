@@ -64,6 +64,60 @@ Llevar el sistema a estado coherente y quitar riesgos de integración antes de p
   La limpieza de variantes/archivos huérfanos sigue como follow-up porque exige
   recorrer el storage, no solo PostgreSQL.
 
+## Tareas — 12C
+
+- [x] T11 — Auditoría a11y estática automatizable
+  (`tests/a11y-static.test.ts`): renderiza el sitio SSR compilado contra la API
+  real y verifica `lang`, un único `h1` con jerarquía sin saltos, `alt` en
+  imágenes (decorativas con `aria-hidden`), labels de controles, nombres
+  accesibles de links/botones, skip-link, focus-visible global y
+  `prefers-reduced-motion`. El login del panel (SPA) se audita a nivel de fuente
+  más el shell servido y su CSS compilado.
+- [x] T12 — Fixes reales revelados: imágenes decorativas de la home/colectivos
+  (`hero`, visual de marca, pilares, tarjetas de sermón/ministerio, previews)
+  ahora llevan `aria-hidden="true"` cuando usan `alt=""`; el formulario de
+  filtros de sermones expone un nombre accesible (`aria-label`).
+- [x] T13 — Caching: política compartida (`src/shared/cache.ts`) aplicada por el
+  middleware Astro y el hook `onSend` de Fastify. HTML `no-cache,
+  must-revalidate`; assets hashed/`/_image`/`/media` `immutable`; toda `/api/`
+  `no-store`; sitemap/robots conservan ventanas públicas cortas. El panel
+  mantiene `index.html` revalidado y assets hashed inmutables.
+- [x] T14 — Lazy/decoding: todas las imágenes below-the-fold conservan
+  `loading="lazy"` y ahora declaran `decoding="async"`; las above-the-fold
+  siguen `eager`/`fetchpriority`.
+- [x] T15 — Queries: revisión de listados públicos/admin y búsqueda. No se
+  encontró N+1: todos los listados cargan `SeoMetadata` en batch
+  (`loadSeoMap`) y las relaciones usan `include`. Se paralelizó la carga de SEO
+  + relacionados en el detalle de sermón (dos round trips independientes).
+- [x] T16 — Client JS/bundle: el sitio público no declara islas (`client:*`) y
+  `dist/client` no emite ningún `.js`. Bundle del panel medido: 449.32 kB JS
+  (125.66 kB gzip) + 45.15 kB CSS (7.77 kB gzip). Guardas de regresión en
+  `tests/performance.unit.test.ts`.
+
+## Hallazgos 12C
+
+- **A11y**: no había imágenes sin `alt`, controles sin label ni links/botones
+  sin nombre en las rutas clave. El gap real era semántico: varias imágenes
+  `alt=""` no estaban ocultas al árbol de accesibilidad; se marcaron.
+- **Caching**: los assets hashed de Astro y el media de Fastify ya eran
+  inmutables, pero el HTML SSR y las respuestas `/api/` viajaban sin
+  `Cache-Control`. Ahora HTML revalida y toda la API es `no-store`.
+- **Queries**: no hay N+1 obvio en los endpoints existentes. El detalle de
+  sermón hacía dos consultas secuenciales independientes; ahora son paralelas.
+- **Performance**: el sitio público no envía JavaScript de cliente (solo dos
+  scripts inline con nonce: header y formulario de contacto). El peso dominante
+  son fotos locales; Astro sirve variantes WebP mediante `/_image`.
+
+## Verificación 12C
+
+- `pnpm typecheck` → 0 errores (Astro + server + admin).
+- `pnpm build` y `pnpm build:admin` → exit 0.
+- `DATABASE_URL=... pnpm test` → 403 tests previos + 19 nuevos, todos verdes.
+- Evidencia runtime: `tests/a11y-static.test.ts` audita `/`, `/sermones`,
+  `/sermones/:slug`, `/eventos`, `/ministerios`, `/contacto`, `/soy-nuevo` y
+  `/panel/login`; verifica headers de caching y sitio SSR 200.
+
 ## Progreso
 
-12A: completado. 12B: implementado (scheduler + hardening + E2E).
+12A: completado. 12B: implementado (scheduler + hardening + E2E). 12C:
+implementado (a11y estática + caching + performance).

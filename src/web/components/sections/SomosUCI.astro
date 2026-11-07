@@ -43,11 +43,13 @@ const about = getAboutSection();
         class="somos__visual-image"
         src={brandVisual}
         alt=""
+        aria-hidden="true"
         width={900}
         height={900}
         widths={[420, 640, 900]}
         sizes="(min-width: 1024px) 46vw, 80vw"
         loading="lazy"
+        decoding="async"
       />
     </div>
   </Container>
@@ -63,6 +65,7 @@ const about = getAboutSection();
       widths={[720, 1200, 1600, 2170]}
       sizes="100vw"
       loading="lazy"
+      decoding="async"
     />
   </div>
 </Section>

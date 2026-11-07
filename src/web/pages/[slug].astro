@@ -194,6 +194,7 @@ const errorMessage = notFound
                         class="page-body__image"
                         src={block.src}
                         alt={block.alt}
+                        aria-hidden={block.alt === '' ? 'true' : undefined}
                         loading="lazy"
                         decoding="async"
                       />

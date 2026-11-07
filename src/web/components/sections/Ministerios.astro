@@ -62,18 +62,22 @@ const ministries =
                       class="ministerio__image"
                       src={ministry.imageUrl}
                       alt=""
+                      aria-hidden="true"
                       width={640}
                       height={800}
                       widths={[360, 480, 640]}
                       sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
                       loading="lazy"
+                      decoding="async"
                     />
                   ) : isRemoteAsset(ministry.imageUrl) ? (
                     <img
                       class="ministerio__image"
                       src={ministry.imageUrl}
                       alt=""
+                      aria-hidden="true"
                       loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <MediaPlaceholder

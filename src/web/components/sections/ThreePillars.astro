@@ -38,14 +38,23 @@ const section = getPillarsSection();
                     class="pillar__image"
                     src={pillar.imageUrl}
                     alt=""
+                    aria-hidden="true"
                     width={688}
                     height={386}
                     widths={[360, 520, 688]}
                     sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
                     loading={index === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
                   />
                 ) : isRemoteAsset(pillar.imageUrl) ? (
-                  <img class="pillar__image" src={pillar.imageUrl} alt="" loading="lazy" />
+                  <img
+                    class="pillar__image"
+                    src={pillar.imageUrl}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 ) : (
                   <MediaPlaceholder
                     label={pillar.name}

@@ -35,7 +35,9 @@ const {
       class:list={['cover-image', className]}
       src={src}
       alt={alt}
+      aria-hidden={alt === '' ? 'true' : undefined}
       loading={loading}
+      decoding="async"
       style={`aspect-ratio: ${aspect};`}
     />
   ) : (

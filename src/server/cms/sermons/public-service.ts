@@ -377,12 +377,16 @@ export async function getPublicSermonBySlug(
   // (docs/11 §14): a 404 must not confirm that an unpublished slug exists.
   if (!sermon) throw notFound('Sermon not found.');
 
-  const seo = await prisma.seoMetadata.findUnique({
-    where: {
-      entityType_entityId: { entityType: SEO_ENTITY_TYPE, entityId: sermon.id },
-    },
-  });
-  const related = await findRelated(sermon, options);
+  // Independent lookups: resolve the SEO override and the related set in
+  // parallel instead of serializing two round trips on every detail request.
+  const [seo, related] = await Promise.all([
+    prisma.seoMetadata.findUnique({
+      where: {
+        entityType_entityId: { entityType: SEO_ENTITY_TYPE, entityId: sermon.id },
+      },
+    }),
+    findRelated(sermon, options),
+  ]);
 
   return {
     ...toPublicSermonDto(sermon, seo, options),

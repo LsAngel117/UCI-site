@@ -89,7 +89,13 @@ const clearHref = '/sermones';
 
         <Section surface="light" spacing="lg">
           <Container>
-      <form class="archive-filters" method="get" action="/sermones" role="search">
+      <form
+        class="archive-filters"
+        method="get"
+        action="/sermones"
+        role="search"
+        aria-label="Filtrar sermones"
+      >
         <div class="archive-filters__field">
           <label for="sermon-search">Buscar</label>
           <input

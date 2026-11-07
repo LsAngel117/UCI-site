@@ -13,6 +13,7 @@ import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type { ApiErrorEnvelope, HealthResponse } from '@shared/api';
+import { cacheControlFor } from '@shared/cache';
 import {
   buildSecurityHeaders,
   isMutatingMethod,
@@ -174,12 +175,26 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
 
   // Security headers on every response (Phase 12A, docs/11 §28–§30). HSTS is
   // emitted only over TLS or in production, never on plain-HTTP development.
+  // The same hook carries the Phase 12C cache policy: API responses are
+  // `no-store`, hashed assets/media are immutable, and route-level decisions
+  // (e.g. the panel entry document) are never overwritten.
   app.addHook('onSend', async (request, reply) => {
     const headers = buildSecurityHeaders({
       secure: shouldSendHsts(request.protocol, config.nodeEnv),
     });
     for (const [name, value] of Object.entries(headers)) {
       reply.header(name, value);
+    }
+
+    const pathname = (request.raw.url ?? request.url ?? '/').split('?')[0] ?? '/';
+    const rawContentType = reply.getHeader('content-type');
+    const cacheControl = cacheControlFor({
+      pathname,
+      contentType:
+        typeof rawContentType === 'string' ? rawContentType : null,
+    });
+    if (cacheControl !== null && reply.getHeader('cache-control') === undefined) {
+      reply.header('Cache-Control', cacheControl);
     }
   });
 
