@@ -17,6 +17,10 @@ import { registerEventRoutes } from './cms/events/routes';
 import { registerPublicEventRoutes } from './cms/events/public-routes';
 import { registerMinistryRoutes } from './cms/ministries/routes';
 import { registerPublicMinistryRoutes } from './cms/ministries/public-routes';
+import { registerPublicNavigationRoutes } from './cms/navigation/public-routes';
+import { registerNavigationRoutes } from './cms/navigation/routes';
+import { registerPublicPageRoutes } from './cms/pages/public-routes';
+import { registerPageRoutes } from './cms/pages/routes';
 import { registerPublicSermonRoutes } from './cms/sermons/public-routes';
 import { registerSermonRoutes } from './cms/sermons/routes';
 import { registerTaxonomyRoutes } from './cms/taxonomy/routes';
@@ -173,6 +177,19 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     registerPublicMinistryRoutes(instance, config, mediaStorage);
   });
 
+  // Public pages & navigation API (Phase 7B). Same visibility rule as the other
+  // public collections: only `status = published` pages and `visible`
+  // navigation items are returned, enforced inside each service. No
+  // authentication is required. A published slug change surfaces
+  // `details.redirectTo` on the old slug's 404 (redirect foundation).
+  app.register(async (instance) => {
+    registerPublicPageRoutes(instance, config, mediaStorage);
+  });
+
+  app.register(async (instance) => {
+    registerPublicNavigationRoutes(instance, config);
+  });
+
   // Admin sermon taxonomy API (Phase 5A): people / series / topics pickers.
   // Protected by the `sermons.*` permissions (docs/11 §9 has no separate
   // vocabulary for this taxonomy; see `cms/taxonomy/service.ts`).
@@ -195,6 +212,16 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   // `cms/event-categories/service.ts`).
   app.register(async (instance) => {
     registerEventCategoryRoutes(instance, config);
+  });
+
+  // Admin Pages & Navigation API (Phase 7A). Each route is protected by
+  // `requireAuth` + the matching `pages.*` / `navigation.*` permission.
+  app.register(async (instance) => {
+    registerPageRoutes(instance, config);
+  });
+
+  app.register(async (instance) => {
+    registerNavigationRoutes(instance, config);
   });
 
   // Admin media API (Phase 4). Multipart is registered in the same plugin

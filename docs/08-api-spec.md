@@ -432,7 +432,21 @@ Examples:
 GET /api/v1/pages/:slug
 ```
 
-Only published pages are returned.
+Only published pages are returned. Draft, scheduled, archived and unknown slugs all receive the same `404 NOT_FOUND` response so unpublished content cannot be discovered.
+
+**Redirect foundation.** When a published page changes slug, the previous slug is recorded. A request for that old slug returns the same `404` envelope, with the resolved destination added under `error.details`:
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Page not found.",
+    "details": { "redirectTo": "/new-slug" }
+  }
+}
+```
+
+`redirectTo` is a rooted path. The public site layer (Phase 9) turns it into the permanent HTTP redirect; the API itself never issues the redirect.
 
 Example:
 

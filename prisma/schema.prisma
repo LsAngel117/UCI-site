@@ -74,6 +74,7 @@ model User {
   sessions               Session[]
   pagesCreated           Page[]           @relation("PageCreatedBy")
   pagesUpdated           Page[]           @relation("PageUpdatedBy")
+  pageRevisionsCreated   PageRevision[]   @relation("PageRevisionCreatedBy")
   sermonsCreated         Sermon[]         @relation("SermonCreatedBy")
   sermonsUpdated         Sermon[]         @relation("SermonUpdatedBy")
   sermonRevisionsCreated SermonRevision[] @relation("SermonRevisionCreatedBy")
@@ -178,20 +179,56 @@ model Page {
   id            String        @id @default(uuid())
   slug          String        @unique
   title         String
+  /// Short editorial summary used in listings and meta descriptions.
+  excerpt       String?
+  /// Structured editorial content (known block shape, never an arbitrary
+  /// visual page builder — docs/05 §20). Serialized as JSON.
+  content       Json?
+  coverMediaId  String?       @map("cover_media_id")
+  /// Optimistic-concurrency counter (docs/08 §38). A PATCH must present the
+  /// version it read; a mismatch is a 409 CONFLICT and a match increments it.
+  version       Int           @default(1)
   status        ContentStatus @default(draft)
   publishedAt   DateTime?     @map("published_at")
+  /// Future publication instant set by `POST /schedule` (docs/05 §30).
+  publishAt     DateTime?     @map("publish_at")
   unpublishedAt DateTime?     @map("unpublished_at")
   createdById   String?       @map("created_by")
   updatedById   String?       @map("updated_by")
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  createdBy User? @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy User? @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdBy User?          @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?          @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  cover     MediaAsset?    @relation("PageCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  revisions PageRevision[]
 
   @@index([status, publishedAt])
+  @@index([status, publishAt])
   @@index([createdById])
+  @@index([coverMediaId])
   @@map("pages")
+}
+
+/// Immutable snapshot of a page at a point in time (docs/08 §11.9, §32).
+/// Append-only: no `updatedAt`. `snapshot` holds the full editable content
+/// (`PageSnapshot` in `@shared/cms`) so a revision is self-contained and can be
+/// restored without reconstructing it from the live row.
+model PageRevision {
+  id          String   @id @default(uuid())
+  pageId      String   @map("page_id")
+  version     Int
+  title       String
+  snapshot    Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by")
+
+  page      Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("PageRevisionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([pageId, version])
+  @@index([createdById])
+  @@map("page_revisions")
 }
 
 model Sermon {
@@ -444,13 +481,19 @@ model Ministry {
 // Navigation, media, SEO and system tables.
 // ---------------------------------------------------------------------------
 
-/// Self-referencing navigation tree (docs/05 §45). `parentId` is null for
-/// top-level items; deleting a parent orphans its children (SetNull).
+/// Self-referencing navigation tree (docs/05 §45, docs/08 §14). `parentId` is
+/// null for top-level items; deleting a parent orphans its children (SetNull).
+/// `location` scopes the menu (HEADER / FOOTER) and `target` is the optional
+/// link target (`_self` / `_blank`).
 model Navigation {
   id        String   @id @default(uuid())
   label     String
   href      String
   external  Boolean  @default(false)
+  /// Menu this item belongs to, e.g. `HEADER` / `FOOTER`.
+  location  String   @default("HEADER")
+  /// Optional link target: `_self` / `_blank`.
+  target    String?
   order     Int      @default(0)
   visible   Boolean  @default(true)
   parentId  String?  @map("parent_id")
@@ -461,7 +504,24 @@ model Navigation {
   children Navigation[] @relation("NavigationTree")
 
   @@index([parentId])
+  @@index([location, order])
   @@map("navigation")
+}
+
+/// Slug-change redirect foundation (docs/08 §14, Phase 9 serves it). When a
+/// published page changes slug, a row records the old slug so the HTTP layer
+/// can answer a permanent redirect. `fromPath` is globally unique because a
+/// path can only map to one destination.
+model Redirect {
+  id         String   @id @default(uuid())
+  fromPath   String   @unique @map("from_path")
+  toPath     String   @map("to_path")
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@map("redirects")
 }
 
 /// Binary/media asset metadata (Phase 4, docs/12 §9–11, docs/08 §15).
@@ -494,18 +554,19 @@ model MediaAsset {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  createdBy    User?            @relation("MediaAssetCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  references   MediaReference[]
-  variants     MediaVariant[]
+  createdBy      User?            @relation("MediaAssetCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  references     MediaReference[]
+  variants       MediaVariant[]
   // Content relations (Phase 5A). SetNull on the asset means deleting a media
   // asset never deletes content; the reference-aware delete in Phase 4 still
   // blocks it while a `MediaReference` row exists.
-  sermonCovers   Sermon[]       @relation("SermonCover")
-  sermonNotes    Sermon[]       @relation("SermonNotes")
-  seriesCovers   SermonSeries[] @relation("SeriesCover")
-  personPhotos   Person[]       @relation("PersonPhoto")
-  eventCovers    Event[]        @relation("EventCover")
-  ministryCovers Ministry[]     @relation("MinistryCover")
+  sermonCovers   Sermon[]         @relation("SermonCover")
+  sermonNotes    Sermon[]         @relation("SermonNotes")
+  seriesCovers   SermonSeries[]   @relation("SeriesCover")
+  personPhotos   Person[]         @relation("PersonPhoto")
+  eventCovers    Event[]          @relation("EventCover")
+  ministryCovers Ministry[]       @relation("MinistryCover")
+  pageCovers     Page[]           @relation("PageCover")
 
   @@index([createdById])
   @@index([type, createdAt])

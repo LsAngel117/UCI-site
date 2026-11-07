@@ -564,6 +564,283 @@ export interface MinistryListQuery
   extends PaginationParams, SortParams, MinistryListFilters {}
 
 // ---------------------------------------------------------------------------
+// Pages & Navigation contracts (Phase 7A, docs/08 §10/§14, docs/05 §20/§45)
+//
+// Pages are structured institutional content (docs/05 §20): `content` is a
+// JSON object with a shape known to the frontend, never an arbitrary visual
+// page builder. Navigation items are CMS-driven menu entries scoped by
+// `location` (HEADER / FOOTER) and optionally nested through `parentId`.
+// ---------------------------------------------------------------------------
+
+/** A value representable in JSON — no Prisma types leak into `@shared`. */
+export type PageContentValue =
+  | string
+  | number
+  | boolean
+  | null
+  | PageContentValue[]
+  | { [key: string]: PageContentValue };
+
+/**
+ * Structured editorial content for a page. The frontend consumes a known
+ * shape (docs/05 §20); storing it as a plain JSON object lets each structured
+ * page model evolve without a migration while still forbidding Prisma types in
+ * the contract.
+ */
+export interface PageContent {
+  [key: string]: PageContentValue;
+}
+
+/** Page SEO contracts (`SeoMetadata` entityType `page`). */
+export type PageSeoDto = SeoDto;
+export type PageSeoInput = SeoInput;
+
+/** Page content as returned by the public/admin API (no audit fields). */
+export interface PageDto {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  content: PageContent | null;
+  coverMediaId: string | null;
+  seo: SeoDto | null;
+  status: ContentStatus;
+  publishedAt: string | null;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Full admin representation of a page (adds audit + concurrency fields). */
+export interface PageAdminDto extends PageDto {
+  /** Optimistic-concurrency counter (docs/08 §38). */
+  version: number;
+  unpublishedAt: string | null;
+  createdById: string | null;
+  updatedById: string | null;
+}
+
+/** Snapshot frozen into a `PageRevision` (all primitives / JSON). */
+export interface PageSnapshot {
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content: PageContent | null;
+  /** Absent on revisions stored before the page cover landed. */
+  coverMediaId?: string | null;
+}
+
+/** Page revision with a typed snapshot. */
+export interface PageRevisionDto extends RevisionDto {
+  snapshot: PageSnapshot;
+}
+
+/** Create-page body. Creation always produces a draft (docs/08 §10.4). */
+export interface CreatePageInput {
+  title: string;
+  /** Auto-generated from the title when omitted (docs/05 §27). */
+  slug?: string;
+  excerpt?: string | null;
+  content?: PageContent | null;
+  coverMediaId?: string | null;
+  seo?: SeoInput | null;
+}
+
+/** Update-page body. `version` is REQUIRED (optimistic concurrency). */
+export interface UpdatePageInput {
+  version: number;
+  title?: string;
+  slug?: string;
+  excerpt?: string | null;
+  content?: PageContent | null;
+  coverMediaId?: string | null;
+  seo?: SeoInput | null;
+}
+
+/** Admin page listing filters (`GET /api/v1/admin/pages`, docs/08 §10.3). */
+export interface PageListFilters {
+  status?: ContentStatus;
+  /** Case-insensitive match on title/slug/excerpt. */
+  search?: string;
+  /** Filter by the author (createdBy) user id. */
+  author?: string;
+  publishedFrom?: string;
+  publishedTo?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
+}
+
+export interface PageListQuery
+  extends PaginationParams, SortParams, PageListFilters {}
+
+/**
+ * Redirect foundation (docs/08 §14). A row maps an old slug to its new one so
+ * the HTTP layer (Phase 9) can answer a permanent redirect.
+ */
+export interface RedirectDto {
+  id: string;
+  fromPath: string;
+  toPath: string;
+  entityType: string | null;
+  entityId: string | null;
+  createdAt: string;
+}
+
+/** Allowed navigation menus (docs/08 §14: e.g. HEADER / FOOTER). */
+export const NAVIGATION_LOCATIONS = ['HEADER', 'FOOTER'] as const;
+export type NavigationLocation = (typeof NAVIGATION_LOCATIONS)[number];
+
+/** Allowed link targets. */
+export const NAVIGATION_TARGETS = ['_self', '_blank'] as const;
+export type NavigationTarget = (typeof NAVIGATION_TARGETS)[number];
+
+/** A navigation item as exposed to the public API (no timestamps). */
+export interface NavigationDto {
+  id: string;
+  label: string;
+  href: string;
+  external: boolean;
+  location: NavigationLocation;
+  target: NavigationTarget | null;
+  order: number;
+  visible: boolean;
+  parentId: string | null;
+}
+
+/** Full admin representation of a navigation item. */
+export interface NavigationAdminDto extends NavigationDto {
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Create-navigation body. */
+export interface CreateNavigationInput {
+  label: string;
+  href: string;
+  external?: boolean;
+  location?: NavigationLocation | string;
+  target?: NavigationTarget | string | null;
+  order?: number;
+  visible?: boolean;
+  parentId?: string | null;
+}
+
+/** Update-navigation body (all fields optional). */
+export interface UpdateNavigationInput {
+  label?: string;
+  href?: string;
+  external?: boolean;
+  location?: NavigationLocation | string;
+  target?: NavigationTarget | string | null;
+  order?: number;
+  visible?: boolean;
+  parentId?: string | null;
+}
+
+/** One reorder entry (`POST /api/v1/admin/navigation/reorder`). */
+export interface NavigationReorderItem {
+  id: string;
+  position: number;
+}
+
+/** Reorder body (docs/08 §14.2). */
+export interface NavigationReorderInput {
+  items: NavigationReorderItem[];
+}
+
+/** Admin navigation listing filters. */
+export interface NavigationListFilters {
+  location?: NavigationLocation | string;
+  visible?: boolean | string;
+  parentId?: string;
+}
+
+export interface NavigationListQuery extends NavigationListFilters {}
+
+// ---------------------------------------------------------------------------
+// Public pages & navigation contracts (Phase 7B, docs/08 §10.1–10.2, §14.1,
+// docs/10 §5–6)
+//
+// The public API exposes only published pages and visible navigation items,
+// and only public data: internal author/version/lifecycle columns are
+// deliberately absent. SEO always resolves to a canonical URL so the frontend
+// never has to invent one (docs/10 §6). Navigation is projected as a nested
+// tree so the frontend can render a menu without touching Prisma.
+// ---------------------------------------------------------------------------
+
+/** Sort allowlist for the public page listing (docs/08 §10.2, §26). */
+export const PUBLIC_PAGE_SORT_FIELDS = [
+  'publishedAt',
+  'title',
+  'updatedAt',
+] as const;
+
+export type PublicPageSortField = (typeof PUBLIC_PAGE_SORT_FIELDS)[number];
+
+/**
+ * Public page SEO metadata. `title`/`description` fall back to the page's own
+ * content and `canonicalUrl` to the canonical public route (`/:slug`) when no
+ * explicit `SeoMetadata` row exists (docs/10 §6.1–6.2).
+ */
+export interface PublicPageSeoDto {
+  title: string;
+  description: string | null;
+  canonicalUrl: string;
+  ogImageUrl: string | null;
+}
+
+/** A page as exposed by the public listing (no content — keep it small). */
+export interface PublicPageDto {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  /** Resolved public cover URL, or null when unset. */
+  coverImageUrl: string | null;
+  coverImageAlt: string | null;
+  publishedAt: string | null;
+  updatedAt: string;
+  seo: PublicPageSeoDto;
+}
+
+/** Public page detail — adds the structured editorial body. */
+export interface PublicPageDetailDto extends PublicPageDto {
+  content: PageContent | null;
+}
+
+/** Filters accepted by the public page listing (docs/08 §10.2). */
+export interface PublicPageListFilters {
+  /** Case-insensitive match on title, slug or excerpt. */
+  search?: string;
+}
+
+/** Query shape of `GET /api/v1/pages` (filters + pagination + sort). */
+export interface PublicPageListQuery
+  extends PaginationParams, SortParams, PublicPageListFilters {}
+
+/**
+ * A navigation item as exposed by the public API. Children are already nested
+ * and ordered so the frontend renders the tree directly; editorial fields
+ * (`visible`, `order`, `parentId`, `location`) are not part of the contract.
+ */
+export interface PublicNavigationItemDto {
+  id: string;
+  label: string;
+  href: string;
+  external: boolean;
+  target: NavigationTarget | null;
+  children: PublicNavigationItemDto[];
+}
+
+/** Query shape of `GET /api/v1/navigation` (docs/08 §14.1). */
+export interface PublicNavigationQuery {
+  /** Menu to render; defaults to `HEADER` when omitted. */
+  location?: NavigationLocation | string;
+}
+
+// ---------------------------------------------------------------------------
 // Public sermon contracts (Phase 5B, docs/08 §11.1–11.2, docs/10 §5–6)
 //
 // The public API exposes only published sermons and only public data: internal

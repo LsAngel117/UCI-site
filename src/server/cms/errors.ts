@@ -33,8 +33,11 @@ export function isCmsError(value: unknown): value is CmsError {
 }
 
 /** Resource does not exist (or is out of scope for the caller). */
-export function notFound(message = 'The requested resource was not found.'): CmsError {
-  return new CmsError('NOT_FOUND', message, 404);
+export function notFound(
+  message = 'The requested resource was not found.',
+  details?: unknown,
+): CmsError {
+  return new CmsError('NOT_FOUND', message, 404, details);
 }
 
 /** Business conflict — stale optimistic-concurrency version, invalid transition. */
