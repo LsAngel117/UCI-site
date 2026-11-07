@@ -353,6 +353,51 @@ describe(
       }
     });
 
+    test('admin listing searches title/description and combines with status', async () => {
+      const app = makeApp();
+      try {
+        const cookie = await login(app, ADMIN_EMAIL);
+        await createSermon(app, cookie, {
+          title: 'Zz search alpha',
+          description: 'Una descripcion buscable.',
+        });
+        await createSermon(app, cookie, { title: 'Zz search beta' });
+
+        const byTitle = await app.inject({
+          method: 'GET',
+          url: `${BASE}?search=${encodeURIComponent('zz search alpha')}`,
+          ...authed(cookie),
+        });
+        assert.equal(byTitle.statusCode, 200, byTitle.body);
+        const titleRows = byTitle.json<{ data: Array<{ title: string }> }>().data;
+        assert.ok(titleRows.some((row) => row.title === 'Zz search alpha'));
+        assert.ok(titleRows.every((row) => row.title !== 'Zz search beta'));
+
+        const byDescription = await app.inject({
+          method: 'GET',
+          url: `${BASE}?search=${encodeURIComponent('descripcion buscable')}`,
+          ...authed(cookie),
+        });
+        assert.equal(byDescription.statusCode, 200, byDescription.body);
+        const descriptionRows = byDescription.json<{ data: Array<{ title: string }> }>().data;
+        assert.ok(descriptionRows.some((row) => row.title === 'Zz search alpha'));
+
+        const publishedOnly = await app.inject({
+          method: 'GET',
+          url: `${BASE}?search=${encodeURIComponent('zz search alpha')}&status=published`,
+          ...authed(cookie),
+        });
+        assert.equal(publishedOnly.statusCode, 200, publishedOnly.body);
+        assert.equal(
+          publishedOnly.json<{ data: unknown[] }>().data.length,
+          0,
+          'search and status are combined with AND',
+        );
+      } finally {
+        await app.close();
+      }
+    });
+
     test('an EDITOR can create/update/read but gets 403 on publish', async () => {
       const app = makeApp();
       try {

@@ -64,3 +64,22 @@ Implementar el entorno editorial completo (roadmap §16): shell autenticado, das
     documentada, no implementada.
   - Dashboard stub sin métricas inventadas; las secciones pendientes indican la
     sub-fase que las entrega (10B/10C/10D).
+- **10B — completada.** Patrones de contenido reutilizables y editor de sermones
+  como referencia.
+  - Patrones en `src/admin/src/components/content/`: `DataTable` genérica con
+    estados loading/empty/error, `FilterBar`, `Pagination`, `StatusBadge`,
+    `ConfirmDialog`/`Dialog` accesibles y `MediaPicker` básico (la biblioteca
+    completa sigue siendo 10C).
+  - Rutas: `/contenido/sermones` (listado con búsqueda, estado y paginación),
+    `/contenido/sermones/nuevo`, `/contenido/sermones/:id` (editor) y
+    `/contenido/sermones/:id/preview`. Acciones de publicar/programar/archivar y
+    restaurar revisiones ocultas o deshabilitadas sin permiso.
+  - El editor cubre información básica, taxonomía (personas/series/temas),
+    escritura, descripción/notas + media, video/audio, SEO y acciones de ciclo
+    de vida. El guardado envía `version`; un 409 se muestra como conflicto y
+    ofrece descartar cambios locales y recargar.
+  - `GET /admin/sermons` admite `search` (título/slug/descripción) además de los
+    filtros documentados; se agregó al contrato compartido y al servicio.
+  - Helpers puros de formulario/permisos/fechas en
+    `tests/admin-sermons.unit.test.ts`; smoke con `app.inject` verificó crear,
+    listar con búsqueda, editar, 409 por versión obsoleta y preview noindex.

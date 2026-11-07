@@ -966,6 +966,11 @@ export interface SermonListFilters {
   author?: string;
   /** Case-insensitive match on the preacher name. */
   preacher?: string;
+  /**
+   * Case-insensitive match on title, slug or description. The admin archive
+   * needs to find drafts too, so this cannot reuse the public search endpoint.
+   */
+  search?: string;
   publishedFrom?: string;
   publishedTo?: string;
   createdFrom?: string;

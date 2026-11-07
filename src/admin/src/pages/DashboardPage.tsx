@@ -74,12 +74,13 @@ export function DashboardPage() {
           )}
 
           <div className="panel panel--notice">
-            <h2 className="panel__title">Esta es la primera versión del panel</h2>
+            <h2 className="panel__title">Panel en construcción</h2>
             <p>
-              La fase 10A habilita la sesión, la navegación por permisos y el
-              acceso a cada módulo. El resumen operativo (conteos, actividad
-              reciente y contenido programado) llega en la fase 10B. Por ahora
-              las secciones muestran un aviso de construcción.
+              La fase 10A habilitó la sesión, la navegación por permisos y el
+              acceso a cada módulo. La fase 10B sumó el archivo y el editor de
+              sermones en Contenido. El resumen operativo (conteos, actividad
+              reciente y contenido programado) todavía no está implementado; las
+              secciones restantes muestran un aviso de construcción.
             </p>
           </div>
         </div>

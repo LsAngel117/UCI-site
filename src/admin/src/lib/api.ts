@@ -9,13 +9,20 @@
  *   success: { data: ... }
  *   list:    { data: [...], meta: {...} }
  *   error:   { error: { code, message } }
+ *
+ * `apiRequest` unwraps a single-resource envelope; `apiRequestList` keeps the
+ * pagination metadata so list screens can render the documented contract
+ * (docs/08 §25). Both are thin wrappers around one transport function so error
+ * handling and credentials can never drift between call sites.
  */
 import type {
   ApiErrorEnvelope,
   ApiResponse,
   CurrentUserResponse,
+  ListResponse,
   LoginRequest,
   LoginResponse,
+  PaginationMeta,
 } from '@shared/api';
 
 /** Same-origin prefix. Vite proxies `/api` to the API in dev (vite.config). */
@@ -39,11 +46,28 @@ export class ApiError extends Error {
   get isUnauthorized(): boolean {
     return this.status === 401;
   }
+
+  /** The record changed since the client loaded it (optimistic concurrency). */
+  get isConflict(): boolean {
+    return this.status === 409;
+  }
 }
 
-interface RequestOptions {
-  method?: 'GET' | 'POST';
+export interface RequestOptions {
+  method?: 'GET' | 'POST' | 'PATCH';
   body?: unknown;
+  /** Lets a screen cancel an in-flight request when its filters change. */
+  signal?: AbortSignal;
+}
+
+/** True for a fetch/DOM abort, which callers handle as "no result", not "error". */
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    (error as { name?: unknown }).name === 'AbortError'
+  );
 }
 
 async function parseJson(response: Response): Promise<unknown> {
@@ -56,16 +80,22 @@ async function parseJson(response: Response): Promise<unknown> {
   }
 }
 
-async function request<T>(
+/**
+ * Perform one request and return the parsed envelope. Every non-2xx response is
+ * translated into an `ApiError` carrying the server's stable code and message.
+ */
+async function send(
   path: string,
   options: RequestOptions = {},
-): Promise<T> {
+): Promise<unknown> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   const init: RequestInit = {
     method: options.method ?? 'GET',
     credentials: 'include',
     headers,
   };
+
+  if (options.signal) init.signal = options.signal;
 
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -75,7 +105,9 @@ async function request<T>(
   let response: Response;
   try {
     response = await fetch(`${API_PREFIX}${path}`, init);
-  } catch {
+  } catch (error) {
+    // A cancelled request is not a failure — let the caller ignore it.
+    if (isAbortError(error)) throw error;
     throw new ApiError(
       0,
       'NETWORK_ERROR',
@@ -84,7 +116,7 @@ async function request<T>(
   }
 
   if (response.status === 204) {
-    return undefined as T;
+    return undefined;
   }
 
   const payload = await parseJson(response);
@@ -110,7 +142,51 @@ async function request<T>(
     );
   }
 
+  return payload;
+}
+
+/** Perform a request whose envelope carries one `data` value. */
+export async function apiRequest<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const payload = await send(path, options);
+  if (payload === undefined) return undefined as T;
   return (payload as ApiResponse<T>).data;
+}
+
+/**
+ * Perform a request whose envelope carries `data` plus pagination `meta`.
+ * The meta is validated so a malformed collection response fails loudly instead
+ * of rendering an empty table that looks like real "no results" (docs/08 §25).
+ */
+export async function apiRequestList<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<ListResponse<T>> {
+  const raw = await send(path, options);
+  const payload = (raw ?? {}) as { data?: unknown; meta?: unknown };
+
+  if (!Array.isArray(payload.data) || !isPaginationMeta(payload.meta)) {
+    throw new ApiError(
+      200,
+      'INVALID_RESPONSE',
+      'El servidor devolvió una lista inesperada.',
+    );
+  }
+
+  return { data: payload.data as T[], meta: payload.meta };
+}
+
+function isPaginationMeta(value: unknown): value is PaginationMeta {
+  if (typeof value !== 'object' || value === null) return false;
+  const meta = value as Record<string, unknown>;
+  return (
+    typeof meta.page === 'number' &&
+    typeof meta.limit === 'number' &&
+    typeof meta.total === 'number' &&
+    typeof meta.totalPages === 'number'
+  );
 }
 
 /**
@@ -118,7 +194,7 @@ async function request<T>(
  * session cookie; the request body never contains a token (docs/08 §7.1).
  */
 export function login(credentials: LoginRequest): Promise<LoginResponse> {
-  return request<LoginResponse>('/auth/login', {
+  return apiRequest<LoginResponse>('/auth/login', {
     method: 'POST',
     body: credentials,
   });
@@ -126,10 +202,10 @@ export function login(credentials: LoginRequest): Promise<LoginResponse> {
 
 /** Resolve the current session identity + permissions (docs/08 §7.2). */
 export function me(): Promise<CurrentUserResponse> {
-  return request<CurrentUserResponse>('/auth/me');
+  return apiRequest<CurrentUserResponse>('/auth/me');
 }
 
 /** Revoke the current session and clear the cookie (docs/08 §7.3). */
 export async function logout(): Promise<void> {
-  await request<void>('/auth/logout', { method: 'POST' });
+  await apiRequest<void>('/auth/logout', { method: 'POST' });
 }

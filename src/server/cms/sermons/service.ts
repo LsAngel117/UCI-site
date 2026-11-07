@@ -803,19 +803,40 @@ export async function listSermons(
     where.status = query.status;
   }
   if (query.author) where.createdById = query.author;
+
+  // Preacher and free-text search are independent filters; combine them with
+  // AND so `?search=fe&preacher=ana` means "both", not "either".
+  const orGroups: Prisma.SermonWhereInput[] = [];
   if (query.preacher) {
     // Mirror the public archive: the term matches the legacy denormalized name,
     // the related `Person.displayName`, or the preacher id itself, so a sermon
     // linked through `preacherId` is found even when `preacherName` is unset.
-    where.OR = [
-      { preacherName: { contains: query.preacher, mode: 'insensitive' } },
-      {
-        preacher: {
-          is: { displayName: { contains: query.preacher, mode: 'insensitive' } },
+    orGroups.push({
+      OR: [
+        { preacherName: { contains: query.preacher, mode: 'insensitive' } },
+        {
+          preacher: {
+            is: { displayName: { contains: query.preacher, mode: 'insensitive' } },
+          },
         },
-      },
-      { preacherId: query.preacher },
-    ];
+        { preacherId: query.preacher },
+      ],
+    });
+  }
+  if (typeof query.search === 'string' && query.search.trim().length > 0) {
+    const search = query.search.trim();
+    orGroups.push({
+      OR: [
+        { title: { contains: search, mode: 'insensitive' } },
+        { slug: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ],
+    });
+  }
+  if (orGroups.length === 1) {
+    Object.assign(where, orGroups[0]);
+  } else if (orGroups.length > 1) {
+    where.AND = orGroups;
   }
   const publishedRange = dateRange(query.publishedFrom, query.publishedTo);
   if (publishedRange) where.publishedAt = publishedRange;

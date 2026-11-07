@@ -632,11 +632,15 @@ Additional filters:
 status
 author
 preacher
+search
 publishedFrom
 publishedTo
 createdFrom
 createdTo
 ```
+
+`search` matches title, slug or description (case-insensitive) and can be
+combined with `status`/`preacher`; the conditions are ANDed.
 
 ---
 
