@@ -1089,6 +1089,20 @@ Example:
 
 ---
 
+## 15.7 Media Orphans
+
+```http
+GET /api/v1/admin/media/orphans
+```
+
+Read-only review of assets with no content references. Supports the same
+filtering, sorting and pagination parameters as `GET /api/v1/admin/media`.
+
+This endpoint never deletes assets: orphan cleanup remains an explicit
+administrator action, not an automatic job (docs/12 §18, §60).
+
+---
+
 # 16. External Media API
 
 External video must not be uploaded to the UCI server.
@@ -2279,6 +2293,7 @@ POST   /api/v1/admin/navigation/reorder
 
 GET    /api/v1/admin/media
 POST   /api/v1/admin/media/upload
+GET    /api/v1/admin/media/orphans
 GET    /api/v1/admin/media/:id
 PATCH  /api/v1/admin/media/:id
 DELETE /api/v1/admin/media/:id

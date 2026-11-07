@@ -541,6 +541,80 @@ describe(
       }
     });
 
+    test('orphan review lists only unreferenced assets and never deletes them', async () => {
+      const app = makeApp();
+      try {
+        const adminCookie = await login(app, ADMIN_EMAIL);
+        const actorId = userIds[0]!;
+        const tag = `orphan-${randomUUID().slice(0, 8)}`;
+
+        const orphan = await prisma.mediaAsset.create({
+          data: {
+            type: 'IMAGE',
+            filename: `${tag}.png`,
+            mimeType: 'image/png',
+            size: 12,
+            storageKey: `test/${tag}.png`,
+            url: `/media/test/${tag}.png`,
+            createdById: actorId,
+          },
+        });
+        const referenced = await prisma.mediaAsset.create({
+          data: {
+            type: 'IMAGE',
+            filename: `${tag}-referenced.png`,
+            mimeType: 'image/png',
+            size: 12,
+            storageKey: `test/${tag}-referenced.png`,
+            url: `/media/test/${tag}-referenced.png`,
+            createdById: actorId,
+          },
+        });
+        await prisma.mediaReference.create({
+          data: {
+            mediaAssetId: referenced.id,
+            entityType: 'SERMON',
+            entityId: randomUUID(),
+            purpose: 'cover',
+          },
+        });
+
+        const anonymous = await app.inject({
+          method: 'GET',
+          url: `${BASE}/orphans`,
+        });
+        assert.equal(anonymous.statusCode, 401);
+
+        const res = await app.inject({
+          method: 'GET',
+          url: `${BASE}/orphans?search=${tag}&limit=100`,
+          headers: { cookie: adminCookie },
+        });
+        assert.equal(res.statusCode, 200, res.body);
+        const payload = json<{
+          data: Array<{ id: string }>;
+          meta: { total: number };
+        }>(res);
+        assert.equal(payload.meta.total, 1);
+        assert.deepEqual(
+          payload.data.map((asset) => asset.id),
+          [orphan.id],
+        );
+        assert.ok(
+          !payload.data.some((asset) => asset.id === referenced.id),
+          'referenced assets must never be reported as orphans',
+        );
+
+        // Reviewing is read-only: both rows still exist.
+        assert.ok(await prisma.mediaAsset.findUnique({ where: { id: orphan.id } }));
+        assert.ok(
+          await prisma.mediaAsset.findUnique({ where: { id: referenced.id } }),
+        );
+      } finally {
+        await app.close();
+      }
+    });
+
     test('an editor without media.delete cannot delete an asset (403)', async () => {
       const app = makeApp();
       try {

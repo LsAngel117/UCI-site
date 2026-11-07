@@ -20,7 +20,7 @@ import { randomUUID } from 'node:crypto';
 import type { ContentStatus } from '@shared/types';
 import type { LifecycleAction } from '@shared/cms';
 import { lifecycleAuditAction, recordAudit } from './audit';
-import { notFound } from './errors';
+import { conflict, isCmsError, notFound } from './errors';
 import {
   assertTransition,
   resolveScheduleInstant,
@@ -48,6 +48,34 @@ export interface LifecyclePatch {
 
 /** Actions that create a revision checkpoint (and therefore bump `version`). */
 const CHECKPOINT_ACTIONS: readonly LifecycleAction[] = ['publish', 'schedule'];
+
+/**
+ * True when `error` is Prisma's unique-constraint violation (`P2002`) on a
+ * revision's `(entityId, version)` unique index.
+ *
+ * A checkpoint insert can lose a race with another writer that already created
+ * the same next version (a concurrent sweep or a manual publish after the
+ * re-read). Detected by shape rather than `instanceof` so it survives bundled or
+ * duplicated copies of the Prisma runtime. `meta.target` is either the field
+ * array (`['sermon_id', 'version']`) or a named constraint
+ * (`sermon_revisions_sermon_id_version_key`), so the check looks for the
+ * `version` column; a violation on any other column is not a version race.
+ */
+function isRevisionVersionConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as { code?: unknown; meta?: { target?: unknown } };
+  if (candidate.code !== 'P2002') return false;
+
+  const target = candidate.meta?.target;
+  const fields = Array.isArray(target)
+    ? target
+    : target === undefined
+      ? []
+      : [target];
+  return fields.some(
+    (field) => typeof field === 'string' && field.includes('version'),
+  );
+}
 
 /**
  * Persistence port for publication. The content module supplies the entity
@@ -106,18 +134,32 @@ export function createPublicationService<T extends PublicationEntity>(
     return entity;
   }
 
-  function checkpoint(
+  async function checkpoint(
     entity: T,
     version: number,
     actorId: string | null,
   ): Promise<RevisionRecord> {
-    return revisions.insert({
-      entityId: entity.id,
-      version,
-      title: entity.title,
-      snapshot: store.buildSnapshot(entity),
-      createdById: actorId,
-    });
+    try {
+      return await revisions.insert({
+        entityId: entity.id,
+        version,
+        title: entity.title,
+        snapshot: store.buildSnapshot(entity),
+        createdById: actorId,
+      });
+    } catch (error) {
+      // Another writer already checkpointed this version (the `(entityId,
+      // version)` unique index). That is a lost optimistic-concurrency race,
+      // not an internal failure: surface the same 409 CONFLICT a stale manual
+      // publish returns, so the route layer answers 409 instead of 500.
+      if (isRevisionVersionConflict(error)) {
+        throw conflict(
+          'The content was modified by someone else. Reload and try again.',
+          { version },
+        );
+      }
+      throw error;
+    }
   }
 
   async function audit(
@@ -215,14 +257,32 @@ export function createPublicationService<T extends PublicationEntity>(
     async publishDue(now) {
       const due = await store.listDueForPublish(now);
       const published: T[] = [];
-      for (const entity of due) {
-        // System action (actorId null); reuses the same checkpointed flow so a
-        // scheduled publication looks identical to a manual one.
-        const result = await checkpointed(entity, 'publish', null, {
-          publishedAt: now,
-          publishAt: null,
-        });
-        published.push(result.entity);
+      for (const scheduled of due) {
+        // Re-read each row right before promoting it. Between the due query and
+        // this moment an editor may have rescheduled, unpublished or edited the
+        // row; publishing the stale snapshot would overwrite that work.
+        const entity = await store.findById(scheduled.id);
+        if (!entity || entity.status !== 'scheduled') continue;
+
+        try {
+          // System action (actorId null); reuses the same checkpointed flow so
+          // a scheduled publication looks identical to a manual one.
+          const result = await checkpointed(entity, 'publish', null, {
+            publishedAt: now,
+            publishAt: null,
+          });
+          published.push(result.entity);
+        } catch (error) {
+          // A concurrent sweep or a manual publish can win the race after the
+          // re-read: it bumps the row and checkpoint its `(entityId, version)`
+          // revision first. Both outcomes mean "this row was already handled
+          // by someone else" — the mapped 409 CONFLICT from `checkpoint` and a
+          // raw P2002 from a store that surfaces it — so skip that row and
+          // never abort the rest of the batch.
+          if (isCmsError(error) && error.statusCode === 409) continue;
+          if (isRevisionVersionConflict(error)) continue;
+          throw error;
+        }
       }
       return published;
     },

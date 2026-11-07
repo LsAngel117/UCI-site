@@ -5,18 +5,22 @@
  * configuration, and installs graceful shutdown handlers.
  */
 import { buildServer } from './app';
-import { loadConfig } from './config';
+import { isPlaceholderSiteUrl, loadConfig } from './config';
 import { prisma } from './db';
+import { startScheduler, type SchedulerHandle } from './scheduler';
 
 const config = loadConfig();
 const app = buildServer();
 
 let shuttingDown = false;
+let scheduler: SchedulerHandle | null = null;
 
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   app.log.info({ signal }, 'Shutting down');
+  scheduler?.stop();
+  scheduler = null;
   try {
     await app.close();
   } finally {
@@ -35,6 +39,26 @@ try {
   app.log.info(
     { host: config.host, port: config.port, env: config.nodeEnv },
     'uci-api listening',
+  );
+
+  if (isPlaceholderSiteUrl(config.siteUrl)) {
+    app.log.warn(
+      { siteUrl: config.siteUrl },
+      'SITE_URL is still the development placeholder — canonical URLs, Open Graph metadata and the sitemap will point at it. Set a real public origin before deploying to production.',
+    );
+  }
+
+  // Scheduled-publication sweep (Phase 12B). Started only here, after the
+  // process actually listens, and never in tests: `buildServer` remains
+  // timer-free so its inject-based suites cannot publish scheduled rows.
+  scheduler = startScheduler({
+    intervalMs: config.scheduler.intervalMs,
+    enabled: config.nodeEnv !== 'test',
+    logger: app.log,
+  });
+  app.log.info(
+    { intervalMs: config.scheduler.intervalMs, enabled: config.nodeEnv !== 'test' },
+    'Publication scheduler started',
   );
 } catch (error) {
   app.log.error(error, 'Failed to start server');

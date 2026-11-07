@@ -121,6 +121,22 @@ export function registerMediaRoutes(
     },
   );
 
+  // Read-only orphan review (Phase 12B, docs/12 §18, §60). Registered before
+  // `/:id` so the static segment is unambiguous. It never deletes: cleanup is
+  // an explicit administrator action, not an automatic job.
+  app.get<{ Querystring: MediaListQuery }>(
+    `${BASE}/orphans`,
+    { preHandler: [auth, canRead] },
+    async (request, reply) => {
+      try {
+        const { data, meta } = await service.listOrphans(request.query);
+        reply.send({ data, meta } satisfies MediaListResponse);
+      } catch (error) {
+        handleError(reply, error);
+      }
+    },
+  );
+
   app.get<{ Params: IdParams }>(
     `${BASE}/:id`,
     { preHandler: [auth, canRead] },

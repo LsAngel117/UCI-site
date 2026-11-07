@@ -110,6 +110,36 @@ export async function countAssets(
   return prisma.mediaAsset.count({ where });
 }
 
+/**
+ * Assets with zero `MediaReference` rows (Phase 12B, docs/12 §18, §60).
+ *
+ * Read-only on purpose: orphaned media is surfaced for human review, never
+ * deleted automatically. Cleanup remains an explicit administrator action.
+ */
+export async function listOrphanedAssets(
+  where: Prisma.MediaAssetWhereInput,
+  orderBy: Prisma.MediaAssetOrderByWithRelationInput,
+  skip: number,
+  take: number,
+): Promise<MediaAssetWithVariants[]> {
+  return prisma.mediaAsset.findMany({
+    where: { ...where, references: { none: {} } },
+    orderBy,
+    skip,
+    take,
+    include: mediaAssetInclude,
+  });
+}
+
+/** Count assets matching `where` that have zero references. */
+export async function countOrphanedAssets(
+  where: Prisma.MediaAssetWhereInput,
+): Promise<number> {
+  return prisma.mediaAsset.count({
+    where: { ...where, references: { none: {} } },
+  });
+}
+
 export async function listReferences(
   mediaAssetId: string,
 ): Promise<MediaReference[]> {

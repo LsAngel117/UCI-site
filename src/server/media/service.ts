@@ -125,6 +125,109 @@ function updateDataFrom(input: unknown): Prisma.MediaAssetUncheckedUpdateInput {
   return data;
 }
 
+/**
+ * Translate a validated list query into a Prisma filter. Shared by the normal
+ * library listing and the orphan review endpoint so both apply exactly the same
+ * search/type/MIME/folder/date semantics.
+ */
+function buildAssetWhere(query: MediaListQuery): Prisma.MediaAssetWhereInput {
+  const where: Prisma.MediaAssetWhereInput = {};
+
+  if (query.search !== undefined && query.search !== '') {
+    if (typeof query.search !== 'string') {
+      throw validation('"search" must be a string.', { field: 'search' });
+    }
+    const search = query.search.trim();
+    if (search.length > 200) {
+      throw validation('"search" must be at most 200 characters.', {
+        field: 'search',
+      });
+    }
+    if (search.length > 0) {
+      where.OR = [
+        { filename: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { altText: { contains: search, mode: 'insensitive' } },
+        { caption: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+  }
+
+  if (query.type !== undefined) {
+    if (!isMediaType(query.type)) {
+      throw validation('Invalid "type" filter.', { field: 'type' });
+    }
+    where.type = query.type;
+  }
+
+  if (query.mimeType !== undefined && query.mimeType !== '') {
+    const mimeType = normalizeMimeType(String(query.mimeType));
+    if (!isAllowedMediaMimeType(mimeType)) {
+      throw validation('Invalid "mimeType" filter.', { field: 'mimeType' });
+    }
+    where.mimeType = mimeType;
+  }
+
+  if (query.folder !== undefined && query.folder !== '') {
+    if (typeof query.folder !== 'string') {
+      throw validation('"folder" must be a string.', { field: 'folder' });
+    }
+    where.folder = query.folder.trim();
+  }
+
+  const createdFrom = parseDateBoundary(query.createdFrom, 'createdFrom');
+  const createdTo = parseDateBoundary(query.createdTo, 'createdTo');
+  if (
+    createdFrom &&
+    createdTo &&
+    createdFrom.getTime() > createdTo.getTime()
+  ) {
+    throw validation('"createdFrom" must be before "createdTo".', {
+      field: 'createdFrom',
+    });
+  }
+  if (createdFrom || createdTo) {
+    where.createdAt = {
+      ...(createdFrom ? { gte: createdFrom } : {}),
+      ...(createdTo ? { lte: createdTo } : {}),
+    };
+  }
+
+  return where;
+}
+
+/**
+ * Resolve the requested ordering. A client that *provides* `sort` or `order`
+ * must provide valid values: an unsupported field or direction is a 400, never
+ * a silent fallback (docs/08 §26). Omitting both keeps the default ordering.
+ */
+function resolveAssetOrder(
+  query: MediaListQuery,
+): Prisma.MediaAssetOrderByWithRelationInput {
+  const rawSort: unknown = query.sort;
+  const rawOrder: unknown = query.order;
+  const sortProvided = rawSort !== undefined && rawSort !== '';
+  const orderProvided = rawOrder !== undefined && rawOrder !== '';
+
+  if (orderProvided && !isSortOrder(rawOrder)) {
+    throw validation('Invalid "order". Expected "asc" or "desc".', {
+      field: 'order',
+    });
+  }
+
+  const requested = resolveSort(rawSort, rawOrder, MEDIA_SORT_FIELDS);
+  if (sortProvided && requested === null) {
+    throw validation('Invalid "sort" field.', { field: 'sort' });
+  }
+
+  return (
+    requested
+      ? { [requested.field]: requested.order }
+      : { createdAt: 'desc' }
+  ) as Prisma.MediaAssetOrderByWithRelationInput;
+}
+
 export class MediaService {
   private readonly storage: MediaStorage;
   private readonly maxUploadBytes: number;
@@ -251,97 +354,41 @@ export class MediaService {
     query: MediaListQuery,
   ): Promise<{ data: MediaDto[]; meta: PaginationMeta }> {
     const { page, limit } = resolvePagination(query.page, query.limit);
-    const where: Prisma.MediaAssetWhereInput = {};
-
-    if (query.search !== undefined && query.search !== '') {
-      if (typeof query.search !== 'string') {
-        throw validation('"search" must be a string.', { field: 'search' });
-      }
-      const search = query.search.trim();
-      if (search.length > 200) {
-        throw validation('"search" must be at most 200 characters.', {
-          field: 'search',
-        });
-      }
-      if (search.length > 0) {
-        where.OR = [
-          { filename: { contains: search, mode: 'insensitive' } },
-          { title: { contains: search, mode: 'insensitive' } },
-          { altText: { contains: search, mode: 'insensitive' } },
-          { caption: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
-        ];
-      }
-    }
-
-    if (query.type !== undefined) {
-      if (!isMediaType(query.type)) {
-        throw validation('Invalid "type" filter.', { field: 'type' });
-      }
-      where.type = query.type;
-    }
-
-    if (query.mimeType !== undefined && query.mimeType !== '') {
-      const mimeType = normalizeMimeType(String(query.mimeType));
-      if (!isAllowedMediaMimeType(mimeType)) {
-        throw validation('Invalid "mimeType" filter.', { field: 'mimeType' });
-      }
-      where.mimeType = mimeType;
-    }
-
-    if (query.folder !== undefined && query.folder !== '') {
-      if (typeof query.folder !== 'string') {
-        throw validation('"folder" must be a string.', { field: 'folder' });
-      }
-      where.folder = query.folder.trim();
-    }
-
-    const createdFrom = parseDateBoundary(query.createdFrom, 'createdFrom');
-    const createdTo = parseDateBoundary(query.createdTo, 'createdTo');
-    if (
-      createdFrom &&
-      createdTo &&
-      createdFrom.getTime() > createdTo.getTime()
-    ) {
-      throw validation('"createdFrom" must be before "createdTo".', {
-        field: 'createdFrom',
-      });
-    }
-    if (createdFrom || createdTo) {
-      where.createdAt = {
-        ...(createdFrom ? { gte: createdFrom } : {}),
-        ...(createdTo ? { lte: createdTo } : {}),
-      };
-    }
-
-    // A client that *provides* `sort` or `order` must provide valid values: an
-    // unsupported field or direction is a 400, never a silent fallback
-    // (docs/08 §26). Omitting both keeps the default ordering.
-    const rawSort: unknown = query.sort;
-    const rawOrder: unknown = query.order;
-    const sortProvided = rawSort !== undefined && rawSort !== '';
-    const orderProvided = rawOrder !== undefined && rawOrder !== '';
-
-    if (orderProvided && !isSortOrder(rawOrder)) {
-      throw validation('Invalid "order". Expected "asc" or "desc".', {
-        field: 'order',
-      });
-    }
-
-    const requested = resolveSort(rawSort, rawOrder, MEDIA_SORT_FIELDS);
-    if (sortProvided && requested === null) {
-      throw validation('Invalid "sort" field.', { field: 'sort' });
-    }
-
-    const orderBy = (
-      requested
-        ? { [requested.field]: requested.order }
-        : { createdAt: 'desc' }
-    ) as Prisma.MediaAssetOrderByWithRelationInput;
+    const where = buildAssetWhere(query);
+    const orderBy = resolveAssetOrder(query);
 
     const [total, rows] = await Promise.all([
       repository.countAssets(where),
       repository.listAssets(where, orderBy, paginationOffset(page, limit), limit),
+    ]);
+
+    return {
+      data: rows.map((asset) => toMediaDto(asset, this.storage)),
+      meta: buildMeta(page, limit, total),
+    };
+  }
+
+  /**
+   * Read-only review of assets with no content reference (Phase 12B,
+   * docs/12 §18, §60). Nothing is deleted: an administrator decides whether an
+   * orphan is still needed. Optional library filters (search/type/folder/date)
+   * narrow the review list.
+   */
+  async listOrphans(
+    query: MediaListQuery,
+  ): Promise<{ data: MediaDto[]; meta: PaginationMeta }> {
+    const { page, limit } = resolvePagination(query.page, query.limit);
+    const where = buildAssetWhere(query);
+    const orderBy = resolveAssetOrder(query);
+
+    const [total, rows] = await Promise.all([
+      repository.countOrphanedAssets(where),
+      repository.listOrphanedAssets(
+        where,
+        orderBy,
+        paginationOffset(page, limit),
+        limit,
+      ),
     ]);
 
     return {

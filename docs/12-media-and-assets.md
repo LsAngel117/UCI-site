@@ -432,7 +432,11 @@ UNREFERENCED
 
 Unreferenced assets should not necessarily be deleted automatically.
 
-A future cleanup workflow may allow administrators to review and remove them.
+Phase 12B ships the read-only review surface: `GET /api/v1/admin/media/orphans`
+(permission `media.read`) lists assets with zero `MediaReference` rows, with the
+same search/type/MIME/folder/date filters and pagination as the library. It never
+deletes anything. A destructive cleanup workflow (review, replace, remove) is
+still an explicit future action; automatic deletion is out of scope.
 
 ---
 
@@ -1215,6 +1219,12 @@ The media subsystem should support future scheduled cleanup for:
 - stale processing artifacts.
 
 Cleanup must not delete referenced media.
+
+Phase 12B implements asset-level orphan detection (`GET /api/v1/admin/media/orphans`)
+for human review. Filesystem-level cleanup jobs for abandoned temporary files,
+orphaned variant binaries and stale processing artifacts remain follow-ups: they
+need a storage-provider scan that the current metadata-only review cannot do
+safely.
 
 ---
 

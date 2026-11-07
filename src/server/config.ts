@@ -57,6 +57,16 @@ export interface EmailConfig {
   contactNotifyTo: string | null;
 }
 
+/**
+ * Application-level scheduler configuration (Phase 12B, docs/07 §505,
+ * docs/14 §1159–1167). The API process owns the scheduled-publication tick;
+ * no external worker is required for the MVP.
+ */
+export interface SchedulerConfig {
+  /** Milliseconds between due-content sweeps (`SCHEDULER_INTERVAL_MS`). */
+  intervalMs: number;
+}
+
 /** Media storage configuration (docs/12 §7, docs/14 §24). */
 export interface MediaConfig {
   /** Directory the filesystem provider writes to. Absolute after loading. */
@@ -84,6 +94,7 @@ export interface ServerConfig {
   cookie: CookieConfig;
   media: MediaConfig;
   email: EmailConfig;
+  scheduler: SchedulerConfig;
 }
 
 const DEFAULT_HOST = '127.0.0.1';
@@ -101,11 +112,14 @@ const DEFAULT_TRUST_PROXY = 'loopback';
  * forgets `SITE_URL` publishes placeholder canonical URLs; `BaseLayout` warns
  * about the same value, so both runtimes fail visibly instead of silently.
  */
-const DEFAULT_SITE_URL = 'https://uci.example.org';
+export const DEFAULT_SITE_URL = 'https://uci.example.org';
 
 /** 10 MB default upload ceiling (feature doc Phase 4 decision). */
 const DEFAULT_MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const DEFAULT_MEDIA_ROOT = './media';
+
+/** One publication sweep per minute by default (Phase 12B). */
+const DEFAULT_SCHEDULER_INTERVAL_MS = 60_000;
 
 /**
  * Default session lifetimes (docs/11 §6.3 — "exact production values may be
@@ -246,6 +260,26 @@ function readEmailConfig(
   };
 }
 
+/** Read the publication scheduler interval; a broken value fails fast. */
+function readSchedulerConfig(env: NodeJS.ProcessEnv): SchedulerConfig {
+  return {
+    intervalMs: readPositiveInt(
+      env.SCHEDULER_INTERVAL_MS,
+      DEFAULT_SCHEDULER_INTERVAL_MS,
+      'SCHEDULER_INTERVAL_MS',
+    ),
+  };
+}
+
+/**
+ * True when the configured public origin is still the development
+ * placeholder. Production must provide a real `SITE_URL` or every canonical,
+ * Open Graph URL and sitemap entry points at `uci.example.org` (docs/10 §6.2).
+ */
+export function isPlaceholderSiteUrl(siteUrl: string): boolean {
+  return siteUrl === DEFAULT_SITE_URL;
+}
+
 /** Read the media storage configuration; never hardcodes a filesystem path. */
 function readMediaConfig(env: NodeJS.ProcessEnv): MediaConfig {
   const rootRaw = env.MEDIA_ROOT?.trim() || DEFAULT_MEDIA_ROOT;
@@ -293,5 +327,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     },
     media: readMediaConfig(env),
     email: readEmailConfig(env, nodeEnv),
+    scheduler: readSchedulerConfig(env),
   };
 }
