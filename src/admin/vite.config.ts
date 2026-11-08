@@ -19,9 +19,19 @@ import react from '@vitejs/plugin-react';
 const adminRoot = fileURLToPath(new URL('.', import.meta.url));
 const apiTarget = 'http://127.0.0.1:8787';
 
+// Isolate Vite's dependency pre-bundle cache from Astro's dev server. Both
+// would otherwise resolve to `node_modules/.vite`; when Astro re-optimizes its
+// own deps it invalidates the admin's optimizer hash, producing the browser
+// error "504 Outdated Optimize Dep" and a blank panel. A dedicated cacheDir
+// keeps the two optimizer sessions independent.
+const adminCacheDir = fileURLToPath(
+  new URL('../../node_modules/.vite-admin', import.meta.url),
+);
+
 export default defineConfig({
   root: adminRoot,
   base: '/panel/',
+  cacheDir: adminCacheDir,
   plugins: [react()],
   resolve: {
     alias: {
