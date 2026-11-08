@@ -11,10 +11,44 @@ import type { PermissionName } from '@shared/api';
 /** Sub-phase that will deliver a module still showing the honest placeholder. */
 export type ModulePhase = '10B' | '10C' | '10D' | '11B';
 
+/**
+ * One line-icon family shared by the sidebar, header and dashboard
+ * (docs/visual/01 §16). The names are data only; `NavIcon` owns the paths so
+ * the navigation model stays JSX-free and testable.
+ */
+export type NavIconName =
+  | 'dashboard'
+  | 'book'
+  | 'book-open'
+  | 'file-text'
+  | 'quote'
+  | 'calendar'
+  | 'users'
+  | 'image'
+  | 'globe'
+  | 'list'
+  | 'search'
+  | 'shield'
+  | 'user'
+  | 'key'
+  | 'settings'
+  | 'mail'
+  | 'panel-left'
+  | 'external'
+  | 'log-out'
+  | 'plus'
+  | 'upload'
+  | 'clock'
+  | 'activity'
+  | 'edit'
+  | 'arrow-right';
+
 export interface NavItem {
   /** Panel-relative path, e.g. `/contenido/sermones`. */
   to: string;
   label: string;
+  /** Presentation-only icon; never affects routing or permissions. */
+  icon?: NavIconName;
   /**
    * Any-of permission set. Empty means the item is always visible.
    * A user needs at least one of these permissions to see the item.
@@ -37,11 +71,13 @@ export const NAV: readonly NavItem[] = [
   {
     to: '/',
     label: 'Panel',
+    icon: 'dashboard',
     permissions: [],
   },
   {
     to: '/contenido',
     label: 'Contenido',
+    icon: 'book',
     permissions: ['sermons.read', 'pages.read', 'events.read', 'ministries.read'],
     description:
       'Sermones, páginas, eventos y ministerios del sitio público.',
@@ -50,6 +86,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/contenido/sermones',
         label: 'Sermones',
+        icon: 'book-open',
         permissions: ['sermons.read'],
         description: 'Archivo de sermones: borradores, publicación y revisiones.',
         phase: '10B',
@@ -58,6 +95,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/contenido/paginas',
         label: 'Páginas',
+        icon: 'file-text',
         permissions: ['pages.read'],
         description: 'Páginas institucionales y su estado editorial.',
         phase: '10B',
@@ -65,6 +103,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/contenido/historias',
         label: 'Historias',
+        icon: 'quote',
         permissions: ['pages.read'],
         description:
           'Testimonios de la comunidad: aprobación editorial, publicación y destacados.',
@@ -74,6 +113,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/contenido/eventos',
         label: 'Eventos',
+        icon: 'calendar',
         permissions: ['events.read'],
         description: 'Agenda de eventos y categorías.',
         phase: '10B',
@@ -81,6 +121,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/contenido/ministerios',
         label: 'Ministerios',
+        icon: 'users',
         permissions: ['ministries.read'],
         description: 'Ministerios publicados y su contenido.',
         phase: '10B',
@@ -90,6 +131,7 @@ export const NAV: readonly NavItem[] = [
   {
     to: '/media',
     label: 'Multimedia',
+    icon: 'image',
     permissions: ['media.read'],
     description: 'Biblioteca de imágenes y archivos del sitio.',
     phase: '10C',
@@ -98,6 +140,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/media/biblioteca',
         label: 'Biblioteca multimedia',
+        icon: 'image',
         permissions: ['media.read'],
         description: 'Búsqueda, carga, metadata y referencias de archivos.',
         phase: '10C',
@@ -108,6 +151,7 @@ export const NAV: readonly NavItem[] = [
   {
     to: '/sitio',
     label: 'Sitio',
+    icon: 'globe',
     permissions: ['navigation.read', 'seo.read'],
     description: 'Estructura del sitio, navegación pública y SEO.',
     phase: '10D',
@@ -116,6 +160,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/sitio/navegacion',
         label: 'Navegación',
+        icon: 'list',
         permissions: ['navigation.read'],
         description: 'Menús del sitio público, orden y jerarquía de enlaces.',
         phase: '10D',
@@ -124,6 +169,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/sitio/seo',
         label: 'SEO',
+        icon: 'search',
         permissions: ['seo.read'],
         description: 'Metadatos, títulos y descripciones para buscadores.',
         phase: '10D',
@@ -134,6 +180,7 @@ export const NAV: readonly NavItem[] = [
   {
     to: '/administracion',
     label: 'Administración',
+    icon: 'shield',
     permissions: [
       'users.read',
       'roles.read',
@@ -149,6 +196,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/administracion/usuarios',
         label: 'Usuarios',
+        icon: 'user',
         permissions: ['users.read'],
         description: 'Cuentas del panel, roles y acceso.',
         phase: '10D',
@@ -157,6 +205,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/administracion/roles',
         label: 'Roles y permisos',
+        icon: 'key',
         permissions: ['roles.read'],
         description: 'Roles del panel y su matriz de permisos.',
         phase: '10D',
@@ -165,6 +214,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/administracion/configuracion',
         label: 'Configuración',
+        icon: 'settings',
         permissions: ['settings.read'],
         description: 'Perfil de la iglesia, horarios y enlaces sociales.',
         phase: '10D',
@@ -173,6 +223,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/administracion/auditoria',
         label: 'Auditoría',
+        icon: 'clock',
         permissions: ['audit.read'],
         description: 'Registro de cambios realizados en el panel.',
         phase: '10D',
@@ -181,6 +232,7 @@ export const NAV: readonly NavItem[] = [
       {
         to: '/administracion/contacto',
         label: 'Contacto',
+        icon: 'mail',
         permissions: ['contact.read'],
         description:
           'Mensajes enviados desde el formulario público y su estado de gestión.',

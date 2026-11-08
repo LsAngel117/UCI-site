@@ -1,10 +1,15 @@
 /**
- * Authenticated application shell (docs/09 §8–§11).
+ * Authenticated application shell (docs/09 §8–§11, docs/visual/01 §7).
  *
- * Sidebar + header + breadcrumbs. The sidebar is permission-aware: it renders
- * only sections resolved from `visibleNav`, so a module the operator cannot use
- * is absent rather than disabled and misleading. On small screens the sidebar
- * becomes an off-canvas drawer with a backdrop and Escape-to-close.
+ * Dark navy sidebar + light editorial canvas. The sidebar is permission-aware:
+ * it renders only sections resolved from `visibleNav`, so a module the operator
+ * cannot use is absent rather than disabled and misleading. On small screens it
+ * becomes an off-canvas drawer with a backdrop and Escape-to-close; on desktop
+ * the header control collapses it to an icon rail.
+ *
+ * The header deliberately carries no invented notifications, counts or search:
+ * only actions backed by real destinations (public site, session identity,
+ * sign-out).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -14,8 +19,11 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
+import logoFull from '../../../web/assets/brand/uci-logo-full.png';
 import { Breadcrumbs } from '../components/Breadcrumbs';
+import { NavIcon } from '../components/admin/NavIcon';
 import { useAuth } from '../lib/auth';
+import { initials } from '../lib/dashboard';
 import {
   breadcrumbsFor,
   visibleNav,
@@ -49,24 +57,31 @@ function SidebarItems({
             <NavLink
               to={item.to}
               end
+              title={item.label}
               className={({ isActive }) =>
                 `nav__group-label${isActive ? ' is-active' : ''}`
               }
               onClick={onNavigate}
             >
-              {item.label}
+              <NavIcon name={item.icon ?? 'list'} className="nav__icon" />
+              <span className="nav__label">{item.label}</span>
             </NavLink>
             <ul className="nav__sublist">
               {item.children.map((child) => (
                 <li key={child.to}>
                   <NavLink
                     to={child.to}
+                    title={child.label}
                     className={({ isActive }) =>
                       `nav__link${isActive ? ' is-active' : ''}`
                     }
                     onClick={onNavigate}
                   >
-                    {child.label}
+                    <NavIcon
+                      name={child.icon ?? 'list'}
+                      className="nav__icon"
+                    />
+                    <span className="nav__label">{child.label}</span>
                   </NavLink>
                 </li>
               ))}
@@ -77,12 +92,14 @@ function SidebarItems({
             <NavLink
               to={item.to}
               end={item.to === '/'}
+              title={item.label}
               className={({ isActive }) =>
                 `nav__link${isActive ? ' is-active' : ''}`
               }
               onClick={onNavigate}
             >
-              {item.label}
+              <NavIcon name={item.icon ?? 'list'} className="nav__icon" />
+              <span className="nav__label">{item.label}</span>
             </NavLink>
           </li>
         ),
@@ -96,11 +113,10 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const sidebarRef = useRef<HTMLElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const notificationsRef = useRef<HTMLDivElement | null>(null);
   const wasSidebarOpen = useRef(false);
 
   const navItems = useMemo(() => visibleNav(hasPermission), [hasPermission]);
@@ -109,10 +125,9 @@ export function AdminLayout() {
     [location.pathname],
   );
 
-  // Navigating to another section always closes transient overlays.
+  // Navigating to another section always closes the mobile drawer.
   useEffect(() => {
     setSidebarOpen(false);
-    setNotificationsOpen(false);
   }, [location.pathname]);
 
   // A closed off-canvas drawer must not keep focus off-screen, and opening it
@@ -128,30 +143,14 @@ export function AdminLayout() {
   }, [sidebarOpen]);
 
   useEffect(() => {
-    if (!sidebarOpen && !notificationsOpen) return;
+    if (!sidebarOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (sidebarOpen) setSidebarOpen(false);
-      if (notificationsOpen) setNotificationsOpen(false);
+      setSidebarOpen(false);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [sidebarOpen, notificationsOpen]);
-
-  // Dismiss the notifications popover on an outside click.
-  useEffect(() => {
-    if (!notificationsOpen) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (
-        notificationsRef.current &&
-        !notificationsRef.current.contains(event.target as Node)
-      ) {
-        setNotificationsOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [notificationsOpen]);
+  }, [sidebarOpen]);
 
   async function handleLogout() {
     if (loggingOut) return;
@@ -163,9 +162,14 @@ export function AdminLayout() {
 
   const siteUrl = publicSiteUrl();
   const isExternalSite = /^https?:\/\//i.test(siteUrl);
+  const displayName = user?.name?.trim() || user?.email || '';
 
   return (
-    <div className={`shell${sidebarOpen ? ' shell--open' : ''}`}>
+    <div
+      className={`shell${sidebarOpen ? ' shell--open' : ''}${
+        collapsed ? ' shell--collapsed' : ''
+      }`}
+    >
       <a className="skip-link" href="#admin-main">
         Saltar al contenido
       </a>
@@ -183,8 +187,12 @@ export function AdminLayout() {
         tabIndex={-1}
       >
         <div className="sidebar__brand">
-          <Link className="sidebar__wordmark" to="/">
-            UCI
+          <Link className="sidebar__brand-link" to="/" title="Ir al panel">
+            <img
+              className="sidebar__logo"
+              src={logoFull}
+              alt="UCI — Unidad Cristiana de Intercesión"
+            />
           </Link>
           <span className="sidebar__subtitle">Panel editorial</span>
         </div>
@@ -201,6 +209,15 @@ export function AdminLayout() {
           <span className="sidebar__footer-detail">
             Unidad Cristiana de Intercesión
           </span>
+          <a
+            className="sidebar__site-link"
+            href={siteUrl}
+            target={isExternalSite ? '_blank' : undefined}
+            rel={isExternalSite ? 'noopener noreferrer' : undefined}
+          >
+            <span className="nav__label">Sitio en línea</span>
+            <NavIcon name="external" className="nav__icon nav__icon--small" />
+          </a>
         </div>
       </aside>
 
@@ -222,9 +239,28 @@ export function AdminLayout() {
                 <span />
               </span>
             </button>
+            <button
+              type="button"
+              className="sidebar-toggle"
+              aria-expanded={!collapsed}
+              aria-controls="admin-sidebar"
+              aria-label={
+                collapsed
+                  ? 'Expandir menú lateral'
+                  : 'Colapsar menú lateral'
+              }
+              title={
+                collapsed
+                  ? 'Expandir menú lateral'
+                  : 'Colapsar menú lateral'
+              }
+              onClick={() => setCollapsed((value) => !value)}
+            >
+              <NavIcon name="panel-left" className="sidebar-toggle__icon" />
+            </button>
             <Link className="header__brand" to="/">
               UCI
-              <span className="header__brand-suffix">Panel</span>
+              <span className="header__brand-suffix">CMS</span>
             </Link>
           </div>
 
@@ -235,65 +271,30 @@ export function AdminLayout() {
               target={isExternalSite ? '_blank' : undefined}
               rel={isExternalSite ? 'noopener noreferrer' : undefined}
             >
-              Ver sitio
+              <span className="nav__label">Ver sitio</span>
+              <NavIcon name="external" className="nav__icon nav__icon--small" />
             </a>
-            <div className="header__notifications" ref={notificationsRef}>
-              <button
-                type="button"
-                className="notifications-button"
-                aria-expanded={notificationsOpen}
-                aria-controls="admin-notifications"
-                aria-label="Notificaciones"
-                onClick={() => setNotificationsOpen((open) => !open)}
-              >
-                <span className="notifications-button__icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" focusable="false">
-                    <path
-                      d="M18 8a6 6 0 1 0-12 0c0 7-2 8-2 8h16s-2-1-2-8"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M10.3 20a2 2 0 0 0 3.4 0"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-                <span className="notifications-button__label">Notificaciones</span>
-              </button>
-              <div
-                className="notifications"
-                id="admin-notifications"
-                role="region"
-                aria-label="Notificaciones"
-                hidden={!notificationsOpen}
-              >
-                <h2 className="notifications__title">Notificaciones</h2>
-                <p className="notifications__empty">Sin notificaciones</p>
-                <p className="notifications__note">
-                  Los avisos del panel aparecerán acá cuando haya operaciones
-                  que los generen.
-                </p>
-              </div>
-            </div>
             <div className="header__identity">
-              <span className="header__name">{user?.name ?? ''}</span>
-              <span className="header__role">{user?.role ?? ''}</span>
+              <span className="header__avatar" aria-hidden="true">
+                {initials(displayName)}
+              </span>
+              <span className="header__identity-text">
+                <span className="header__name">{user?.name ?? ''}</span>
+                <span className="header__role">{user?.role ?? ''}</span>
+              </span>
             </div>
             <button
               type="button"
-              className="button button--quiet"
+              className="button button--quiet button--small header__logout"
               onClick={() => {
                 void handleLogout();
               }}
               disabled={loggingOut}
             >
-              {loggingOut ? 'Saliendo…' : 'Cerrar sesión'}
+              <NavIcon name="log-out" className="nav__icon nav__icon--small" />
+              <span className="nav__label">
+                {loggingOut ? 'Saliendo…' : 'Cerrar sesión'}
+              </span>
             </button>
           </div>
         </header>

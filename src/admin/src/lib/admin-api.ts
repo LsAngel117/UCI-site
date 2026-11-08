@@ -19,8 +19,12 @@ import type {
 } from '@shared/admin';
 import type {
   CreateNavigationInput,
+  EventAdminDto,
+  EventListQuery,
   NavigationAdminDto,
   NavigationReorderInput,
+  PageAdminDto,
+  PageListQuery,
   UpdateNavigationInput,
 } from '@shared/cms';
 import type {
@@ -35,6 +39,35 @@ import { buildQuery } from './query';
 
 function idPath(id: string): string {
   return encodeURIComponent(id);
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard content counts
+// ---------------------------------------------------------------------------
+//
+// Pages and events already have admin APIs, but their dedicated list screens
+// are still pending. The dashboard only needs their truthful totals, so these
+// thin wrappers live here next to the other administration calls instead of
+// duplicating the transport.
+
+export function listAdminPages(
+  query: PageListQuery = {},
+  signal?: AbortSignal,
+) {
+  return apiRequestList<PageAdminDto>(
+    `/admin/pages${buildQuery({ ...query })}`,
+    { signal },
+  );
+}
+
+export function listAdminEvents(
+  query: EventListQuery = {},
+  signal?: AbortSignal,
+) {
+  return apiRequestList<EventAdminDto>(
+    `/admin/events${buildQuery({ ...query })}`,
+    { signal },
+  );
 }
 
 // ---------------------------------------------------------------------------
