@@ -315,7 +315,9 @@ describe(
           'giving',
           'schedule',
           'socials',
+          'timezone',
         ]);
+        assert.equal(data.timezone, 'America/Bogota');
 
         const church = data.church as Record<string, unknown>;
         assert.deepEqual(church, {

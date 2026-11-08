@@ -1,0 +1,200 @@
+---
+/**
+ * /historias/[slug] — public story detail (improvement B2).
+ *
+ * The API only serves published + editorially approved testimonies. A missing
+ * or unpublished slug is an honest 404; an API outage is a 503, never a fake
+ * "not found". The body is plain text from the CMS and is rendered as
+ * paragraphs — no HTML injection.
+ */
+import { getChurchProfile, getNavigation } from '../../data/site';
+import { getStoryDetail } from '../../data/content';
+import { formatSermonDate } from '../../lib/format';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import Button from '../../components/ui/Button.astro';
+import Container from '../../components/ui/Container.astro';
+import CoverImage from '../../components/ui/CoverImage.astro';
+import DetailHero from '../../components/ui/DetailHero.astro';
+import NotFoundState from '../../components/ui/NotFoundState.astro';
+import Section from '../../components/ui/Section.astro';
+
+const slug = Astro.params.slug ?? '';
+
+const [church, navigation, result] = await Promise.all([
+  getChurchProfile(),
+  getNavigation(),
+  getStoryDetail(slug),
+]);
+
+if (result.status === 'unavailable') Astro.response.status = 503;
+
+const story = result.status === 'ok' ? result.data : null;
+const date = story ? formatSermonDate(story.date ?? story.publishedAt) : null;
+const paragraphs = story
+  ? story.fullStory
+      .split(/\n{2,}/)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean)
+  : [];
+
+const notFound = result.status === 'not-found';
+if (notFound) Astro.response.status = 404;
+
+const errorTitle = notFound
+  ? 'Historia no encontrada | Iglesia UCI'
+  : 'Historia no disponible | Iglesia UCI';
+const errorMessage = notFound
+  ? 'No encontramos esta historia. Puede que el enlace sea incorrecto o que ya no esté publicada.'
+  : 'No pudimos cargar esta historia en este momento. Intenta de nuevo en unos minutos.';
+
+const breadcrumbs = [
+  { label: 'Inicio', href: '/' },
+  { label: 'Historias', href: '/historias' },
+  { label: story?.title ?? 'Historia' },
+];
+---
+
+{
+  story ? (
+    <ContentLayout
+      title={story.seo.title}
+      description={story.seo.description ?? story.quote}
+      canonicalPath={story.seo.canonicalUrl}
+      ogImageUrl={story.seo.ogImageUrl ?? undefined}
+      ogType="article"
+      church={church}
+      navigation={navigation}
+    >
+      <article>
+        <DetailHero
+          label="Historia"
+          title={story.title}
+          breadcrumbs={breadcrumbs}
+          hasMedia={Boolean(story.coverImageUrl)}
+        >
+          <p class="story-hero__quote font-display">“{story.quote}”</p>
+          <p class="story-hero__name">
+            {story.displayName}
+            {date && <span class="story-hero__date"> · {date}</span>}
+          </p>
+          {story.coverImageUrl && (
+            <CoverImage
+              slot="media"
+              src={story.coverImageUrl}
+              alt={story.coverImageAlt ?? `Retrato de ${story.displayName}`}
+              aspect="4 / 5"
+              label={story.displayName}
+              loading="eager"
+            />
+          )}
+        </DetailHero>
+
+        <Section surface="light" spacing="lg">
+          <Container narrow>
+            <div class="story-body">
+              <blockquote class="story-body__quote font-display">
+                “{story.quote}”
+                <cite>{story.displayName}</cite>
+              </blockquote>
+
+              {paragraphs.length > 0 ? (
+                paragraphs.map((paragraph) => (
+                  <p class="story-body__text">{paragraph}</p>
+                ))
+              ) : (
+                <p class="story-body__text">
+                  Esta historia todavía no tiene contenido adicional publicado.
+                </p>
+              )}
+
+              <div class="story-back">
+                <Button href="/historias" variant="text" contrast="navy">
+                  Ver todas las historias
+                </Button>
+              </div>
+            </div>
+          </Container>
+        </Section>
+      </article>
+    </ContentLayout>
+  ) : (
+    <ContentLayout
+      title={errorTitle}
+      description={errorMessage}
+      canonicalPath={`/historias/${slug}`}
+      noindex
+      church={church}
+      navigation={navigation}
+    >
+      <NotFoundState
+        title={notFound ? 'Historia no encontrada' : 'No pudimos cargar esta historia'}
+        message={errorMessage}
+        backHref="/historias"
+        backLabel="Ver todas las historias"
+      />
+    </ContentLayout>
+  )
+}
+
+<style>
+  .story-hero__quote {
+    max-width: 38ch;
+    color: var(--color-white);
+    font-size: var(--font-size-heading-2);
+    font-style: italic;
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-body-serif);
+    text-wrap: balance;
+  }
+
+  .story-hero__name {
+    color: var(--color-gold);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .story-hero__date {
+    color: var(--color-gray-light);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--letter-spacing-normal);
+    text-transform: none;
+  }
+
+  .story-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+  }
+
+  .story-body__quote {
+    padding: var(--space-24);
+    border-left: 3px solid var(--color-gold);
+    background-color: rgba(217, 164, 65, 0.08);
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-2);
+    font-style: italic;
+    line-height: var(--line-height-body-serif);
+  }
+
+  .story-body__quote cite {
+    display: block;
+    margin-top: var(--space-12);
+    color: var(--color-blue);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-body-small);
+    font-style: normal;
+  }
+
+  .story-body__text {
+    color: var(--color-navy);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+    white-space: pre-line;
+  }
+
+  .story-back {
+    margin-top: var(--space-24);
+  }
+</style>

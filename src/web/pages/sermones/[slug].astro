@@ -10,6 +10,7 @@ import { getChurchProfile, getNavigation } from '../../data/site';
 import { getSermonDetail } from '../../data/content';
 import { formatSermonDate } from '../../lib/format';
 import { buildSermonSeo, youtubeVideo } from '../../lib/seo';
+import { normalizePageContent } from '../../lib/page-content';
 import ContentLayout from '../../layouts/ContentLayout.astro';
 import Button from '../../components/ui/Button.astro';
 import Container from '../../components/ui/Container.astro';
@@ -58,6 +59,9 @@ const metaParts = sermon
 const related = sermon
   ? sermon.related.filter((item) => item.id !== sermon.id).slice(0, 3)
   : [];
+// Rich body blocks are normalized into the same closed, safe set used by CMS
+// pages. No raw HTML from the API ever reaches the document.
+const contentBlocks = sermon ? normalizePageContent(sermon.content) : [];
 const breadcrumbs = [
   { label: 'Inicio', href: '/' },
   { label: 'Sermones', href: '/sermones' },
@@ -145,6 +149,85 @@ const breadcrumbs = [
                 </div>
               )}
 
+              {contentBlocks.length > 0 && (
+                <div class="sermon-body__section">
+                  <h2 class="sermon-body__heading font-display">Contenido</h2>
+                  <div class="sermon-body__blocks">
+                    {contentBlocks.map((block) => {
+                      if (block.type === 'heading') {
+                        return block.level === 3 ? (
+                          <h3 class="sermon-body__subheading font-display">
+                            {block.text}
+                          </h3>
+                        ) : (
+                          <h2 class="sermon-body__heading font-display">
+                            {block.text}
+                          </h2>
+                        );
+                      }
+                      if (block.type === 'paragraph') {
+                        return (
+                          <p class="sermon-body__text">{block.text}</p>
+                        );
+                      }
+                      if (block.type === 'list') {
+                        const ListTag = block.ordered ? 'ol' : 'ul';
+                        return (
+                          <ListTag
+                            class:list={[
+                              'sermon-body__list',
+                              { 'sermon-body__list--ordered': block.ordered },
+                            ]}
+                          >
+                            {block.items.map((item) => (
+                              <li>{item}</li>
+                            ))}
+                          </ListTag>
+                        );
+                      }
+                      if (block.type === 'quote') {
+                        return (
+                          <blockquote class="sermon-body__quote">
+                            {block.text}
+                            {block.cite && <cite>{block.cite}</cite>}
+                          </blockquote>
+                        );
+                      }
+                      if (block.type === 'cta') {
+                        return (
+                          <div class="sermon-body__actions">
+                            <Button
+                              href={block.href}
+                              variant="primary"
+                              external={block.external}
+                            >
+                              {block.label}
+                            </Button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <figure class="sermon-body__figure">
+                          <img
+                            class="sermon-body__image"
+                            src={block.src}
+                            alt={block.alt}
+                            aria-hidden={block.alt === '' ? 'true' : undefined}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                          {block.caption && (
+                            <figcaption class="sermon-body__caption">
+                              {block.caption}
+                            </figcaption>
+                          )}
+                        </figure>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {sermon.scriptureText && (
                 <blockquote class="sermon-body__scripture">
                   {sermon.scriptureText}
@@ -178,6 +261,7 @@ const breadcrumbs = [
               )}
 
               {!sermon.description &&
+                contentBlocks.length === 0 &&
                 !sermon.scriptureText &&
                 !sermon.notesContent &&
                 !sermon.audioUrl && (
@@ -225,6 +309,77 @@ const breadcrumbs = [
 }
 
 <style>
+  .sermon-body__blocks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-20);
+  }
+
+  .sermon-body__subheading {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .sermon-body__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    padding-left: var(--space-24);
+    color: var(--color-navy);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+    list-style: disc;
+  }
+
+  .sermon-body__list--ordered {
+    list-style: decimal;
+  }
+
+  .sermon-body__quote {
+    padding: var(--space-24);
+    border-left: 3px solid var(--color-gold);
+    background-color: rgba(217, 164, 65, 0.08);
+    color: var(--color-navy);
+    font-family: var(--font-display);
+    font-size: var(--font-size-heading-3);
+    font-style: italic;
+    line-height: var(--line-height-body-serif);
+  }
+
+  .sermon-body__quote cite {
+    display: block;
+    margin-top: var(--space-12);
+    color: var(--color-blue);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-body-small);
+    font-style: normal;
+  }
+
+  .sermon-body__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+  }
+
+  .sermon-body__figure {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .sermon-body__image {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+  }
+
+  .sermon-body__caption {
+    color: var(--color-navy);
+    opacity: 0.7;
+    font-size: var(--font-size-body-small);
+  }
+
   .sermon-hero__scripture {
     color: var(--color-gold);
     font-family: var(--font-display);

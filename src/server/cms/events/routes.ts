@@ -126,7 +126,12 @@ export function registerEventRoutes(
     async (request, reply) => {
       const body = (request.body ?? {}) as ScheduleInput;
       await send<EventAdminDto>(reply, () =>
-        scheduleEvent(request.params.id, body.publishAt, request.user!.id),
+        scheduleEvent(
+          request.params.id,
+          body.publishAt,
+          request.user!.id,
+          config.timezone,
+        ),
       );
     },
   );

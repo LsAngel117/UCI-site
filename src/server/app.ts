@@ -25,6 +25,7 @@ import { registerAdminAuditRoutes } from './admin/audit/routes';
 import { registerAdminContactRoutes } from './admin/contact/routes';
 import { registerAdminRoleRoutes } from './admin/roles/routes';
 import { registerAdminUserRoutes } from './admin/users/routes';
+import { registerPasswordResetRoutes } from './auth/password-reset-routes';
 import { registerAuthRoutes } from './auth/routes';
 import { registerEventCategoryRoutes } from './cms/event-categories/routes';
 import { registerEventRoutes } from './cms/events/routes';
@@ -37,6 +38,8 @@ import { registerPublicPageRoutes } from './cms/pages/public-routes';
 import { registerPageRoutes } from './cms/pages/routes';
 import { registerPublicSermonRoutes } from './cms/sermons/public-routes';
 import { registerSermonRoutes } from './cms/sermons/routes';
+import { registerPublicStoryRoutes } from './cms/stories/public-routes';
+import { registerStoryRoutes } from './cms/stories/routes';
 import { registerTaxonomyRoutes } from './cms/taxonomy/routes';
 import { registerPublicContactRoutes } from './contact/routes';
 import { loadConfig, type ServerConfig } from './config';
@@ -321,6 +324,12 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     registerAuthRoutes(instance, config);
   });
 
+  // Password reset (improvement A5). Unauthenticated, rate limited, and
+  // deliberately generic so the endpoints cannot enumerate accounts.
+  app.register(async (instance) => {
+    registerPasswordResetRoutes(instance, config);
+  });
+
   // Admin content API (Phase 3). Registered as a plugin for the same reason as
   // auth: its routes must be added after the cookie + rate-limit plugins load.
   // Every route is protected by `requireAuth` + `requirePermission` inside.
@@ -332,6 +341,13 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   // only published content is visible, enforced inside the service.
   app.register(async (instance) => {
     registerPublicSermonRoutes(instance, config, mediaStorage);
+  });
+
+  // Public stories/testimonies API (improvement A2). Only published AND
+  // editorially approved stories are ever selected; visibility is enforced
+  // inside the service. No authentication is required.
+  app.register(async (instance) => {
+    registerPublicStoryRoutes(instance, config, mediaStorage);
   });
 
   // Public events & ministries API (Phase 6B). Same visibility rule as the
@@ -422,6 +438,12 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   // `requireAuth` + the matching `pages.*` / `navigation.*` permission.
   app.register(async (instance) => {
     registerPageRoutes(instance, config);
+  });
+
+  // Admin Stories API (improvement A2). Reuses the `pages.*` permission
+  // vocabulary because docs/11 §9 defines no `stories.*` permissions.
+  app.register(async (instance) => {
+    registerStoryRoutes(instance, config);
   });
 
   app.register(async (instance) => {

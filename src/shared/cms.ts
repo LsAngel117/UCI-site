@@ -77,6 +77,13 @@ export interface ScheduleInput {
  * sermon domain landed (which only carried the Phase 3 keys) remain valid and
  * restorable: a key that is absent is left untouched on restore.
  */
+/**
+ * Rich sermon body (improvement A3). A JSON object of editorial blocks or a
+ * bare array of blocks; the frontend normalizes it with the same safe
+ * `page-content` helper used by pages. `null` means "no rich body".
+ */
+export type SermonContent = PageContent | PageContentValue[];
+
 export interface SermonSnapshot {
   title: string;
   slug: string;
@@ -97,6 +104,8 @@ export interface SermonSnapshot {
   notesContent?: string | null;
   durationMinutes?: number | null;
   featured?: boolean;
+  /** Rich body; absent on revisions stored before A3. */
+  content?: SermonContent | null;
 }
 
 /** Generic revision summary returned by the revisions endpoints. */
@@ -252,6 +261,8 @@ export interface SermonAdminDto {
   videoUrl: string | null;
   audioUrl: string | null;
   notesContent: string | null;
+  /** Rich sermon body (blocks) or null. */
+  content: SermonContent | null;
   durationMinutes: number | null;
   featured: boolean;
   seo: SermonSeoDto | null;
@@ -291,6 +302,7 @@ export interface CreateSermonInput {
   videoUrl?: string | null;
   audioUrl?: string | null;
   notesContent?: string | null;
+  content?: SermonContent | null;
   durationMinutes?: number | null;
   featured?: boolean;
   seo?: SermonSeoInput | null;
@@ -323,6 +335,7 @@ export interface UpdateSermonInput {
   videoUrl?: string | null;
   audioUrl?: string | null;
   notesContent?: string | null;
+  content?: SermonContent | null;
   durationMinutes?: number | null;
   featured?: boolean;
   seo?: SermonSeoInput | null;
@@ -562,6 +575,151 @@ export interface MinistryListFilters {
 
 export interface MinistryListQuery
   extends PaginationParams, SortParams, MinistryListFilters {}
+
+// ---------------------------------------------------------------------------
+// Story / testimony contracts (improvement A2, docs/05 §14)
+//
+// Stories reuse the same admin conventions as the other content collections:
+// a PATCH carries the optimistic-concurrency `version`, lifecycle state only
+// changes through explicit actions, and the public API only serves published
+// AND editorially approved testimonies.
+// ---------------------------------------------------------------------------
+
+/** Story SEO contracts (`SeoMetadata` entityType `story`). */
+export type StorySeoDto = SeoDto;
+export type StorySeoInput = SeoInput;
+
+/** Story content as returned by the admin API (no audit/concurrency fields). */
+export interface StoryDto {
+  id: string;
+  slug: string;
+  title: string;
+  displayName: string;
+  quote: string;
+  fullStory: string;
+  coverMediaId: string | null;
+  /** ISO-8601 date string, or null. */
+  date: string | null;
+  editorialApproved: boolean;
+  featured: boolean;
+  seo: SeoDto | null;
+  status: ContentStatus;
+  publishedAt: string | null;
+  publishAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Full admin representation of a story (adds audit + concurrency fields). */
+export interface StoryAdminDto extends StoryDto {
+  /** Optimistic-concurrency counter (docs/08 §38). */
+  version: number;
+  unpublishedAt: string | null;
+  createdById: string | null;
+  updatedById: string | null;
+}
+
+/** Create-story body. Creation always produces a draft (docs/08 §22). */
+export interface CreateStoryInput {
+  title: string;
+  /** Auto-generated from the title when omitted (docs/05 §27). */
+  slug?: string;
+  /** Public name; defaults to `title` when omitted. */
+  displayName?: string;
+  quote?: string;
+  fullStory?: string;
+  coverMediaId?: string | null;
+  date?: string | null;
+  editorialApproved?: boolean;
+  featured?: boolean;
+  seo?: SeoInput | null;
+}
+
+/** Update-story body. `version` is REQUIRED (optimistic concurrency). */
+export interface UpdateStoryInput {
+  version: number;
+  title?: string;
+  slug?: string;
+  displayName?: string;
+  quote?: string;
+  fullStory?: string;
+  coverMediaId?: string | null;
+  date?: string | null;
+  editorialApproved?: boolean;
+  featured?: boolean;
+  seo?: SeoInput | null;
+}
+
+/** Admin story listing filters (`GET /api/v1/admin/stories`). */
+export interface StoryListFilters {
+  status?: ContentStatus;
+  /** Case-insensitive match on title/slug/displayName/quote. */
+  search?: string;
+  /** Filter by the author (createdBy) user id. */
+  author?: string;
+  featured?: boolean | string;
+  publishedFrom?: string;
+  publishedTo?: string;
+  createdFrom?: string;
+  createdTo?: string;
+}
+
+export interface StoryListQuery
+  extends PaginationParams, SortParams, StoryListFilters {}
+
+/** Sort allowlist for the public story listing. */
+export const PUBLIC_STORY_SORT_FIELDS = [
+  'publishedAt',
+  'date',
+  'title',
+  'updatedAt',
+] as const;
+
+export type PublicStorySortField =
+  (typeof PUBLIC_STORY_SORT_FIELDS)[number];
+
+/**
+ * Public story SEO metadata. `title`/`description` fall back to the story's
+ * own content and `canonicalUrl` to `/historias/:slug` (docs/10 §6.1–6.2).
+ */
+export interface PublicStorySeoDto {
+  title: string;
+  description: string | null;
+  canonicalUrl: string;
+  ogImageUrl: string | null;
+}
+
+/** A story as exposed by the public API. */
+export interface PublicStoryDto {
+  id: string;
+  slug: string;
+  title: string;
+  displayName: string;
+  quote: string;
+  fullStory: string;
+  /** Resolved public cover URL, or null when unset. */
+  coverImageUrl: string | null;
+  coverImageAlt: string | null;
+  /** ISO-8601 date string, or null. */
+  date: string | null;
+  featured: boolean;
+  publishedAt: string | null;
+  updatedAt: string;
+  seo: PublicStorySeoDto;
+}
+
+/** Public story detail (currently identical to the list shape). */
+export interface PublicStoryDetailDto extends PublicStoryDto {}
+
+/** Filters accepted by the public story listing. */
+export interface PublicStoryListFilters {
+  /** Case-insensitive match on title, displayName or quote. */
+  search?: string;
+}
+
+/** Query shape of `GET /api/v1/stories`. */
+export interface PublicStoryListQuery
+  extends PaginationParams, SortParams, PublicStoryListFilters {}
 
 // ---------------------------------------------------------------------------
 // Pages & Navigation contracts (Phase 7A, docs/08 §10/§14, docs/05 §20/§45)
@@ -928,6 +1086,8 @@ export interface PublicSermonDto {
   video: PublicSermonVideoDto | null;
   audioUrl: string | null;
   notesContent: string | null;
+  /** Rich sermon body (blocks) or null. */
+  content: SermonContent | null;
   /** Resolved public URL of the downloadable notes asset, or null. */
   notesUrl: string | null;
   durationMinutes: number | null;

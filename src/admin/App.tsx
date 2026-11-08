@@ -18,6 +18,7 @@ import { AuthProvider } from './src/lib/auth';
 import { moduleLinks } from './src/lib/navigation';
 import { DashboardPage } from './src/pages/DashboardPage';
 import { LoginPage } from './src/pages/LoginPage';
+import { ResetPasswordPage } from './src/pages/ResetPasswordPage';
 import { NotFoundPage } from './src/pages/NotFoundPage';
 import { SectionIndexPage } from './src/pages/SectionIndexPage';
 import { SectionPlaceholderPage } from './src/pages/SectionPlaceholderPage';
@@ -30,6 +31,8 @@ import { ContentIndexPage } from './src/pages/content/ContentIndexPage';
 import { SermonEditorPage } from './src/pages/content/sermons/SermonEditorPage';
 import { SermonListPage } from './src/pages/content/sermons/SermonListPage';
 import { SermonPreviewPage } from './src/pages/content/sermons/SermonPreviewPage';
+import { StoryEditorPage } from './src/pages/content/stories/StoryEditorPage';
+import { StoryListPage } from './src/pages/content/stories/StoryListPage';
 import { MediaLibraryPage } from './src/pages/media/MediaLibraryPage';
 import { NavigationPage } from './src/pages/site/NavigationPage';
 import { SeoPage } from './src/pages/site/SeoPage';
@@ -41,6 +44,7 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/';
 const IMPLEMENTED_PATHS = new Set([
   '/contenido',
   '/contenido/sermones',
+  '/contenido/historias',
   '/media',
   '/media/biblioteca',
   '/sitio',
@@ -64,6 +68,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           <Route
             path="/"
@@ -105,6 +110,31 @@ export default function App() {
               element={
                 <RequirePermission permission="sermons.read">
                   <SermonPreviewPage />
+                </RequirePermission>
+              }
+            />
+
+            <Route
+              path="contenido/historias"
+              element={
+                <RequirePermission permission="pages.read">
+                  <StoryListPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="contenido/historias/nuevo"
+              element={
+                <RequirePermission permission="pages.create">
+                  <StoryEditorPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="contenido/historias/:id"
+              element={
+                <RequirePermission permission="pages.read">
+                  <StoryEditorPage />
                 </RequirePermission>
               }
             />

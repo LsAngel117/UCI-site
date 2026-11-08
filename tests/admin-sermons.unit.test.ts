@@ -82,6 +82,7 @@ function fixture(overrides: Partial<SermonAdminDto> = {}): SermonAdminDto {
     videoUrl: 'https://www.youtube.com/watch?v=abc123DEF45',
     audioUrl: 'https://cdn.example.org/audio.mp3',
     notesContent: 'Notas del mensaje.',
+    content: null,
     durationMinutes: 45,
     featured: true,
     seo: {

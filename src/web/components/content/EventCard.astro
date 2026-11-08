@@ -9,6 +9,7 @@
 import { CalendarCheck, Clock, MapPin } from '@lucide/astro';
 import type { PublicEventDto } from '@shared/cms';
 import {
+  DEFAULT_CHURCH_TIME_ZONE,
   formatEventDay,
   formatEventMonth,
   formatEventTime,
@@ -18,13 +19,19 @@ import {
 interface Props {
   event: PublicEventDto;
   headingLevel?: 'h2' | 'h3';
+  /** Church-local IANA timezone from `settings/public` (B1). */
+  timeZone?: string;
 }
 
-const { event, headingLevel: Heading = 'h2' } = Astro.props;
-const day = formatEventDay(event.startAt);
-const month = formatEventMonth(event.startAt);
-const startTime = formatEventTime(event.startAt);
-const endTime = formatEventTime(event.endAt);
+const {
+  event,
+  headingLevel: Heading = 'h2',
+  timeZone = DEFAULT_CHURCH_TIME_ZONE,
+} = Astro.props;
+const day = formatEventDay(event.startAt, timeZone);
+const month = formatEventMonth(event.startAt, timeZone);
+const startTime = formatEventTime(event.startAt, timeZone);
+const endTime = formatEventTime(event.endAt, timeZone);
 const place = [event.locationName, event.city].filter(Boolean).join(', ');
 const past = isPastEvent(event.startAt, event.endAt);
 ---

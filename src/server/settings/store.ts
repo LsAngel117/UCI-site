@@ -25,6 +25,7 @@ import type {
   PublicSocialLinkDto,
 } from '@shared/settings';
 import { isHttpUrl } from '../url';
+import { DEFAULT_TIMEZONE } from '../timezone';
 
 /** Stable key of the public settings row. */
 export const PUBLIC_SETTINGS_KEY = 'church.public';
@@ -224,7 +225,10 @@ export function readStored(value: Prisma.JsonValue | null): StoredPublicSettings
  * Project the stored settings to the public DTO. Unconfigured church text is
  * omitted (never emitted as an empty string) and nothing internal leaks.
  */
-export function toPublicDto(stored: StoredPublicSettings): PublicSettingsDto {
+export function toPublicDto(
+  stored: StoredPublicSettings,
+  timezone: string = DEFAULT_TIMEZONE,
+): PublicSettingsDto {
   const church: PublicChurchDto = {
     name: stored.church.name,
     shortDescription: stored.church.shortDescription,
@@ -239,6 +243,7 @@ export function toPublicDto(stored: StoredPublicSettings): PublicSettingsDto {
   if (stored.church.state) church.state = stored.church.state;
 
   return {
+    timezone,
     church,
     schedule: stored.schedule.map((entry) => ({ ...entry })),
     socials: stored.socials.map((entry) => ({ ...entry })),

@@ -63,6 +63,15 @@ export const NAV: readonly NavItem[] = [
         phase: '10B',
       },
       {
+        to: '/contenido/historias',
+        label: 'Historias',
+        permissions: ['pages.read'],
+        description:
+          'Testimonios de la comunidad: aprobación editorial, publicación y destacados.',
+        phase: '10B',
+        implemented: true,
+      },
+      {
         to: '/contenido/eventos',
         label: 'Eventos',
         permissions: ['events.read'],

@@ -28,11 +28,11 @@ import { parseUpdateSettingsInput } from './validation';
 
 export function registerPublicSettingsRoutes(
   app: FastifyInstance,
-  _config: ServerConfig,
+  config: ServerConfig,
 ): void {
   app.get('/api/v1/settings/public', async (_request, reply) => {
     try {
-      const data = await getPublicSettings();
+      const data = await getPublicSettings(config.timezone);
       reply.send({ data } satisfies ApiResponse<PublicSettingsDto>);
     } catch (error) {
       if (isCmsError(error)) {

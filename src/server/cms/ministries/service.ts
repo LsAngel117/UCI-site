@@ -527,8 +527,9 @@ export async function scheduleMinistry(
   id: string,
   publishAt: unknown,
   actorId: string | null,
+  timeZone?: string,
 ): Promise<MinistryAdminDto> {
-  await publication.schedule(id, publishAt, actorId);
+  await publication.schedule(id, publishAt, actorId, timeZone);
   return getMinistry(id);
 }
 

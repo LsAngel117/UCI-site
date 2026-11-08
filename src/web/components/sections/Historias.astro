@@ -12,14 +12,22 @@
  */
 import { Image } from 'astro:assets';
 import { getFeaturedStory, getHistoriasContent } from '../../data/site';
+import Button from '../ui/Button.astro';
 import Container from '../ui/Container.astro';
 import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
 import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
 import Section from '../ui/Section.astro';
 import SectionLabel from '../ui/SectionLabel.astro';
+import type { Story } from '@shared/types';
+
+interface Props {
+  /** Featured story resolved by the homepage; `undefined` fetches it here. */
+  story?: Story | null;
+}
 
 const section = getHistoriasContent();
-const story = getFeaturedStory();
+const story =
+  Astro.props.story === undefined ? await getFeaturedStory() : Astro.props.story;
 ---
 
 <Section id="historias" surface="dark" spacing="lg" class="historias">
@@ -68,12 +76,20 @@ const story = getFeaturedStory();
           <figcaption class="historia__content">
             <blockquote class="historia__quote font-display">“{story.quote}”</blockquote>
             <p class="historia__name">{story.displayName}</p>
+            <Button href="/historias" variant="secondary">
+              Leer más historias
+            </Button>
           </figcaption>
         </figure>
       ) : (
-        <p class="historias__empty">
-          Estamos preparando historias reales de nuestra comunidad.
-        </p>
+        <>
+          <p class="historias__empty">
+            Estamos preparando historias reales de nuestra comunidad.
+          </p>
+          <Button href="/historias" variant="secondary">
+            Visitar historias
+          </Button>
+        </>
       )
     }
   </Container>

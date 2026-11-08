@@ -1,0 +1,108 @@
+---
+/**
+ * StoryCard — published testimony card (improvement B2, docs/04 §15).
+ *
+ * Stories are editorial and personal, so the card leads with the pull-quote
+ * and the display name instead of inventing a summary. The API only returns
+ * published + editorially approved rows.
+ */
+import { ArrowRight } from '@lucide/astro';
+import type { PublicStoryDto } from '@shared/cms';
+import CoverImage from '../ui/CoverImage.astro';
+
+interface Props {
+  story: PublicStoryDto;
+}
+
+const { story } = Astro.props;
+---
+
+<li class="story-card">
+  <a class="story-card__link" href={`/historias/${story.slug}`}>
+    <div class="story-card__media">
+      <CoverImage
+        class="story-card__image"
+        src={story.coverImageUrl}
+        alt={story.coverImageAlt ?? `Retrato de ${story.displayName}`}
+        aspect="4 / 5"
+        label={story.displayName}
+      />
+    </div>
+    <div class="story-card__body">
+      <blockquote class="story-card__quote font-display">
+        “{story.quote}”
+      </blockquote>
+      <p class="story-card__name">{story.displayName}</p>
+      <span class="story-card__action" aria-hidden="true">
+        Leer historia
+        <ArrowRight size={16} stroke-width={1.75} />
+      </span>
+    </div>
+  </a>
+</li>
+
+<style>
+  .story-card__link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-20);
+    height: 100%;
+  }
+
+  .story-card__media {
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background-color: var(--color-navy-800);
+  }
+
+  :global(.story-card__image) {
+    width: 100%;
+    transition: transform var(--duration-slow) var(--ease-out);
+  }
+
+  .story-card__link:hover :global(.story-card__image) {
+    transform: scale(1.05);
+  }
+
+  .story-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .story-card__quote {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-3);
+    font-style: italic;
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-body-serif);
+  }
+
+  .story-card__name {
+    color: var(--color-blue);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .story-card__action {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    margin-top: var(--space-4);
+    color: var(--color-blue);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(.story-card__image) {
+      transition: none;
+    }
+
+    .story-card__link:hover :global(.story-card__image) {
+      transform: none;
+    }
+  }
+</style>

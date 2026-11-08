@@ -83,3 +83,69 @@ export async function notifyNewContactSubmission(
     return false;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Password reset delivery (improvement A5)
+// ---------------------------------------------------------------------------
+
+export interface PasswordResetEmailInput {
+  /** Recipient address (never logged with the token). */
+  to: string;
+  /** Display name used in the greeting; falls back to the address. */
+  name?: string | null;
+  /** Single-use raw token. NEVER log this value. */
+  token: string;
+  /** Canonical site origin used to build the reset link. */
+  siteUrl: string;
+}
+
+/** Build the reset message. The token lives only in the email body. */
+export function buildPasswordResetEmail(
+  input: PasswordResetEmailInput,
+): EmailMessage {
+  const greeting = input.name?.trim() || input.to;
+  const resetUrl = `${input.siteUrl.replace(/\/+$/, '')}/panel/reset-password?token=${encodeURIComponent(input.token)}`;
+  return {
+    to: input.to,
+    subject: 'Restablece tu contraseña — Iglesia UCI',
+    text: [
+      `Hola ${greeting},`,
+      '',
+      'Recibimos una solicitud para restablecer tu contraseña.',
+      'Abre este enlace para elegir una nueva (válido por 1 hora):',
+      '',
+      resetUrl,
+      '',
+      'Si no solicitaste este cambio, puedes ignorar este mensaje.',
+    ].join('\n'),
+  };
+}
+
+/**
+ * Deliver a password-reset email, best effort. Never throws and never logs the
+ * token: the log provider records only envelope metadata (see `provider.ts`).
+ * Returns whether a provider accepted the message.
+ */
+export async function sendPasswordResetEmail(
+  config: EmailConfig,
+  input: PasswordResetEmailInput,
+  logger: EmailLogger,
+  createProvider: (
+    kind: EmailProviderKind,
+    logger: EmailLogger,
+  ) => EmailProvider = createEmailProvider,
+): Promise<boolean> {
+  const provider = createProvider(config.provider, logger);
+  if (provider.kind === 'none') return false;
+
+  try {
+    await provider.send(buildPasswordResetEmail(input));
+    return true;
+  } catch (error) {
+    logger.warn(
+      { emailProvider: provider.kind, err: error },
+      'Password reset email failed (best-effort)',
+    );
+    return false;
+  }
+}

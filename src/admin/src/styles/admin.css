@@ -2601,3 +2601,92 @@ strong {
     align-items: stretch;
   }
 }
+
+/* --- Rich sermon blocks (B3) ------------------------------------------- */
+.blocks-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blocks-editor__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  background-color: var(--admin-surface-muted);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-sm);
+}
+
+.blocks-editor__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.blocks-editor__type {
+  color: var(--admin-ink-muted);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.blocks-editor__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-8);
+  margin-top: var(--space-16);
+}
+
+/* --- Media cleanup (B5) ------------------------------------------------ */
+.cleanup-list {
+  max-height: 260px;
+  margin: var(--space-8) 0 0;
+  padding-left: var(--space-16);
+  overflow: auto;
+  font-size: var(--font-size-body-small);
+}
+
+.cleanup-list__name {
+  font-weight: var(--font-weight-semibold);
+}
+
+.cleanup-list__meta {
+  color: var(--admin-ink-muted);
+}
+
+/* --- Password reset (B4) ----------------------------------------------- */
+.login__subtitle {
+  margin-top: var(--space-8);
+  font-size: var(--font-size-heading-3);
+}
+
+.login__forgot {
+  align-self: flex-start;
+  margin-top: var(--space-8);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--color-blue);
+  font: inherit;
+  font-size: var(--font-size-body-small);
+  cursor: pointer;
+}
+
+.login__forgot:hover {
+  text-decoration: underline;
+}
+
+.login__reset {
+  margin-top: var(--space-16);
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--admin-border);
+}

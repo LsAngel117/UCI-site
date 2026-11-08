@@ -10,6 +10,8 @@ import type { PersonDto, SermonSeriesDto, TopicDto } from '@shared/cms';
 import type { SermonFormErrors, SermonFormValues } from '../../../lib/sermons-form';
 import { normalizeSlugInput } from '../../../lib/sermons-form';
 import { MediaPicker } from '../../../components/content/MediaPicker';
+import { validateSermonBlocks } from '../../../lib/sermon-blocks';
+import { SermonBlocksEditor } from './SermonBlocksEditor';
 
 export interface SermonTaxonomy {
   people: PersonDto[];
@@ -442,6 +444,13 @@ export function SermonForm({
           disabled={disabled}
         />
       </section>
+
+      <SermonBlocksEditor
+        blocks={values.blocks}
+        errors={validateSermonBlocks(values.blocks)}
+        disabled={disabled}
+        onChange={(blocks) => onChange('blocks', blocks)}
+      />
 
       <section className="form-section" aria-labelledby="sermon-media">
         <div className="form-section__head">

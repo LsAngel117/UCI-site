@@ -12,6 +12,7 @@ import type {
   UpdateSettingsInput,
 } from '@shared/settings';
 import { prisma } from '../db';
+import { DEFAULT_TIMEZONE } from '../timezone';
 import {
   PUBLIC_SETTINGS_KEY,
   readStored,
@@ -28,9 +29,14 @@ async function loadStored(): Promise<StoredPublicSettings> {
   return readStored(row?.value ?? null);
 }
 
-/** Public projection consumed by the unauthenticated website. */
-export async function getPublicSettings(): Promise<PublicSettingsDto> {
-  return toPublicDto(await loadStored());
+/**
+ * Public projection consumed by the unauthenticated website. The configured
+ * church timezone is injected so the frontend never hardcodes it (A1).
+ */
+export async function getPublicSettings(
+  timezone: string = DEFAULT_TIMEZONE,
+): Promise<PublicSettingsDto> {
+  return toPublicDto(await loadStored(), timezone);
 }
 
 /** Complete settings for the admin panel. */

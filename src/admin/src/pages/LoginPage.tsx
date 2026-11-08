@@ -9,7 +9,7 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SessionGate } from '../components/SessionGate';
-import { ApiError } from '../lib/api';
+import { ApiError, requestPasswordReset } from '../lib/api';
 import { useAuth } from '../lib/auth';
 
 interface LoginLocationState {
@@ -32,6 +32,12 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [requestingReset, setRequestingReset] = useState(false);
+  const resetSuccess = new URLSearchParams(location.search).get('reset') === '1';
 
   const target = redirectTarget(location.state);
 
@@ -87,6 +93,39 @@ export function LoginPage() {
       }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleResetRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (requestingReset) return;
+    setResetMessage(null);
+    setResetError(null);
+
+    const email = resetEmail.trim();
+    if (!email) {
+      setResetError('Ingresá el correo de tu cuenta.');
+      return;
+    }
+
+    setRequestingReset(true);
+    try {
+      await requestPasswordReset(email);
+      setResetMessage(
+        'Si el email existe, te enviamos instrucciones para restablecer la contraseña.',
+      );
+    } catch (reason) {
+      if (reason instanceof ApiError && reason.status === 429) {
+        setResetError('Demasiados intentos. Esperá un minuto antes de reintentar.');
+      } else if (reason instanceof ApiError && reason.status === 0) {
+        setResetError(reason.message);
+      } else {
+        setResetError(
+          'No pudimos procesar la solicitud. Intentá de nuevo en unos minutos.',
+        );
+      }
+    } finally {
+      setRequestingReset(false);
     }
   }
 
@@ -174,10 +213,89 @@ export function LoginPage() {
             </button>
           </form>
 
-          <p className="login__footnote">
-            La sesión se guarda en una cookie segura del navegador. No se
-            almacenan credenciales en el panel.
-          </p>
+          {resetSuccess ? (
+            <div className="form__notice" role="status">
+              <p>
+                Tu contraseña se actualizó. Ya podés iniciar sesión con la nueva.
+              </p>
+            </div>
+          ) : null}
+
+          {forgotOpen ? (
+            <form className="login__form login__reset" onSubmit={handleResetRequest} noValidate>
+              <h2 className="login__subtitle">Restablecer contraseña</h2>
+              <p className="login__lede">
+                Ingresá el correo de tu cuenta y te enviaremos un enlace para
+                elegir una contraseña nueva.
+              </p>
+              <div className="field">
+                <label className="field__label" htmlFor="reset-email">
+                  Correo electrónico
+                </label>
+                <input
+                  id="reset-email"
+                  name="email"
+                  className="field__input"
+                  type="email"
+                  autoComplete="username"
+                  value={resetEmail}
+                  onChange={(event) => setResetEmail(event.target.value)}
+                  required
+                />
+              </div>
+
+              {resetMessage ? (
+                <div className="form__notice" role="status">
+                  <p>{resetMessage}</p>
+                </div>
+              ) : null}
+              {resetError ? (
+                <div className="form__error" role="alert">
+                  {resetError}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                className="button button--primary button--block"
+                disabled={requestingReset}
+              >
+                {requestingReset ? 'Enviando…' : 'Enviar instrucciones'}
+              </button>
+              <button
+                type="button"
+                className="button button--quiet button--block"
+                onClick={() => {
+                  setForgotOpen(false);
+                  setResetError(null);
+                  setResetMessage(null);
+                }}
+                disabled={requestingReset}
+              >
+                Volver al inicio de sesión
+              </button>
+            </form>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="login__forgot"
+                onClick={() => {
+                  setForgotOpen(true);
+                  setResetEmail(email);
+                  setResetError(null);
+                  setResetMessage(null);
+                }}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+
+              <p className="login__footnote">
+                La sesión se guarda en una cookie segura del navegador. No se
+                almacenan credenciales en el panel.
+              </p>
+            </>
+          )}
         </div>
       </section>
     </main>

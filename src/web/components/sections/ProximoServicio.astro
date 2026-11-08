@@ -17,6 +17,7 @@ import {
   getNextService,
   getProximoServicioContent,
 } from '../../data/site';
+import { DEFAULT_CHURCH_TIME_ZONE, formatWeekdayDate } from '../../lib/format';
 import Button from '../ui/Button.astro';
 import Container from '../ui/Container.astro';
 import Section from '../ui/Section.astro';
@@ -26,6 +27,8 @@ import type { ChurchProfile, ServiceOccurrence } from '@shared/types';
 interface Props {
   church?: ChurchProfile;
   nextService?: ServiceOccurrence | null;
+  /** Church-local IANA timezone from `settings/public` (B1). */
+  timeZone?: string;
 }
 
 const section = getProximoServicioContent();
@@ -38,14 +41,9 @@ const nextService =
     ? await getNextService()
     : Astro.props.nextService;
 
-const dateFormatter = new Intl.DateTimeFormat('es-CO', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-});
-
+const timeZone = Astro.props.timeZone ?? DEFAULT_CHURCH_TIME_ZONE;
 const serviceDay = nextService
-  ? dateFormatter.format(nextService.nextDate)
+  ? formatWeekdayDate(nextService.nextDate, timeZone) ?? 'Por confirmar'
   : 'Por confirmar';
 const serviceTime = nextService
   ? nextService.schedule.startTime

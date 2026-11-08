@@ -58,6 +58,7 @@ const sermon: PublicSermonDto = {
   },
   audioUrl: null,
   notesContent: 'Notas del mensaje.',
+  content: null,
   notesUrl: null,
   durationMinutes: 42,
   featured: true,

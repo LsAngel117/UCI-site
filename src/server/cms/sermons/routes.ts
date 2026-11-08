@@ -137,7 +137,12 @@ export function registerSermonRoutes(
     async (request, reply) => {
       const body = (request.body ?? {}) as ScheduleInput;
       await send<SermonAdminDto>(reply, () =>
-        scheduleSermon(request.params.id, body.publishAt, request.user!.id),
+        scheduleSermon(
+          request.params.id,
+          body.publishAt,
+          request.user!.id,
+          config.timezone,
+        ),
       );
     },
   );

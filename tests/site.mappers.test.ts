@@ -31,6 +31,7 @@ function church(overrides: Partial<PublicChurchDto> = {}): PublicChurchDto {
 
 function settings(overrides: Partial<PublicSettingsDto> = {}): PublicSettingsDto {
   return {
+    timezone: 'America/Bogota',
     church: church(),
     schedule: [],
     socials: [],

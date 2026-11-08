@@ -21,6 +21,7 @@ import { publishDueEvents } from './cms/events/service';
 import { publishDueMinistries } from './cms/ministries/service';
 import { publishDuePages } from './cms/pages/service';
 import { publishDueSermons } from './cms/sermons/service';
+import { publishDueStories } from './cms/stories/service';
 
 /** Structural logger so the scheduler stays independent of Fastify/pino. */
 export interface SchedulerLogger {
@@ -42,6 +43,7 @@ export const DEFAULT_PUBLISHING_DOMAINS: readonly PublishingDomain[] = [
   { name: 'events', publishDue: publishDueEvents },
   { name: 'ministries', publishDue: publishDueMinistries },
   { name: 'pages', publishDue: publishDuePages },
+  { name: 'stories', publishDue: publishDueStories },
 ];
 
 export interface DomainPublishingResult {
@@ -102,9 +104,28 @@ export async function runDuePublishing(
   return { ranAt: now, results };
 }
 
+/**
+ * Opt-in orphan-media cleanup run after each publication sweep. It only runs
+ * when `olderThanDays > 0`; `0` (the config default) disables it entirely.
+ */
+export interface ScheduledMediaCleanup {
+  /** Minimum orphan age in days; must be > 0 to run. */
+  olderThanDays: number;
+  run: () => Promise<{
+    candidates: number;
+    deleted: number;
+    failures: number;
+  }>;
+}
+
 export interface SchedulerOptions {
   /** Milliseconds between sweeps (`SCHEDULER_INTERVAL_MS`). */
   intervalMs: number;
+  /**
+   * Optional orphan-media cleanup wired to the same tick. Only invoked when
+   * `olderThanDays > 0` (improvement A4).
+   */
+  mediaCleanup?: ScheduledMediaCleanup;
   /**
    * Hard kill switch. `server.ts` passes `config.nodeEnv !== 'test'`; tests
    * can also construct a scheduler explicitly disabled.
@@ -153,10 +174,37 @@ export function startScheduler(
 
   const runNow = (): Promise<DuePublishingSummary> => {
     if (active) return active;
-    active = runDuePublishing(clock(), {
-      ...(options.domains ? { domains: options.domains } : {}),
-      ...(options.logger ? { logger: options.logger } : {}),
-    }).finally(() => {
+    active = (async () => {
+      const summary = await runDuePublishing(clock(), {
+        ...(options.domains ? { domains: options.domains } : {}),
+        ...(options.logger ? { logger: options.logger } : {}),
+      });
+
+      const cleanup = options.mediaCleanup;
+      if (cleanup && cleanup.olderThanDays > 0) {
+        try {
+          const result = await cleanup.run();
+          options.logger?.info(
+            {
+              olderThanDays: cleanup.olderThanDays,
+              candidates: result.candidates,
+              deleted: result.deleted,
+              failures: result.failures,
+            },
+            'Media orphan cleanup sweep finished',
+          );
+        } catch (error) {
+          // Maintenance is best-effort: a cleanup failure never cancels the
+          // publication sweep or the next tick.
+          options.logger?.error(
+            { err: error, olderThanDays: cleanup.olderThanDays },
+            'Media orphan cleanup sweep failed',
+          );
+        }
+      }
+
+      return summary;
+    })().finally(() => {
       active = null;
     });
     return active;

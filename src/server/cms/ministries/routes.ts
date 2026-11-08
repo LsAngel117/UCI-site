@@ -127,7 +127,12 @@ export function registerMinistryRoutes(
     async (request, reply) => {
       const body = (request.body ?? {}) as ScheduleInput;
       await send<MinistryAdminDto>(reply, () =>
-        scheduleMinistry(request.params.id, body.publishAt, request.user!.id),
+        scheduleMinistry(
+          request.params.id,
+          body.publishAt,
+          request.user!.id,
+          config.timezone,
+        ),
       );
     },
   );

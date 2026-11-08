@@ -15,6 +15,12 @@ import type {
   UpdateSermonInput,
 } from '@shared/cms';
 import type { ContentStatus } from '@shared/types';
+import {
+  blocksToContent,
+  contentToBlocks,
+  validateSermonBlocks,
+  type SermonBlock,
+} from './sermon-blocks';
 
 /** Editable values of a sermon, all as controlled-input strings. */
 export interface SermonFormValues {
@@ -39,6 +45,8 @@ export interface SermonFormValues {
   videoUrl: string;
   audioUrl: string;
   notesContent: string;
+  /** Rich body blocks, serialized to `Sermon.content` on save. */
+  blocks: SermonBlock[];
   seoTitle: string;
   seoDescription: string;
   seoCanonicalUrl: string;
@@ -69,6 +77,7 @@ export function emptySermonForm(): SermonFormValues {
     videoUrl: '',
     audioUrl: '',
     notesContent: '',
+    blocks: [],
     seoTitle: '',
     seoDescription: '',
     seoCanonicalUrl: '',
@@ -146,6 +155,7 @@ export function sermonToForm(sermon: SermonAdminDto): SermonFormValues {
     videoUrl: sermon.videoUrl ?? '',
     audioUrl: sermon.audioUrl ?? '',
     notesContent: sermon.notesContent ?? '',
+    blocks: contentToBlocks(sermon.content),
     seoTitle: sermon.seo?.title ?? '',
     seoDescription: sermon.seo?.description ?? '',
     seoCanonicalUrl: sermon.seo?.canonicalUrl ?? '',
@@ -191,7 +201,9 @@ export function formsEqual(
   ];
   return (
     scalarKeys.every((key) => left[key] === right[key]) &&
-    sameStringSet(left.topicIds, right.topicIds)
+    sameStringSet(left.topicIds, right.topicIds) &&
+    JSON.stringify(blocksToContent(left.blocks)) ===
+      JSON.stringify(blocksToContent(right.blocks))
   );
 }
 
@@ -261,6 +273,10 @@ export function validateSermonForm(
     errors.sermonDate = 'Ingresá una fecha válida.';
   }
 
+  const blockErrors = validateSermonBlocks(values.blocks);
+  const firstBlockError = Object.values(blockErrors)[0];
+  if (firstBlockError) errors.blocks = firstBlockError;
+
   const urlFields: Array<[SermonFormField, string]> = [
     ['videoUrl', 'Ingresá una URL http(s) válida.'],
     ['audioUrl', 'Ingresá una URL http(s) válida.'],
@@ -306,6 +322,7 @@ function commonFields(values: SermonFormValues) {
     videoUrl: trimOrNull(values.videoUrl),
     audioUrl: trimOrNull(values.audioUrl),
     notesContent: trimOrNull(values.notesContent),
+    content: blocksToContent(values.blocks),
     durationMinutes:
       values.durationMinutes.trim().length > 0
         ? Number(values.durationMinutes)

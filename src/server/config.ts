@@ -12,6 +12,7 @@
 import { resolve } from 'node:path';
 import { normalizePublicBase } from './media/storage';
 import { loadEnvFile } from './env';
+import { requireValidTimeZone } from './timezone';
 
 export type NodeEnv = 'development' | 'production' | 'test';
 
@@ -75,6 +76,12 @@ export interface MediaConfig {
   publicBase: string;
   /** Hard upload limit in bytes (`MEDIA_MAX_UPLOAD_BYTES`). */
   maxUploadBytes: number;
+  /**
+   * Orphan cleanup age in days (`MEDIA_ORPHAN_CLEANUP_DAYS`). `0` disables
+   * the scheduled sweep; a positive value deletes unreferenced assets older
+   * than that many days.
+   */
+  orphanCleanupDays: number;
 }
 
 export interface ServerConfig {
@@ -83,6 +90,12 @@ export interface ServerConfig {
   port: number;
   /** Canonical public origin used to build absolute SEO URLs (docs/10 §6.2). */
   siteUrl: string;
+  /**
+   * Church-local IANA timezone (`APP_TIMEZONE`, default `America/Bogota`).
+   * Used when interpreting offset-less editorial/schedule datetimes and when
+   * exposing the timezone to the public website (improvement A1).
+   */
+  timezone: string;
   /**
    * Fastify `trustProxy` value. The API sits behind the same-origin Astro
    * proxy, which sets `X-Forwarded-For` with the real client IP; only that
@@ -203,6 +216,22 @@ function readPositiveInt(
   return value;
 }
 
+/** Read a non-negative integer; `0` is meaningful (disabled). */
+function readNonNegativeInt(
+  raw: string | undefined,
+  fallback: number,
+  name: string,
+): number {
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(
+      `Invalid ${name} value "${raw}". Expected a non-negative integer.`,
+    );
+  }
+  return value;
+}
+
 /**
  * Read the proxy trust list for Fastify. `"true"`/`"false"` map to booleans;
  * any other value is an IP/CIDR list or proxy-addr name (e.g. `loopback`).
@@ -291,6 +320,11 @@ function readMediaConfig(env: NodeJS.ProcessEnv): MediaConfig {
       DEFAULT_MAX_UPLOAD_BYTES,
       'MEDIA_MAX_UPLOAD_BYTES',
     ),
+    orphanCleanupDays: readNonNegativeInt(
+      env.MEDIA_ORPHAN_CLEANUP_DAYS,
+      0,
+      'MEDIA_ORPHAN_CLEANUP_DAYS',
+    ),
   };
 }
 
@@ -304,6 +338,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     host: env.HOST ?? DEFAULT_HOST,
     port: readPort(env.PORT),
     siteUrl: readSiteUrl(env.SITE_URL),
+    timezone: requireValidTimeZone(env.APP_TIMEZONE),
     trustProxy: readTrustProxy(env.TRUST_PROXY),
     session: {
       cookieName: SESSION_COOKIE_NAME,

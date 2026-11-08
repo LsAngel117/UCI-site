@@ -19,10 +19,7 @@
  * structural defaults. Nothing is invented to fill a gap.
  */
 import { pillarsFixture } from './fixtures/profile';
-import {
-  homepageHeadingsFixture,
-  storiesFixture,
-} from './fixtures/content';
+import { homepageHeadingsFixture } from './fixtures/content';
 import heroWorship from '../assets/home/hero-worship.png';
 import {
   getEvents,
@@ -30,6 +27,7 @@ import {
   getNavigation as fetchNavigation,
   getSermons,
   getSettingsPublic,
+  getStories,
 } from '../lib/api';
 import {
   buildChurchProfile,
@@ -47,6 +45,7 @@ import type {
   PublicMinistryDto,
   PublicNavigationItemDto,
   PublicSermonDto,
+  PublicStoryDto,
 } from '@shared/cms';
 import type { PublicSettingsDto } from '@shared/settings';
 import type {
@@ -75,8 +74,10 @@ import type {
   UltimoSermonContent,
 } from '@shared/types';
 
+import { DEFAULT_CHURCH_TIME_ZONE } from '../lib/format';
+
 /** Church-local rendering timezone for API instants (docs/05 §43). */
-const CHURCH_TIME_ZONE = 'America/Bogota';
+const DEFAULT_TIME_ZONE = DEFAULT_CHURCH_TIME_ZONE;
 
 function warnUnavailable(scope: string, error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
@@ -152,19 +153,21 @@ export function getFinalCtaContent(): FinalCtaContent {
 }
 
 /**
- * Featured story — only published, editorially approved stories may surface.
- * No public stories endpoint exists in Phase 9A, so the homepage keeps the
- * honest "stories being prepared" state (docs/04 §15.5).
+ * Featured story from the public stories endpoint (improvement B2). The API
+ * already returns only published + editorially approved testimonies, so the
+ * repository never decides visibility itself. No featured row and an empty
+ * collection both resolve to `null` and render the honest empty state.
  */
-export function getFeaturedStory(): Story | null {
-  return (
-    storiesFixture.find(
-      (story) =>
-        story.status === 'published' &&
-        story.editorialApproved &&
-        story.featured,
-    ) ?? null
-  );
+export async function getFeaturedStory(): Promise<Story | null> {
+  try {
+    const response = await getStories({ limit: 6, sort: 'publishedAt', order: 'desc' });
+    const featured =
+      response.data.find((story) => story.featured) ?? response.data[0] ?? null;
+    return featured ? mapStory(featured) : null;
+  } catch (error) {
+    warnUnavailable('stories', error);
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -271,19 +274,49 @@ export function mapSermons(dtos: PublicSermonDto[]): Sermon[] {
   return dtos.map(mapSermon);
 }
 
-const eventDateFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: CHURCH_TIME_ZONE,
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-});
+export function mapStory(dto: PublicStoryDto): Story {
+  return {
+    id: dto.id,
+    title: dto.title,
+    displayName: dto.displayName,
+    quote: dto.quote,
+    fullStory: dto.fullStory,
+    imageUrl: dto.coverImageUrl,
+    date: dto.date ?? dto.publishedAt ?? dto.updatedAt,
+    editorialApproved: true,
+    featured: dto.featured,
+    status: 'published',
+  };
+}
 
-const eventTimeFormatter = new Intl.DateTimeFormat('en-GB', {
-  timeZone: CHURCH_TIME_ZONE,
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
+const eventDateFormatters = new Map<string, Intl.DateTimeFormat>();
+const eventTimeFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function eventDateFormatter(timeZone: string): Intl.DateTimeFormat {
+  const cached = eventDateFormatters.get(timeZone);
+  if (cached) return cached;
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  eventDateFormatters.set(timeZone, formatter);
+  return formatter;
+}
+
+function eventTimeFormatter(timeZone: string): Intl.DateTimeFormat {
+  const cached = eventTimeFormatters.get(timeZone);
+  if (cached) return cached;
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  eventTimeFormatters.set(timeZone, formatter);
+  return formatter;
+}
 
 /**
  * Map a public event. The API exposes one ISO instant (`startAt`/`endAt`) and
@@ -291,8 +324,19 @@ const eventTimeFormatter = new Intl.DateTimeFormat('en-GB', {
  * Events without a start instant are not publishable agenda items and are
  * dropped rather than rendered with an invented date.
  */
-export function mapEvent(dto: PublicEventDto): Event | null {
+export function mapEvent(
+  dto: PublicEventDto,
+  timeZone: string = DEFAULT_TIME_ZONE,
+): Event | null {
   if (!dto.startAt) return null;
+
+  let zone = DEFAULT_TIME_ZONE;
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone });
+    zone = timeZone;
+  } catch {
+    // Invalid configured zone: fall back to the documented default.
+  }
 
   const start = new Date(dto.startAt);
   if (Number.isNaN(start.getTime())) return null;
@@ -323,15 +367,15 @@ export function mapEvent(dto: PublicEventDto): Event | null {
     category: dto.category
       ? { id: dto.category.id, name: dto.category.name, slug: dto.category.slug }
       : { id: `category-${dto.id}`, name: 'Evento', slug: 'evento' },
-    startDate: eventDateFormatter.format(start),
+    startDate: eventDateFormatter(zone).format(start),
     endDate:
       end && !Number.isNaN(end.getTime())
-        ? eventDateFormatter.format(end)
+        ? eventDateFormatter(zone).format(end)
         : undefined,
-    startTime: eventTimeFormatter.format(start),
+    startTime: eventTimeFormatter(zone).format(start),
     endTime:
       end && !Number.isNaN(end.getTime())
-        ? eventTimeFormatter.format(end)
+        ? eventTimeFormatter(zone).format(end)
         : undefined,
     location,
     registrationUrl: dto.registrationUrl ?? undefined,
@@ -340,9 +384,12 @@ export function mapEvent(dto: PublicEventDto): Event | null {
   };
 }
 
-export function mapEvents(dtos: PublicEventDto[]): Event[] {
+export function mapEvents(
+  dtos: PublicEventDto[],
+  timeZone: string = DEFAULT_TIME_ZONE,
+): Event[] {
   return dtos
-    .map(mapEvent)
+    .map((dto) => mapEvent(dto, timeZone))
     .filter((event): event is Event => event !== null);
 }
 
@@ -462,15 +509,20 @@ export async function getRecentSermons(limit = 4): Promise<Sermon[]> {
 }
 
 /** Upcoming published events, soonest first. */
-export async function getUpcomingEvents(limit = 3): Promise<Event[]> {
+export async function getUpcomingEvents(
+  limit = 3,
+  timeZone?: string,
+): Promise<Event[]> {
   try {
+    const zone =
+      timeZone ?? (await getSettings())?.timezone ?? DEFAULT_TIME_ZONE;
     const response = await getEvents({
       upcoming: true,
       limit,
       sort: 'startAt',
       order: 'asc',
     });
-    return mapEvents(response.data);
+    return mapEvents(response.data, zone);
   } catch (error) {
     warnUnavailable('events', error);
     return [];
@@ -502,6 +554,21 @@ export async function getGivingConfig(
   return buildGivingConfig(resolved);
 }
 
+async function fetchStoriesSafe(
+  limit: number,
+): Promise<ListResponse<PublicStoryDto> | null> {
+  try {
+    return await getStories({
+      limit,
+      sort: 'publishedAt',
+      order: 'desc',
+    });
+  } catch (error) {
+    warnUnavailable('stories', error);
+    return null;
+  }
+}
+
 /**
  * Everything the homepage needs, fetched in parallel.
  *
@@ -511,6 +578,8 @@ export async function getGivingConfig(
  */
 export interface HomeData {
   church: ChurchProfile;
+  /** Church-local IANA timezone from settings (B1). */
+  timezone: string;
   hero: HeroContent;
   nextService: ServiceOccurrence | null;
   schedules: ServiceSchedule[];
@@ -520,10 +589,11 @@ export interface HomeData {
   recentSermons: Sermon[];
   upcomingEvents: Event[];
   featuredMinistries: Ministry[];
+  featuredStory: Story | null;
 }
 
 export async function getHomeData(from: Date = new Date()): Promise<HomeData> {
-  const [settings, headerNav, footerNav, sermonResponse, events, ministries] =
+  const [settings, headerNav, footerNav, sermonResponse, events, ministries, stories] =
     await Promise.all([
       getSettings(),
       fetchNavigationSafe('HEADER'),
@@ -531,7 +601,10 @@ export async function getHomeData(from: Date = new Date()): Promise<HomeData> {
       fetchSermonsSafe(12),
       getUpcomingEvents(3),
       getFeaturedMinistries(3),
+      fetchStoriesSafe(6),
     ]);
+
+  const timezone = settings?.timezone ?? DEFAULT_TIME_ZONE;
 
   const church = buildChurchProfile(settings);
   const schedules = buildServiceSchedules(settings);
@@ -539,8 +612,12 @@ export async function getHomeData(from: Date = new Date()): Promise<HomeData> {
   const featuredSermonDto =
     sermonDtos.find((sermon) => sermon.featured) ?? sermonDtos[0] ?? null;
 
+  const featuredStoryDto =
+    stories?.data.find((story) => story.featured) ?? stories?.data[0] ?? null;
+
   return {
     church,
+    timezone,
     hero: getHeroContent(),
     nextService: buildNextService(schedules, church.location, from),
     schedules: buildVisibleSchedules(settings),
@@ -550,5 +627,6 @@ export async function getHomeData(from: Date = new Date()): Promise<HomeData> {
     recentSermons: mapSermons(sermonDtos.slice(0, 4)),
     upcomingEvents: events,
     featuredMinistries: ministries,
+    featuredStory: featuredStoryDto ? mapStory(featuredStoryDto) : null,
   };
 }

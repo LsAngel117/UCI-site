@@ -7,7 +7,16 @@
  * the stored value into a small, closed set of display blocks and drops
  * anything it does not understand.
  *
- * Supported shape (documented contract with the admin/editor):
+ * Supported shapes (documented contract with the admin/editor): a bare array
+ * of blocks (how the sermon rich body is stored) or an object with a `blocks`
+ * array (how pages are stored).
+ *
+ * ```json
+ * [
+ *   { "type": "heading", "text": "Bienvenido", "level": 2 },
+ *   { "type": "paragraph", "text": "..." }
+ * ]
+ * ```
  *
  * ```json
  * {
@@ -28,7 +37,7 @@
  * paths and http(s)/mailto/tel so `javascript:` and `data:` never reach a
  * rendered attribute.
  */
-import type { PageContent } from '@shared/cms';
+import type { PageContent, PageContentValue } from '@shared/cms';
 
 export type SafePageBlock =
   | { type: 'heading'; level: 2 | 3; text: string }
@@ -226,9 +235,13 @@ function normalizeSections(value: unknown): SafePageBlock[] {
  * renders an honest "no additional content" state instead of raw JSON.
  */
 export function normalizePageContent(
-  content: PageContent | null | undefined,
+  content: PageContent | PageContentValue[] | null | undefined,
 ): SafePageBlock[] {
   if (!content) return [];
+
+  // A bare block array is the sermon rich-body shape (`Sermon.content`).
+  if (Array.isArray(content)) return normalizeBlocks(content);
+
   const record = content as Record<string, unknown>;
 
   const fromBlocks = normalizeBlocks(record.blocks);

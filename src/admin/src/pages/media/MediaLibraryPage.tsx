@@ -37,6 +37,7 @@ import { DataTable, type DataTableColumn } from '../../components/content/DataTa
 import { FilterBar } from '../../components/content/FilterBar';
 import { Pagination } from '../../components/content/Pagination';
 import { EmptyPanel, ErrorPanel, LoadingPanel } from '../../components/content/States';
+import { MediaCleanupDialog } from '../../components/media/MediaCleanupDialog';
 import { MediaDeleteDialog } from '../../components/media/MediaDeleteDialog';
 import { MediaDetailsDialog } from '../../components/media/MediaDetailsDialog';
 import { MediaMetadataDialog } from '../../components/media/MediaMetadataDialog';
@@ -78,6 +79,7 @@ export function MediaLibraryPage() {
   const [editTarget, setEditTarget] = useState<MediaDto | null>(null);
   const [detailsTarget, setDetailsTarget] = useState<MediaDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MediaDto | null>(null);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
 
   const debouncedSearch = useDebouncedValue(search, 300);
   const dateError = dateRangeError(createdFrom, createdTo);
@@ -306,15 +308,26 @@ export function MediaLibraryPage() {
         <p className="page__eyebrow">Multimedia</p>
         <div className="page__title-row">
           <h1 className="page__title">Biblioteca multimedia</h1>
-          {permissions.upload ? (
-            <button
-              type="button"
-              className="button button--primary"
-              onClick={() => setUploadOpen(true)}
-            >
-              Subir archivo
-            </button>
-          ) : null}
+          <div className="row-actions">
+            {permissions.delete ? (
+              <button
+                type="button"
+                className="button button--quiet"
+                onClick={() => setCleanupOpen(true)}
+              >
+                Limpiar huérfanos
+              </button>
+            ) : null}
+            {permissions.upload ? (
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => setUploadOpen(true)}
+              >
+                Subir archivo
+              </button>
+            ) : null}
+          </div>
         </div>
         <p className="page__lede">
           Imágenes y documentos reutilizables del sitio. Buscá, filtrá y
@@ -703,6 +716,19 @@ export function MediaLibraryPage() {
         asset={deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onDeleted={handleDeleted}
+      />
+
+      <MediaCleanupDialog
+        open={cleanupOpen}
+        onClose={() => setCleanupOpen(false)}
+        onCompleted={(result) => {
+          setNotice({
+            tone: 'success',
+            text: `Limpieza completada: ${result.deleted} archivos eliminados, ${result.failures} fallidos.`,
+          });
+          setPage(1);
+          setReloadKey((key) => key + 1);
+        }}
       />
     </section>
   );

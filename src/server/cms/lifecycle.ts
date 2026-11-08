@@ -15,6 +15,12 @@
  */
 import type { ContentStatus } from '@shared/types';
 import type { LifecycleAction } from '@shared/cms';
+import {
+  DEFAULT_TIMEZONE,
+  hasExplicitOffset,
+  isValidTimeZone,
+  parseZonedDateTime,
+} from '../timezone';
 import { conflict, validation } from './errors';
 
 interface TransitionRule {
@@ -102,14 +108,30 @@ export function assertVersionMatches(
 /**
  * Validate and parse a schedule instant. Rejects unparseable values and
  * timestamps that are not strictly in the future (docs/08 §37).
+ *
+ * A value with an explicit `Z`/offset is an absolute instant and is parsed
+ * directly. An offset-less wall-clock value (what `<input type="datetime-local">`
+ * produces) is interpreted in the church timezone — `timeZone`, defaulting to
+ * the documented `America/Bogota` — instead of the server process zone, so a
+ * deployment in any region schedules at the same church-local moment.
  */
-export function resolveScheduleInstant(raw: unknown, now: Date): Date {
+export function resolveScheduleInstant(
+  raw: unknown,
+  now: Date,
+  timeZone: string = DEFAULT_TIMEZONE,
+): Date {
   if (typeof raw !== 'string' || raw.trim().length === 0) {
     throw validation('A "publishAt" instant is required.', {
       field: 'publishAt',
     });
   }
-  const instant = new Date(raw);
+  const text = raw.trim();
+  let instant: Date;
+  if (!hasExplicitOffset(text) && isValidTimeZone(timeZone)) {
+    instant = parseZonedDateTime(text, timeZone) ?? new Date(text);
+  } else {
+    instant = new Date(text);
+  }
   if (Number.isNaN(instant.getTime())) {
     throw validation('"publishAt" must be a valid ISO-8601 datetime.', {
       field: 'publishAt',

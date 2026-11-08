@@ -82,18 +82,21 @@ model User {
 
   roles                  UserRole[]
   sessions               Session[]
-  pagesCreated           Page[]           @relation("PageCreatedBy")
-  pagesUpdated           Page[]           @relation("PageUpdatedBy")
-  pageRevisionsCreated   PageRevision[]   @relation("PageRevisionCreatedBy")
-  sermonsCreated         Sermon[]         @relation("SermonCreatedBy")
-  sermonsUpdated         Sermon[]         @relation("SermonUpdatedBy")
-  sermonRevisionsCreated SermonRevision[] @relation("SermonRevisionCreatedBy")
-  eventsCreated          Event[]          @relation("EventCreatedBy")
-  eventsUpdated          Event[]          @relation("EventUpdatedBy")
-  ministriesCreated      Ministry[]       @relation("MinistryCreatedBy")
-  ministriesUpdated      Ministry[]       @relation("MinistryUpdatedBy")
-  mediaAssetsCreated     MediaAsset[]     @relation("MediaAssetCreatedBy")
-  auditLogs              AuditLog[]       @relation("AuditLogActor")
+  passwordResetTokens    PasswordResetToken[]
+  pagesCreated           Page[]               @relation("PageCreatedBy")
+  pagesUpdated           Page[]               @relation("PageUpdatedBy")
+  pageRevisionsCreated   PageRevision[]       @relation("PageRevisionCreatedBy")
+  sermonsCreated         Sermon[]             @relation("SermonCreatedBy")
+  sermonsUpdated         Sermon[]             @relation("SermonUpdatedBy")
+  sermonRevisionsCreated SermonRevision[]     @relation("SermonRevisionCreatedBy")
+  eventsCreated          Event[]              @relation("EventCreatedBy")
+  eventsUpdated          Event[]              @relation("EventUpdatedBy")
+  ministriesCreated      Ministry[]           @relation("MinistryCreatedBy")
+  ministriesUpdated      Ministry[]           @relation("MinistryUpdatedBy")
+  storiesCreated         Story[]              @relation("StoryCreatedBy")
+  storiesUpdated         Story[]              @relation("StoryUpdatedBy")
+  mediaAssetsCreated     MediaAsset[]         @relation("MediaAssetCreatedBy")
+  auditLogs              AuditLog[]           @relation("AuditLogActor")
 
   @@map("users")
 }
@@ -180,6 +183,28 @@ model Session {
   @@map("sessions")
 }
 
+/// Single-use password-reset token (improvement A5).
+///
+/// Only a SHA-256 hash of the opaque token is stored, so a database leak never
+/// yields a usable reset link. The raw token exists only in the delivered email
+/// and is never returned by the API or written to logs.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  /// SHA-256 of the opaque token — the lookup key on confirmation.
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  /// Set when the token is consumed; a used token can never be reused.
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
 // ---------------------------------------------------------------------------
 // Editorial content (structural foundation — full domain fields land in
 // Phase 3+. Only id/slug/title/status/timestamps + obvious FKs here.)
@@ -263,6 +288,10 @@ model Sermon {
   audioUrl           String?       @map("audio_url")
   notesMediaId       String?       @map("notes_media_id")
   notesContent       String?       @map("notes_content")
+  /// Rich sermon body (improvement A3): a JSON object/array of editorial
+  /// blocks, normalized by the frontend `page-content` helper. Stored as JSON
+  /// so the block vocabulary can evolve without a migration.
+  content            Json?
   durationMinutes    Int?          @map("duration_minutes")
   featured           Boolean       @default(false)
   status             ContentStatus @default(draft)
@@ -487,6 +516,52 @@ model Ministry {
   @@map("ministries")
 }
 
+/// Public story / testimony (improvement A2, docs/05 §14).
+///
+/// A story is publishable content that reuses the CMS core lifecycle,
+/// slug, concurrency, media-cover and SEO modules. It intentionally has no
+/// revision table (docs/05 §32 reserves revisions for "important content").
+/// `editorialApproved` is a consent/validation flag: the public API only ever
+/// serves approved stories even when the lifecycle state is `published`.
+model Story {
+  id                String        @id @default(uuid())
+  slug              String        @unique
+  title             String
+  /// Public name of the person the story is about.
+  displayName       String        @map("display_name")
+  /// Short pull-quote shown in listings.
+  quote             String
+  fullStory         String        @map("full_story")
+  coverMediaId      String?       @map("cover_media_id")
+  /// Editorial date of the story/testimony.
+  date              DateTime?
+  /// Consent/editorial approval gate (docs/05 §14). Public visibility requires
+  /// `status = published` AND `editorialApproved = true`.
+  editorialApproved Boolean       @default(false) @map("editorial_approved")
+  featured          Boolean       @default(false)
+  status            ContentStatus @default(draft)
+  /// Optimistic-concurrency counter (docs/08 §38).
+  version           Int           @default(1)
+  publishedAt       DateTime?     @map("published_at")
+  publishAt         DateTime?     @map("publish_at")
+  unpublishedAt     DateTime?     @map("unpublished_at")
+  createdById       String?       @map("created_by")
+  updatedById       String?       @map("updated_by")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  createdBy User?       @relation("StoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?       @relation("StoryUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  cover     MediaAsset? @relation("StoryCover", fields: [coverMediaId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+  @@index([status, publishAt])
+  @@index([status, editorialApproved, publishedAt])
+  @@index([coverMediaId])
+  @@index([featured, publishedAt])
+  @@map("stories")
+}
+
 // ---------------------------------------------------------------------------
 // Navigation, media, SEO and system tables.
 // ---------------------------------------------------------------------------
@@ -577,6 +652,7 @@ model MediaAsset {
   eventCovers    Event[]          @relation("EventCover")
   ministryCovers Ministry[]       @relation("MinistryCover")
   pageCovers     Page[]           @relation("PageCover")
+  storyCovers    Story[]          @relation("StoryCover")
 
   @@index([createdById])
   @@index([type, createdAt])

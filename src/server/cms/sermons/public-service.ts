@@ -25,6 +25,7 @@ import type {
   PublicSermonListQuery,
   PublicSermonSeoDto,
   PublicSermonSortField,
+  SermonContent,
 } from '@shared/cms';
 import { PUBLIC_SERMON_SORT_FIELDS } from '@shared/cms';
 import {
@@ -78,6 +79,13 @@ function publicMediaUrl(
   storage: MediaStorage,
 ): string | null {
   return asset ? storage.getPublicUrl(asset.storageKey) : null;
+}
+
+function toPublicSermonContent(
+  value: Prisma.JsonValue | null,
+): SermonContent | null {
+  if (value === null) return null;
+  return value as SermonContent;
 }
 
 /** Make a storage URL absolute for Open Graph consumers (docs/10 §6.2). */
@@ -158,6 +166,7 @@ function toPublicSermonDto(
     video,
     audioUrl: sermon.audioUrl,
     notesContent: sermon.notesContent,
+    content: toPublicSermonContent(sermon.content),
     notesUrl: publicMediaUrl(sermon.notes, options.storage),
     durationMinutes: sermon.durationMinutes,
     featured: sermon.featured,

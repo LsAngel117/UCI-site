@@ -23,6 +23,7 @@ import type {
   LoginRequest,
   LoginResponse,
   PaginationMeta,
+  PasswordResetResponse,
 } from '@shared/api';
 
 /** Same-origin prefix. Vite proxies `/api` to the API in dev (vite.config). */
@@ -217,4 +218,26 @@ export function me(): Promise<CurrentUserResponse> {
 /** Revoke the current session and clear the cookie (docs/08 §7.3). */
 export async function logout(): Promise<void> {
   await apiRequest<void>('/auth/logout', { method: 'POST' });
+}
+
+/**
+ * Ask for a password-reset email (improvement A5). The API answers 202 with a
+ * generic message whether or not the account exists; the UI must not infer.
+ */
+export function requestPasswordReset(email: string): Promise<PasswordResetResponse> {
+  return apiRequest<PasswordResetResponse>('/auth/password-reset/request', {
+    method: 'POST',
+    body: { email },
+  });
+}
+
+/** Consume a reset token and replace the password (improvement A5). */
+export function confirmPasswordReset(
+  token: string,
+  password: string,
+): Promise<PasswordResetResponse> {
+  return apiRequest<PasswordResetResponse>('/auth/password-reset/confirm', {
+    method: 'POST',
+    body: { token, password },
+  });
 }

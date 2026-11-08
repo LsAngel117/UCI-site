@@ -113,6 +113,8 @@ export interface PublicationService<T extends PublicationEntity> {
     id: string,
     publishAt: unknown,
     actorId: string | null,
+    /** Church timezone for offset-less wall-clock values (A1). */
+    timeZone?: string,
   ): Promise<PublicationResult<T>>;
   archive(id: string, actorId: string | null): Promise<PublicationResult<T>>;
   unpublish(id: string, actorId: string | null): Promise<PublicationResult<T>>;
@@ -230,10 +232,10 @@ export function createPublicationService<T extends PublicationEntity>(
       });
     },
 
-    async schedule(id, publishAt, actorId) {
+    async schedule(id, publishAt, actorId, timeZone) {
       const entity = await load(id);
       assertTransition(entity.status, 'schedule');
-      const instant = resolveScheduleInstant(publishAt, clock());
+      const instant = resolveScheduleInstant(publishAt, clock(), timeZone);
       return checkpointed(entity, 'schedule', actorId, { publishAt: instant });
     },
 

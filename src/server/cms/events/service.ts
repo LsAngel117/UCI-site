@@ -581,8 +581,9 @@ export async function scheduleEvent(
   id: string,
   publishAt: unknown,
   actorId: string | null,
+  timeZone?: string,
 ): Promise<EventAdminDto> {
-  await publication.schedule(id, publishAt, actorId);
+  await publication.schedule(id, publishAt, actorId, timeZone);
   return getEvent(id);
 }
 

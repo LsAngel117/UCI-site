@@ -67,6 +67,11 @@ export interface PublicGivingDto {
 
 /** Payload of `GET /api/v1/settings/public` inside the `{ data }` envelope. */
 export interface PublicSettingsDto {
+  /**
+   * Church-local IANA timezone (`APP_TIMEZONE`). The website must use it to
+   * render schedule/event instants instead of hardcoding a zone.
+   */
+  timezone: string;
   church: PublicChurchDto;
   schedule: PublicScheduleEntryDto[];
   socials: PublicSocialLinkDto[];

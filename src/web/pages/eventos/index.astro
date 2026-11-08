@@ -6,7 +6,7 @@
  * agenda focused on what is still ahead. Past event detail pages remain
  * accessible directly (docs/10 §14.3).
  */
-import { getChurchProfile, getNavigation } from '../../data/site';
+import { getChurchProfile, getNavigation, getSettings } from '../../data/site';
 import { getEventsArchive } from '../../data/content';
 import {
   ARCHIVE_PAGE_SIZE,
@@ -25,8 +25,8 @@ import EventCard from '../../components/content/EventCard.astro';
 const search = Astro.url.searchParams;
 const requestedPage = parsePage(search.get('page'));
 
-const [church, navigation, result] = await Promise.all([
-  getChurchProfile(),
+const [settings, navigation, result] = await Promise.all([
+  getSettings(),
   getNavigation(),
   getEventsArchive({
     upcoming: true,
@@ -36,6 +36,9 @@ const [church, navigation, result] = await Promise.all([
     order: 'asc',
   }),
 ]);
+
+const church = await getChurchProfile(settings);
+const timeZone = settings?.timezone;
 
 if (result.status === 'unavailable') Astro.response.status = 503;
 
@@ -97,7 +100,7 @@ const nextHref =
               ) : (
                 <ul class="event-list">
                   {result.data.map((event) => (
-                    <EventCard event={event} />
+                    <EventCard event={event} timeZone={timeZone} />
                   ))}
                 </ul>
               )

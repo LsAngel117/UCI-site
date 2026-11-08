@@ -11,7 +11,10 @@ import { useAuth } from '../../lib/auth';
 import { visibleNav, type NavItem } from '../../lib/navigation';
 
 /** Modules with a real screen behind the link. */
-const AVAILABLE_PATHS: ReadonlySet<string> = new Set(['/contenido/sermones']);
+const AVAILABLE_PATHS: ReadonlySet<string> = new Set([
+  '/contenido/sermones',
+  '/contenido/historias',
+]);
 
 function ModuleCard({ item }: { item: NavItem }) {
   const available = AVAILABLE_PATHS.has(item.to);

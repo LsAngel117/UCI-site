@@ -1,0 +1,145 @@
+---
+/**
+ * /historias — public stories/testimonies archive (improvement B2).
+ *
+ * Only published, editorially approved stories are served by
+ * `GET /api/v1/stories`. An API outage answers 503 with an honest state; an
+ * empty collection is respected as a real empty state.
+ */
+import { getChurchProfile, getNavigation } from '../../data/site';
+import { getStoriesArchive } from '../../data/content';
+import {
+  ARCHIVE_PAGE_SIZE,
+  buildArchiveHref,
+  parsePage,
+} from '../../lib/archive';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import ArchiveHero from '../../components/ui/ArchiveHero.astro';
+import Button from '../../components/ui/Button.astro';
+import Container from '../../components/ui/Container.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+import NotFoundState from '../../components/ui/NotFoundState.astro';
+import Pagination from '../../components/ui/Pagination.astro';
+import Section from '../../components/ui/Section.astro';
+import StoryCard from '../../components/content/StoryCard.astro';
+
+const search = Astro.url.searchParams;
+const requestedPage = parsePage(search.get('page'));
+
+const [church, navigation, result] = await Promise.all([
+  getChurchProfile(),
+  getNavigation(),
+  getStoriesArchive({
+    page: requestedPage,
+    limit: ARCHIVE_PAGE_SIZE,
+    sort: 'publishedAt',
+    order: 'desc',
+  }),
+]);
+
+if (result.status === 'unavailable') Astro.response.status = 503;
+
+const meta = result.status === 'ok' ? result.meta : null;
+const page = meta?.page ?? requestedPage;
+const totalPages = meta?.totalPages ?? 1;
+const canonicalPath = page > 1 ? `/historias?page=${page}` : '/historias';
+const title = 'Historias | Iglesia UCI';
+const description =
+  'Historias reales de la comunidad de Iglesia UCI: testimonios de transformación, fe y servicio.';
+
+const outOfRange =
+  result.status === 'ok' && meta !== null && page > totalPages;
+if (outOfRange) Astro.response.status = 404;
+
+const firstPageHref = buildArchiveHref('/historias', search, 1);
+const prevHref =
+  page > 1 ? buildArchiveHref('/historias', search, page - 1) : null;
+const nextHref =
+  page < totalPages ? buildArchiveHref('/historias', search, page + 1) : null;
+---
+
+<ContentLayout
+  title={title}
+  description={description}
+  canonicalPath={canonicalPath}
+  noindex={result.status === 'unavailable' || outOfRange}
+  church={church}
+  navigation={navigation}
+>
+  {
+    outOfRange ? (
+      <NotFoundState
+        title="Esta página no existe"
+        message="La página solicitada no existe en el archivo de historias. Vuelve al inicio para seguir explorando."
+        backHref={firstPageHref}
+        backLabel="Ir a la primera página"
+      />
+    ) : (
+      <>
+        <ArchiveHero
+          label="Historias"
+          title="Dios sigue haciendo historia"
+          description="Testimonios reales de personas de nuestra comunidad. Publicamos solo historias aprobadas por sus protagonistas."
+        />
+
+        <Section surface="light" spacing="lg">
+          <Container>
+            {
+              result.status === 'unavailable' ? (
+                <EmptyState
+                  title="No pudimos cargar las historias"
+                  message="El archivo de historias no está disponible en este momento. Intenta de nuevo en unos minutos."
+                />
+              ) : result.data.length === 0 ? (
+                <EmptyState
+                  title="Aún no hay historias publicadas"
+                  message="Estamos preparando historias reales de nuestra comunidad. Vuelve pronto."
+                >
+                  <Button href="/" variant="text" contrast="navy">
+                    Volver al inicio
+                  </Button>
+                </EmptyState>
+              ) : (
+                <ul class="story-grid">
+                  {result.data.map((story) => (
+                    <StoryCard story={story} />
+                  ))}
+                </ul>
+              )
+            }
+
+            {result.status === 'ok' && totalPages > 1 && (
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                prevHref={prevHref}
+                nextHref={nextHref}
+                label="historias"
+              />
+            )}
+          </Container>
+        </Section>
+      </>
+    )
+  }
+</ContentLayout>
+
+<style>
+  .story-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-40);
+  }
+
+  @media (max-width: 1023px) {
+    .story-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 639px) {
+    .story-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

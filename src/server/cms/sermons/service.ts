@@ -20,6 +20,7 @@ import type {
   PaginationMeta,
   PersonDto,
   SermonAdminDto,
+  SermonContent,
   SermonListQuery,
   SermonRevisionDto,
   SermonSeoDto,
@@ -83,6 +84,13 @@ type Tx = Prisma.TransactionClient;
 // Snapshot projection (content frozen into a revision)
 // ---------------------------------------------------------------------------
 
+function toSermonContent(
+  value: Prisma.JsonValue | null | undefined,
+): SermonContent | null {
+  if (value === null || value === undefined) return null;
+  return value as SermonContent;
+}
+
 function buildSnapshot(sermon: Sermon): SermonSnapshot {
   return {
     title: sermon.title,
@@ -101,6 +109,7 @@ function buildSnapshot(sermon: Sermon): SermonSnapshot {
     videoUrl: sermon.videoUrl,
     audioUrl: sermon.audioUrl,
     notesContent: sermon.notesContent,
+    content: toSermonContent(sermon.content),
     durationMinutes: sermon.durationMinutes,
     featured: sermon.featured,
   };
@@ -140,6 +149,12 @@ function snapshotToData(snapshot: unknown): Prisma.SermonUncheckedUpdateInput {
   if (snapshot.videoUrl !== undefined) data.videoUrl = snapshot.videoUrl;
   if (snapshot.audioUrl !== undefined) data.audioUrl = snapshot.audioUrl;
   if (snapshot.notesContent !== undefined) data.notesContent = snapshot.notesContent;
+  if (snapshot.content !== undefined) {
+    data.content =
+      snapshot.content === null
+        ? Prisma.DbNull
+        : (snapshot.content as Prisma.InputJsonValue);
+  }
   if (snapshot.durationMinutes !== undefined) data.durationMinutes = snapshot.durationMinutes;
   if (snapshot.featured !== undefined) data.featured = snapshot.featured;
   return data;
@@ -327,6 +342,7 @@ function toSermonDto(
     videoUrl: sermon.videoUrl,
     audioUrl: sermon.audioUrl,
     notesContent: sermon.notesContent,
+    content: toSermonContent(sermon.content),
     durationMinutes: sermon.durationMinutes,
     featured: sermon.featured,
     seo: toSeoDto(seo),
@@ -439,8 +455,26 @@ interface SermonContentData {
   videoUrl?: string | null;
   audioUrl?: string | null;
   notesContent?: string | null;
+  content?: Prisma.InputJsonValue | typeof Prisma.DbNull;
   durationMinutes?: number | null;
   featured?: boolean;
+}
+
+/**
+ * Validate the rich sermon body (A3). A JSON object or an array of blocks is
+ * accepted; `null` clears it; any scalar type is a 400 before any write.
+ */
+function parseContent(
+  value: unknown,
+): Prisma.InputJsonValue | typeof Prisma.DbNull | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return Prisma.DbNull;
+  if (typeof value !== 'object') {
+    throw validation('"content" must be a JSON object, an array of blocks or null.', {
+      field: 'content',
+    });
+  }
+  return value as Prisma.InputJsonValue;
 }
 
 /** Build the content columns from any provided editorial fields. */
@@ -460,6 +494,7 @@ function contentData(input: {
   videoUrl?: unknown;
   audioUrl?: unknown;
   notesContent?: unknown;
+  content?: unknown;
   durationMinutes?: unknown;
   featured?: unknown;
   slug?: unknown;
@@ -513,6 +548,9 @@ function contentData(input: {
   }
   if (input.notesContent !== undefined) {
     data.notesContent = optionalString(input.notesContent, 'notesContent');
+  }
+  if (input.content !== undefined) {
+    data.content = parseContent(input.content);
   }
   if (input.durationMinutes !== undefined) {
     data.durationMinutes = optionalInt(input.durationMinutes, 'durationMinutes');
@@ -1047,8 +1085,9 @@ export async function scheduleSermon(
   id: string,
   publishAt: unknown,
   actorId: string | null,
+  timeZone?: string,
 ): Promise<SermonAdminDto> {
-  await publication.schedule(id, publishAt, actorId);
+  await publication.schedule(id, publishAt, actorId, timeZone);
   return getSermon(id);
 }
 

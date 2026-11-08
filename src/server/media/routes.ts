@@ -27,6 +27,7 @@ import {
   mediaErrorEnvelope,
   validation,
 } from './errors';
+import { cleanupOrphanMedia, type CleanupOrphanMediaResult } from './cleanup';
 import { createMediaService } from './service';
 import type { MediaStorage } from './storage';
 
@@ -131,6 +132,51 @@ export function registerMediaRoutes(
       try {
         const { data, meta } = await service.listOrphans(request.query);
         reply.send({ data, meta } satisfies MediaListResponse);
+      } catch (error) {
+        handleError(reply, error);
+      }
+    },
+  );
+
+  /**
+   * Explicit orphan cleanup (improvement A4). Destructive, so it requires
+   * `media.delete` and defaults to `dryRun: true`; a caller must send
+   * `dryRun: false` to actually delete. The age is an explicit body value or
+   * the configured `MEDIA_ORPHAN_CLEANUP_DAYS` (which must be > 0).
+   */
+  app.post(
+    `${BASE}/cleanup`,
+    { preHandler: [auth, canDelete] },
+    async (request, reply) => {
+      try {
+        const body = (request.body ?? {}) as Record<string, unknown>;
+        if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+          throw validation('The request body must be a JSON object.');
+        }
+        if (body.dryRun !== undefined && typeof body.dryRun !== 'boolean') {
+          throw validation('"dryRun" must be a boolean.', { field: 'dryRun' });
+        }
+        const rawDays = body.olderThanDays ?? config.media.orphanCleanupDays;
+        if (typeof rawDays !== 'number' || !Number.isInteger(rawDays) || rawDays < 0) {
+          throw validation(
+            '"olderThanDays" must be a non-negative integer.',
+            { field: 'olderThanDays' },
+          );
+        }
+        if (rawDays > 3650) {
+          throw validation('"olderThanDays" must be at most 3650.', {
+            field: 'olderThanDays',
+          });
+        }
+
+        const result: CleanupOrphanMediaResult = await cleanupOrphanMedia(
+          {
+            olderThanDays: rawDays,
+            dryRun: body.dryRun !== false,
+          },
+          { storage },
+        );
+        reply.send({ data: result });
       } catch (error) {
         handleError(reply, error);
       }

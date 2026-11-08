@@ -7,6 +7,8 @@
 import { buildServer } from './app';
 import { isPlaceholderSiteUrl, loadConfig } from './config';
 import { prisma } from './db';
+import { cleanupOrphanMedia } from './media/cleanup';
+import { createMediaStorage } from './media/storage';
 import { startScheduler, type SchedulerHandle } from './scheduler';
 
 const config = loadConfig();
@@ -48,6 +50,27 @@ try {
     );
   }
 
+  // Orphan-media cleanup is opt-in via `MEDIA_ORPHAN_CLEANUP_DAYS > 0`. When
+  // enabled it runs after each publication sweep with a full cleanup (never a
+  // dry run); `0` leaves the scheduler publishing-only (improvement A4).
+  const mediaCleanupDays = config.media.orphanCleanupDays;
+  const mediaCleanup =
+    mediaCleanupDays > 0
+      ? {
+          olderThanDays: mediaCleanupDays,
+          run: async () => {
+            const storage = createMediaStorage({
+              root: config.media.root,
+              publicBase: config.media.publicBase,
+            });
+            return cleanupOrphanMedia(
+              { olderThanDays: mediaCleanupDays },
+              { storage },
+            );
+          },
+        }
+      : undefined;
+
   // Scheduled-publication sweep (Phase 12B). Started only here, after the
   // process actually listens, and never in tests: `buildServer` remains
   // timer-free so its inject-based suites cannot publish scheduled rows.
@@ -55,9 +78,15 @@ try {
     intervalMs: config.scheduler.intervalMs,
     enabled: config.nodeEnv !== 'test',
     logger: app.log,
+    ...(mediaCleanup ? { mediaCleanup } : {}),
   });
   app.log.info(
-    { intervalMs: config.scheduler.intervalMs, enabled: config.nodeEnv !== 'test' },
+    {
+      intervalMs: config.scheduler.intervalMs,
+      enabled: config.nodeEnv !== 'test',
+      timezone: config.timezone,
+      mediaOrphanCleanupDays: mediaCleanupDays,
+    },
     'Publication scheduler started',
   );
 } catch (error) {

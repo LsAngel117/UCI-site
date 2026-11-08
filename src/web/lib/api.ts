@@ -29,6 +29,9 @@ import type {
   PublicSermonDetailDto,
   PublicSermonDto,
   PublicSermonListQuery,
+  PublicStoryDetailDto,
+  PublicStoryDto,
+  PublicStoryListQuery,
 } from '@shared/cms';
 import type { PublicSettingsDto } from '@shared/settings';
 
@@ -299,6 +302,35 @@ export async function getSermon(
   try {
     const body = await apiFetch<unknown>(path, options);
     return assertDataResponse<PublicSermonDetailDto>(body, path);
+  } catch (error) {
+    if (error instanceof ApiError && error.isNotFound) return null;
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stories / testimonies (improvement A2, B2)
+// ---------------------------------------------------------------------------
+
+/** `GET /api/v1/stories` (docs/08 §14). Published + approved stories only. */
+export async function getStories(
+  params: PublicStoryListQuery = {},
+  options: ApiRequestOptions = {},
+): Promise<ListResponse<PublicStoryDto>> {
+  const path = '/api/v1/stories';
+  const body = await apiFetch<unknown>(path, { ...options, params });
+  return assertListResponse<PublicStoryDto>(body, path);
+}
+
+/** `GET /api/v1/stories/:slug` (docs/08 §14). `null` when not found. */
+export async function getStory(
+  slug: string,
+  options: ApiRequestOptions = {},
+): Promise<PublicStoryDetailDto | null> {
+  const path = `/api/v1/stories/${encodeURIComponent(slug)}`;
+  try {
+    const body = await apiFetch<unknown>(path, options);
+    return assertDataResponse<PublicStoryDetailDto>(body, path);
   } catch (error) {
     if (error instanceof ApiError && error.isNotFound) return null;
     throw error;

@@ -20,6 +20,9 @@ import type {
   PublicSermonDetailDto,
   PublicSermonDto,
   PublicSermonListQuery,
+  PublicStoryDetailDto,
+  PublicStoryDto,
+  PublicStoryListQuery,
 } from '@shared/cms';
 import {
   getEvent,
@@ -29,6 +32,8 @@ import {
   getPage,
   getSermon,
   getSermons,
+  getStory,
+  getStories,
 } from '../lib/api';
 
 export type ListResult<T> =
@@ -80,6 +85,34 @@ export async function getSermonDetail(
     return sermon ? { status: 'ok', data: sermon } : { status: 'not-found' };
   } catch (error) {
     warnUnavailable(`sermon ${slug}`, error);
+    return { status: 'unavailable' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stories / testimonies (improvement B2)
+// ---------------------------------------------------------------------------
+
+export async function getStoriesArchive(
+  params: PublicStoryListQuery,
+): Promise<ListResult<PublicStoryDto>> {
+  try {
+    const response = await getStories(params);
+    return { status: 'ok', data: response.data, meta: response.meta };
+  } catch (error) {
+    warnUnavailable('story archive', error);
+    return { status: 'unavailable' };
+  }
+}
+
+export async function getStoryDetail(
+  slug: string,
+): Promise<DetailResult<PublicStoryDetailDto>> {
+  try {
+    const story = await getStory(slug);
+    return story ? { status: 'ok', data: story } : { status: 'not-found' };
+  } catch (error) {
+    warnUnavailable(`story ${slug}`, error);
     return { status: 'unavailable' };
   }
 }

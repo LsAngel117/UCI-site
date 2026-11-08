@@ -28,18 +28,17 @@ import MediaPlaceholder from '../components/ui/MediaPlaceholder.astro';
 import SectionLabel from '../components/ui/SectionLabel.astro';
 import { isLocalAsset, isRemoteAsset } from '../components/ui/media-source';
 import { getHomeData } from '../data/site';
+import { formatWeekdayDate } from '../lib/format';
 
 // SSR request-time data. One parallel round of API calls powers every dynamic
 // section; if the API is down the getters degrade to honest empty states.
 const home = await getHomeData();
 const { church, hero, nextService } = home;
 
-const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
 // W1: no invented 'Domingo'/'09:00' fallbacks. When there is no scheduled
 // service, the strip shows an honest "por confirmar" state (docs/04 §6.6).
 const serviceDay = nextService
-  ? `${DAY_NAMES[nextService.nextDate.getDay()]} ${nextService.nextDate.getDate()}`
+  ? formatWeekdayDate(nextService.nextDate, home.timezone) ?? 'Por confirmar'
   : 'Por confirmar';
 const serviceTime = nextService?.schedule.startTime ?? 'Por confirmar';
 const stripLocation = nextService?.location ?? church.location;
@@ -164,13 +163,17 @@ const pageDescription = church.shortDescription;
 
   <SomosUCI />
   <ThreePillars />
-  <ProximoServicio church={church} nextService={nextService} />
+  <ProximoServicio
+    church={church}
+    nextService={nextService}
+    timeZone={home.timezone}
+  />
   <PrimeraVez />
   <UltimoSermon sermon={home.featuredSermon} />
   <ExploraMensajes sermons={home.recentSermons} />
   <ProximosEventos events={home.upcomingEvents} />
   <Ministerios ministries={home.featuredMinistries} />
-  <Historias />
+  <Historias story={home.featuredStory} />
   <Generosidad giving={home.giving} />
   <FinalCTA />
 

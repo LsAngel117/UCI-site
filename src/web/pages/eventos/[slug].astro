@@ -6,7 +6,7 @@
  * past event stays accessible but is clearly marked as finished; structured
  * data only claims `EventScheduled` while the event is still ahead.
  */
-import { getChurchProfile, getNavigation } from '../../data/site';
+import { getChurchProfile, getNavigation, getSettings } from '../../data/site';
 import { getEventDetail } from '../../data/content';
 import {
   formatEventDateTime,
@@ -24,11 +24,14 @@ import Section from '../../components/ui/Section.astro';
 const slug = Astro.params.slug ?? '';
 const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
 
-const [church, navigation, result] = await Promise.all([
-  getChurchProfile(),
+const [settings, navigation, result] = await Promise.all([
+  getSettings(),
   getNavigation(),
   getEventDetail(slug),
 ]);
+
+const church = await getChurchProfile(settings);
+const timeZone = settings?.timezone;
 
 if (result.status === 'unavailable') Astro.response.status = 503;
 
@@ -47,10 +50,10 @@ const errorMessage = notFound
   ? 'No encontramos este evento. Puede que el enlace sea incorrecto o que ya no esté publicado.'
   : 'No pudimos cargar este evento en este momento. Intenta de nuevo en unos minutos.';
 
-const start = event ? formatEventDateTime(event.startAt) : null;
-const end = event ? formatEventDateTime(event.endAt) : null;
-const startTime = event ? formatEventTime(event.startAt) : null;
-const endTime = event ? formatEventTime(event.endAt) : null;
+const start = event ? formatEventDateTime(event.startAt, timeZone) : null;
+const end = event ? formatEventDateTime(event.endAt, timeZone) : null;
+const startTime = event ? formatEventTime(event.startAt, timeZone) : null;
+const endTime = event ? formatEventTime(event.endAt, timeZone) : null;
 const place = event
   ? [event.locationName, event.address, event.city].filter(Boolean).join(', ')
   : '';

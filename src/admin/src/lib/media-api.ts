@@ -219,3 +219,44 @@ export function uploadMedia(
 }
 
 export { MEDIA_UPLOAD_MAX_BYTES };
+
+// ---------------------------------------------------------------------------
+// Orphan cleanup (improvement B5, docs/12 §18, §60)
+// ---------------------------------------------------------------------------
+
+export interface MediaCleanupItem {
+  id: string;
+  filename: string;
+  storageKey: string;
+  size: number;
+  createdAt: string;
+  variantCount: number;
+  action: 'would_delete' | 'deleted' | 'failed';
+}
+
+export interface MediaCleanupResult {
+  olderThanDays: number;
+  cutoff: string;
+  dryRun: boolean;
+  candidates: number;
+  deleted: number;
+  filesDeleted: number;
+  failures: number;
+  items: MediaCleanupItem[];
+}
+
+export interface MediaCleanupInput {
+  /** The server defaults to `true`; the UI always asks for a dry run first. */
+  dryRun: boolean;
+  olderThanDays?: number;
+}
+
+/** `POST /api/v1/admin/media/cleanup` — requires `media.delete`. */
+export function cleanupOrphanMedia(
+  input: MediaCleanupInput,
+): Promise<MediaCleanupResult> {
+  return apiRequest<MediaCleanupResult>(`${BASE}/cleanup`, {
+    method: 'POST',
+    body: input,
+  });
+}

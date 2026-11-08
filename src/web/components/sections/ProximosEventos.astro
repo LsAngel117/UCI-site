@@ -26,8 +26,11 @@ const events =
     ? await getUpcomingEvents(3)
     : Astro.props.events;
 
-const monthFormatter = new Intl.DateTimeFormat('es-CO', { month: 'short' });
-const dayFormatter = new Intl.DateTimeFormat('es-CO', { day: '2-digit' });
+const monthFormatter = new Intl.DateTimeFormat('es-CO', {
+  month: 'short',
+  timeZone: 'UTC',
+});
+
 ---
 
 <Section id="eventos" surface="light" spacing="lg" class="eventos">
@@ -41,14 +44,19 @@ const dayFormatter = new Intl.DateTimeFormat('es-CO', { day: '2-digit' });
       events.length > 0 ? (
         <ul class="eventos__list">
           {events.map((event) => {
-            const start = new Date(event.startDate);
+            // `startDate` is already a church-local `YYYY-MM-DD`; split it
+            // instead of re-parsing it in the viewer's timezone (B1).
+            const [, month, day] = event.startDate.split('-');
+            const monthName = monthFormatter.format(
+              new Date(Date.UTC(2000, Number(month) - 1, 1)),
+            );
             return (
               <li class="evento">
                 <a class="evento__link" href={`/eventos/${event.slug}`}>
                   <time class="evento__date" datetime={event.startDate}>
-                    <span class="evento__day">{dayFormatter.format(start)}</span>
+                    <span class="evento__day">{day}</span>
                     <span class="evento__month">
-                      {monthFormatter.format(start).replace('.', '').toUpperCase()}
+                      {monthName.replace('.', '').toUpperCase()}
                     </span>
                   </time>
 

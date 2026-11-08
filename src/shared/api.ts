@@ -206,6 +206,25 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+/** Body of `POST /api/v1/auth/password-reset/request` (improvement A5). */
+export interface PasswordResetRequest {
+  email: string;
+}
+
+/** Body of `POST /api/v1/auth/password-reset/confirm` (improvement A5). */
+export interface PasswordResetConfirmRequest {
+  token: string;
+  password: string;
+}
+
+/**
+ * Generic password-reset acknowledgement. The same shape is returned whether
+ * or not the account exists, so the endpoint cannot be used for enumeration.
+ */
+export interface PasswordResetResponse {
+  message: string;
+}
+
 /**
  * Response body of `GET /api/v1/auth/me`: the identity plus every permission
  * resolved server-side for the current session (docs/08 §7.2, docs/11 §10).

@@ -283,7 +283,9 @@ describe('stored → DTO projection', () => {
       'giving',
       'schedule',
       'socials',
+      'timezone',
     ]);
+    assert.equal(publicDto.timezone, 'America/Bogota');
     assert.deepEqual(publicDto.church, {
       name: 'Iglesia UCI',
       shortDescription:
