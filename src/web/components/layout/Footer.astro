@@ -1,7 +1,10 @@
 ---
 /**
- * Footer — dark, information-rich closing surface (docs/03 §24, docs/04 §18).
- * All data comes from the repository layer.
+ * Footer — dark, compact closing surface (docs/03 §24, docs/04 §18).
+ *
+ * The approved mockup uses a single navigation row (logo, links, socials) and
+ * a quiet practical line (address / schedule / contact / copyright) instead of
+ * the previous five-column layout. All data comes from the repository layer.
  */
 import { Mail, MessageCircle, Phone } from '@lucide/astro';
 import { Image } from 'astro:assets';
@@ -34,17 +37,16 @@ const schedules = Astro.props.schedules ?? (await getServiceSchedules());
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const formatSchedule = (schedule: (typeof schedules)[number]) =>
-  `${DAY_NAMES[schedule.dayOfWeek]} · ${schedule.startTime}`;
+  `${DAY_NAMES[schedule.dayOfWeek]} ${schedule.startTime}`;
 
 const year = new Date().getFullYear();
 
 // Honest degradation (docs/04 §6.6, §24): settings may leave contact, socials
-// and the address unfilled. Never fall back to fictitious fixture values —
-// hide the block or show a "por confirmar" state instead.
+// and the address unfilled. Never fall back to fictitious values — hide the
+// block or show a "por confirmar" state instead.
 const locationCityLine = [church.location.city, church.location.state]
   .filter(Boolean)
   .join(', ');
-const hasRoute = church.location.confirmed && Boolean(church.location.mapUrl);
 const whatsappHref = church.whatsapp
   ? `https://wa.me/${church.whatsapp.replace(/[^\d]/g, '')}`
   : null;
@@ -53,20 +55,40 @@ const hasContact = Boolean(church.phone || church.email || whatsappHref);
 
 <footer class="footer">
   <Container wide>
-    <div class="footer__grid">
-      <div class="footer__brand">
-        <Image
-          class="footer__logo"
-          src={logoFull}
-          alt={church.fullName}
-          width={260}
-          height={98}
-          widths={[180, 260]}
-          sizes="200px"
-          loading="lazy"
-          decoding="async"
-        />
-        <p class="footer__tagline">{church.shortDescription}</p>
+    <div class="footer__inner">
+      <div class="footer__top">
+        <a class="footer__brand" href="/" aria-label={`${church.name} — Inicio`}>
+          <Image
+            class="footer__logo"
+            src={logoFull}
+            alt={church.fullName}
+            width={260}
+            height={98}
+            widths={[180, 260]}
+            sizes="130px"
+            loading="eager"
+            decoding="async"
+          />
+        </a>
+
+        <nav class="footer__nav" aria-label="Navegación del pie de página">
+          <ul class="footer__links">
+            {
+              navigation.footer.map((item) => (
+                <li>
+                  <a
+                    href={item.href}
+                    target={item.external ? '_blank' : undefined}
+                    rel={item.external ? 'noopener noreferrer' : undefined}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+
         {
           church.socialLinks.length > 0 && (
             <ul class="footer__social" aria-label="Redes sociales">
@@ -78,7 +100,7 @@ const hasContact = Boolean(church.phone || church.email || whatsappHref);
                     target="_blank"
                     aria-label={social.label}
                   >
-                    <SocialIcon name={social.platform} size={20} />
+                    <SocialIcon name={social.platform} size={18} />
                   </a>
                 </li>
               ))}
@@ -87,108 +109,68 @@ const hasContact = Boolean(church.phone || church.email || whatsappHref);
         }
       </div>
 
-      <nav class="footer__column" aria-label="Navegación del pie de página">
-        <h2 class="footer__heading">Navegación</h2>
-        <ul class="footer__list">
-          {
-            navigation.footer.map((item) => (
-              <li>
-                <a
-                  href={item.href}
-                  target={item.external ? '_blank' : undefined}
-                  rel={item.external ? 'noopener noreferrer' : undefined}
-                >
-                  {item.label}
-                </a>
-              </li>
-            ))
-          }
-        </ul>
-      </nav>
+      <div class="footer__meta">
+        <div class="footer__details">
+          <address class="footer__address">
+            {church.location.name && <span>{church.location.name}</span>}
+            <span>{church.location.address || 'Dirección por confirmar'}</span>
+            {locationCityLine && <span>{locationCityLine}</span>}
+          </address>
 
-      <div class="footer__column">
-        <h2 class="footer__heading">Ubicación</h2>
-        <address class="footer__address">
-          {church.location.name && <span>{church.location.name}</span>}
-          <span>{church.location.address || 'Dirección por confirmar'}</span>
-          {locationCityLine && <span>{locationCityLine}</span>}
-          {
-            hasRoute && (
-              <a
-                href={church.location.mapUrl}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                Cómo llegar
-              </a>
-            )
-          }
-        </address>
-      </div>
-
-      <div class="footer__column">
-        <h2 class="footer__heading">Horarios</h2>
-        <ul class="footer__list">
           {
             schedules.length > 0 ? (
-              schedules.map((schedule) => (
-                <li>
-                  {schedule.name}
-                  <span class="footer__muted">{formatSchedule(schedule)}</span>
-                </li>
-              ))
+              <ul class="footer__schedule">
+                {schedules.map((schedule) => (
+                  <li>{formatSchedule(schedule)}</li>
+                ))}
+              </ul>
             ) : (
-              <li class="footer__muted">Horarios por confirmar.</li>
+              <p class="footer__muted">Horarios por confirmar.</p>
             )
           }
-        </ul>
-      </div>
 
-      <div class="footer__column">
-        <h2 class="footer__heading">Contacto</h2>
-        {
-          hasContact ? (
-            <ul class="footer__list footer__contact">
-              {church.phone && (
-                <li>
-                  <a href={`tel:${church.phone.replace(/\s+/g, '')}`}>
-                    <Phone size={16} stroke-width={1.75} />
-                    {church.phone}
-                  </a>
-                </li>
-              )}
-              {church.email && (
-                <li>
-                  <a href={`mailto:${church.email}`}>
-                    <Mail size={16} stroke-width={1.75} />
-                    {church.email}
-                  </a>
-                </li>
-              )}
-              {whatsappHref && (
-                <li>
-                  <a
-                    href={whatsappHref}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    <MessageCircle size={16} stroke-width={1.75} />
-                    WhatsApp
-                  </a>
-                </li>
-              )}
-            </ul>
-          ) : (
-            <p class="footer__muted">Contacto por confirmar.</p>
-          )
-        }
-      </div>
-    </div>
+          {
+            hasContact ? (
+              <ul class="footer__contact">
+                {church.phone && (
+                  <li>
+                    <a href={`tel:${church.phone.replace(/\s+/g, '')}`}>
+                      <Phone size={14} stroke-width={1.75} />
+                      {church.phone}
+                    </a>
+                  </li>
+                )}
+                {church.email && (
+                  <li>
+                    <a href={`mailto:${church.email}`}>
+                      <Mail size={14} stroke-width={1.75} />
+                      {church.email}
+                    </a>
+                  </li>
+                )}
+                {whatsappHref && (
+                  <li>
+                    <a
+                      href={whatsappHref}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      <MessageCircle size={14} stroke-width={1.75} />
+                      WhatsApp
+                    </a>
+                  </li>
+                )}
+              </ul>
+            ) : (
+              <p class="footer__muted">Contacto por confirmar.</p>
+            )
+          }
+        </div>
 
-    <div class="footer__bottom">
-      <p class="footer__copyright">
-        © {year} {church.fullName}. Todos los derechos reservados.
-      </p>
+        <p class="footer__copyright">
+          © {year} {church.fullName}.
+        </p>
+      </div>
     </div>
   </Container>
 </footer>
@@ -202,45 +184,60 @@ const hasContact = Boolean(church.phone || church.email || whatsappHref);
     color: var(--color-white);
   }
 
-  .footer__grid {
-    display: grid;
-    grid-template-columns: 1.6fr repeat(4, 1fr);
-    gap: var(--space-40) var(--space-32);
+  .footer__inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-32);
   }
 
-  @media (max-width: 1023px) {
-    .footer__grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    .footer__brand {
-      grid-column: 1 / -1;
-    }
+  .footer__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-32);
+    flex-wrap: wrap;
   }
 
-  @media (max-width: 599px) {
-    .footer__grid {
-      grid-template-columns: 1fr;
-    }
+  .footer__brand {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
   }
 
   .footer__logo {
-    height: 2rem;
+    height: 2.5rem;
     width: auto;
     filter: var(--brand-logo-filter);
   }
 
-  .footer__tagline {
-    margin-top: var(--space-16);
-    max-width: 34ch;
-    color: var(--color-gray);
+  .footer__nav {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  .footer__links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8) var(--space-24);
+  }
+
+  .footer__links a {
+    color: var(--color-gray-light);
     font-size: var(--font-size-body-small);
+    transition: color var(--duration-fast) var(--ease-out);
+  }
+
+  .footer__links a:hover {
+    color: var(--color-gold);
   }
 
   .footer__social {
     display: flex;
+    align-items: center;
     gap: var(--space-16);
-    margin-top: var(--space-24);
   }
 
   .footer__social a {
@@ -248,78 +245,92 @@ const hasContact = Boolean(church.phone || church.email || whatsappHref);
     transition: color var(--duration-fast) var(--ease-out);
   }
 
-  .footer__contact a {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-8);
-  }
-
   .footer__social a:hover {
     color: var(--color-gold);
   }
 
-  .footer__heading {
-    margin-bottom: var(--space-16);
-    color: var(--color-white);
-    font-size: var(--font-size-caption);
-    font-weight: var(--font-weight-semibold);
-    letter-spacing: var(--letter-spacing-label);
-    text-transform: uppercase;
-  }
-
-  .footer__list {
+  .footer__meta {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-8);
-    font-size: var(--font-size-body-small);
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-24);
+    flex-wrap: wrap;
+    padding-top: var(--space-24);
+    border-top: 1px solid var(--border-on-dark);
   }
 
-  .footer__list a,
-  .footer__address a {
-    color: var(--color-gray-light);
-    transition: color var(--duration-fast) var(--ease-out);
-  }
-
-  .footer__list a:hover,
-  .footer__address a:hover {
-    color: var(--color-gold);
-  }
-
-  .footer__muted {
-    display: block;
+  .footer__details {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8) var(--space-24);
     color: var(--color-gray);
+    font-size: var(--font-size-caption);
   }
 
   .footer__address {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-    color: var(--color-gray-light);
-    font-size: var(--font-size-body-small);
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-8);
     font-style: normal;
   }
 
-  .footer__address a {
-    margin-top: var(--space-8);
+  .footer__schedule {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-16);
+  }
+
+  .footer__contact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-16);
+  }
+
+  .footer__contact a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    color: var(--color-gray-light);
+    transition: color var(--duration-fast) var(--ease-out);
+  }
+
+  .footer__contact a:hover {
     color: var(--color-gold);
   }
 
-  .footer__bottom {
-    display: flex;
-    justify-content: space-between;
-    margin-top: var(--space-48);
-    padding-top: var(--space-24);
-    border-top: 1px solid var(--border-on-dark);
+  .footer__muted {
+    color: var(--color-gray);
   }
 
   .footer__copyright {
     color: var(--color-gray);
     font-size: var(--font-size-caption);
+    white-space: nowrap;
   }
 
-  @media (min-width: 1024px) {
-    .footer__brand {
-      padding-right: var(--space-40);
+  @media (max-width: 1023px) {
+    .footer__top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .footer__nav {
+      justify-content: flex-start;
+    }
+
+    .footer__links {
+      justify-content: flex-start;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .footer__links {
+      gap: var(--space-4) var(--space-16);
+    }
+
+    .footer__meta {
+      flex-direction: column;
     }
   }
 </style>

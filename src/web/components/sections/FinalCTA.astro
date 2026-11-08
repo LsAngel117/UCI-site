@@ -3,10 +3,12 @@
  * FinalCTA — "Hay un lugar para ti." (docs/04 §17, docs/03 §23).
  *
  * Cinematic conclusion of the homepage narrative. The background is an
- * atmospheric placeholder until real landscape/worship imagery is delivered
- * (docs/04 §17.5); it is explicitly marked as temporary and will be replaced
- * by `<Image>` without changing the composition.
+ * atmospheric composition (deep night, blue horizon glow and a faint UCI mark)
+ * standing in for the final landscape photograph, which is still pending
+ * (docs/04 §17.5). Replacing it later requires only the media layer.
  */
+import { Image } from 'astro:assets';
+import brandVisual from '../../assets/brand/uci-globe-bible-heartbeat.png';
 import { getFinalCtaContent } from '../../data/site';
 import Button from '../ui/Button.astro';
 import Container from '../ui/Container.astro';
@@ -16,49 +18,100 @@ const section = getFinalCtaContent();
 ---
 
 <Section id="final-cta" surface="dark" spacing="lg" class="final">
-  {/* TEMPORARY: atmospheric background. Replace with `final-cta-horizon.jpg`
-      (worship/environmental image) via <Image> when delivered. */}
   <div class="final__media" aria-hidden="true">
     <div class="final__glow"></div>
+    <div class="final__horizon"></div>
     <div class="final__vignette"></div>
+    <Image
+      class="final__mark"
+      src={brandVisual}
+      alt=""
+      aria-hidden="true"
+      width={900}
+      height={900}
+      widths={[420, 640, 900]}
+      sizes="40vw"
+      loading="lazy"
+      decoding="async"
+    />
   </div>
 
-  <Container narrow class="final__inner">
-    <h2 class="final__heading font-display">{section.heading}</h2>
-    <p class="final__support text-body-large">{section.supportingText}</p>
-    <div class="final__cta">
-      <Button href={section.cta.href} variant="primary">{section.cta.label}</Button>
+  <Container narrow>
+    <div class="final__inner">
+      <h2 class="final__heading font-display">{section.heading}</h2>
+      <p class="final__support text-body-large">{section.supportingText}</p>
+      <div class="final__cta">
+        <Button href={section.cta.href} variant="primary" arrow>
+          {section.cta.label}
+        </Button>
+      </div>
     </div>
   </Container>
 </Section>
 
 <style>
-  .final {
+  :global(.final) {
     overflow: hidden;
-    min-height: 60vh;
+    min-height: 64vh;
     display: flex;
     align-items: center;
+    background: var(--color-black);
   }
 
   .final__media {
     position: absolute;
     inset: 0;
-    background: linear-gradient(160deg, var(--color-navy) 0%, var(--color-black) 100%);
+    background: linear-gradient(
+      180deg,
+      var(--color-black) 0%,
+      var(--color-navy) 78%,
+      #0a1b33 100%
+    );
   }
 
   .final__glow {
     position: absolute;
-    inset: auto -10% -40% -10%;
-    height: 80%;
-    background: var(--gradient-blue-glow);
-    opacity: 0.8;
+    inset: auto -10% -45% -10%;
+    height: 90%;
+    background: radial-gradient(
+      ellipse at 50% 100%,
+      rgba(91, 184, 245, 0.5) 0%,
+      rgba(22, 117, 209, 0.22) 38%,
+      rgba(5, 7, 10, 0) 70%
+    );
+  }
+
+  /* Gold horizon line that reads as the sunrise behind the mountains. */
+  .final__horizon {
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    bottom: 26%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      rgba(217, 164, 65, 0) 0%,
+      rgba(217, 164, 65, 0.55) 50%,
+      rgba(217, 164, 65, 0) 100%
+    );
+    opacity: 0.7;
   }
 
   .final__vignette {
     position: absolute;
     inset: 0;
     background: var(--gradient-hero-overlay);
-    opacity: 0.8;
+    opacity: 0.65;
+  }
+
+  .final__mark {
+    position: absolute;
+    right: -4%;
+    bottom: -12%;
+    width: min(34rem, 46vw);
+    height: auto;
+    opacity: 0.16;
+    filter: blur(0.5px) saturate(0.8);
   }
 
   .final__inner {
@@ -71,18 +124,32 @@ const section = getFinalCtaContent();
   }
 
   .final__heading {
-    max-width: 16ch;
-    font-size: var(--font-size-display-l);
+    max-width: 26ch;
+    font-size: var(--font-size-heading-1);
     font-weight: var(--font-weight-medium);
     color: var(--color-white);
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
   }
 
   .final__support {
-    max-width: 42ch;
+    max-width: 46ch;
     color: var(--color-gray-light);
   }
 
   .final__cta {
     margin-top: var(--space-8);
+  }
+
+  @media (max-width: 767px) {
+    :global(.final) {
+      min-height: 52vh;
+    }
+
+    .final__mark {
+      width: 18rem;
+      right: -18%;
+      opacity: 0.12;
+    }
   }
 </style>

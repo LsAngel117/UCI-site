@@ -8,12 +8,16 @@
  * Renders <a> when `href` is provided, otherwise <button>. Disabled state is
  * only exposed on the button branch; anchors should not be rendered disabled.
  */
-import { ArrowRight } from '@lucide/astro';
+import { ArrowRight, Play } from '@lucide/astro';
 
 interface Props {
   variant?: 'primary' | 'secondary' | 'text';
   /** Text-variant link color: gold on dark surfaces, navy on light (WCAG AA). */
   contrast?: 'gold' | 'navy';
+  /** Optional leading icon. `play` marks video/sermon actions. */
+  icon?: 'play';
+  /** Render a trailing arrow for primary/secondary actions. */
+  arrow?: boolean;
   /** Internal path or external URL. Presence switches the root to <a>. */
   href?: string;
   /** Open external links in a new tab with a safe rel. */
@@ -28,6 +32,8 @@ interface Props {
 const {
   variant = 'primary',
   contrast = 'gold',
+  icon,
+  arrow = false,
   href,
   external = false,
   type = 'button',
@@ -60,7 +66,21 @@ const renderedHref = isLink && !disabled ? href : undefined;
   aria-disabled={isLink && disabled ? 'true' : undefined}
   aria-label={ariaLabel}
 >
+  {
+    icon === 'play' && (
+      <span class="btn__icon">
+        <Play size={15} stroke-width={1.75} fill="currentColor" />
+      </span>
+    )
+  }
   <span class="btn__label"><slot /></span>
+  {
+    arrow && variant !== 'text' && (
+      <span class="btn__arrow">
+        <ArrowRight size={16} stroke-width={1.75} />
+      </span>
+    )
+  }
   {
     variant === 'text' && (
       <span class="btn__arrow">
@@ -115,6 +135,13 @@ const renderedHref = isLink && !disabled ? href : undefined;
     transform: translateY(1px);
   }
 
+  .btn__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-inline-end: var(--space-4);
+  }
+
   /* --- Secondary: transparent / dark with light border ----------------- */
   .btn--secondary {
     background-color: transparent;
@@ -158,12 +185,25 @@ const renderedHref = isLink && !disabled ? href : undefined;
     transition: transform var(--duration-fast) var(--ease-out);
   }
 
+  .btn__arrow {
+    display: inline-flex;
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .btn:hover .btn__arrow {
+    transform: translateX(3px);
+  }
+
   .btn--text:hover .btn__arrow {
     transform: translateX(3px);
   }
 
   @media (prefers-reduced-motion: reduce) {
     .btn--text:hover .btn__arrow {
+      transform: none;
+    }
+
+    .btn:hover .btn__arrow {
       transform: none;
     }
   }

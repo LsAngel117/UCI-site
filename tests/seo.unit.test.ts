@@ -376,13 +376,14 @@ describe('sitemap rendering', () => {
       'sermones',
       'eventos',
       'ministerios',
-      'nosotros',
       'soy-nuevo',
       'contacto',
     ]) {
       assert.equal(isReservedSitemapSlug(slug), true, slug);
     }
-    for (const slug of ['quienes-somos', 'jovenes', 'historia']) {
+    // `/nosotros` is an institutional page managed by the Pages module, so it
+    // is a real content route and must appear in the sitemap.
+    for (const slug of ['nosotros', 'quienes-somos', 'jovenes', 'historia']) {
       assert.equal(isReservedSitemapSlug(slug), false, slug);
     }
   });

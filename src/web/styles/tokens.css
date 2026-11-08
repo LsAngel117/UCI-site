@@ -48,6 +48,20 @@
     rgba(11, 18, 32, 0.72) 45%,
     rgba(5, 7, 10, 0.55) 100%
   );
+  /* Photo card darkening used by the pillars/service/ministries cards. */
+  --gradient-card-overlay: linear-gradient(
+    to top,
+    rgba(5, 7, 10, 0.94) 0%,
+    rgba(5, 7, 10, 0.55) 45%,
+    rgba(5, 7, 10, 0.08) 100%
+  );
+  /* Vivid blue call-to-action card (Generosidad, mockup). */
+  --gradient-blue-card: linear-gradient(
+    145deg,
+    #1b7fe0 0%,
+    #1067bb 48%,
+    #0a4680 100%
+  );
 
   /* --- Typography families (docs/03 §6) --------------------------------- */
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica,
@@ -149,6 +163,6 @@
      If the delivered logo is dark-on-dark, set
      --brand-logo-filter: brightness(0) invert(1);
      on the dark context instead of adding a surface behind it. ---------- */
-  --brand-logo-height: 2.25rem;
+  --brand-logo-height: 3.25rem;
   --brand-logo-filter: none;
 }

@@ -12,6 +12,8 @@ import {
   formatEventDay,
   formatEventDateTime,
   formatEventTime,
+  formatServiceDay,
+  formatTime12h,
   formatWeekdayDate,
   resolveChurchTimeZone,
 } from '@web/lib/format';
@@ -44,6 +46,25 @@ describe('B1 — church timezone formatting', () => {
       formatEventDay(INSTANT),
       formatEventDay(INSTANT, DEFAULT_CHURCH_TIME_ZONE),
     );
+  });
+});
+
+describe('hero service strip formatting', () => {
+  test('renders stored 24h times as 12h labels', () => {
+    assert.equal(formatTime12h('09:00'), '09:00 AM');
+    assert.equal(formatTime12h('13:05'), '01:05 PM');
+    assert.equal(formatTime12h('00:30'), '12:30 AM');
+    assert.equal(formatTime12h('12:00'), '12:00 PM');
+    assert.equal(formatTime12h('Por confirmar'), 'Por confirmar');
+    assert.equal(formatTime12h(null), null);
+  });
+
+  test('renders plural weekday labels and rejects unknown days', () => {
+    assert.equal(formatServiceDay(0), 'DOMINGOS');
+    assert.equal(formatServiceDay(1), 'LUNES');
+    assert.equal(formatServiceDay(6), 'SÁBADOS');
+    assert.equal(formatServiceDay(undefined), null);
+    assert.equal(formatServiceDay(9), null);
   });
 });
 

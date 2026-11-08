@@ -10,6 +10,12 @@
  *
  * Data comes from the repository layer; the page does not pass navigation props
  * so the header stays consistent across routes.
+ *
+ * Layout note: the inner grid lives in a native wrapper INSIDE `Container`.
+ * Astro scoped styles do not reach a child component root element, so styling
+ * `.site-header__inner` on the `Container` itself silently failed (the bar
+ * collapsed into a block). The native wrapper keeps the styles local and the
+ * grid contract intact.
  */
 import { Menu, X } from '@lucide/astro';
 import { Image } from 'astro:assets';
@@ -38,82 +44,83 @@ const menuId = 'primary-navigation';
 ---
 
 <header class="site-header" data-header>
-  <Container wide class="site-header__inner">
-    <a class="site-header__brand" href="/" aria-label={`${church.name} — Inicio`}>
-      <Image
-        class="site-header__logo"
-        src={logoFull}
-        alt={church.fullName}
-        width={320}
-        height={120}
-        widths={[160, 240, 320]}
-        sizes="(min-width: 768px) 240px, 180px"
-        loading="eager"
-        decoding="async"
-      />
-    </a>
+  <Container wide>
+    <div class="site-header__inner">
+      <a class="site-header__brand" href="/" aria-label={`${church.name} — Inicio`}>
+        <Image
+          class="site-header__logo"
+          src={logoFull}
+          alt={church.fullName}
+          width={320}
+          height={120}
+          widths={[160, 240, 320]}
+          sizes="160px"
+          loading="eager"
+          decoding="async"
+        />
+      </a>
 
-    <nav
-      id={menuId}
-      class="site-header__nav"
-      aria-label="Navegación principal"
-      data-nav
-    >
-      <ul class="site-header__links">
-        {
-          primary.map((item) => (
-            <li>
-              <a
-                class:list={[
-                  'site-header__link',
-                  { 'is-active': !item.external && isActive(item.href) },
-                ]}
-                href={item.href}
-                target={item.external ? '_blank' : undefined}
-                rel={item.external ? 'noopener noreferrer' : undefined}
-                aria-current={!item.external && isActive(item.href) ? 'page' : undefined}
-              >
-                {item.label}
+      <nav
+        id={menuId}
+        class="site-header__nav"
+        aria-label="Navegación principal"
+        data-nav
+      >
+        <ul class="site-header__links">
+          {
+            primary.map((item) => (
+              <li>
+                <a
+                  class:list={[
+                    'site-header__link',
+                    { 'is-active': !item.external && isActive(item.href) },
+                  ]}
+                  href={item.href}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noopener noreferrer' : undefined}
+                  aria-current={!item.external && isActive(item.href) ? 'page' : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+
+        <div class="site-header__actions">
+          {
+            newcomerAction && (
+              <a class="site-header__cta site-header__cta--ghost" href={newcomerAction.href}>
+                {newcomerAction.label}
               </a>
-            </li>
-          ))
-        }
-      </ul>
+            )
+          }
+          {
+            liveAction && (
+              <a class="site-header__cta site-header__cta--gold" href={liveAction.href}>
+                {liveAction.label}
+              </a>
+            )
+          }
+        </div>
+      </nav>
 
-      <div class="site-header__actions">
-        {
-          newcomerAction && (
-            <a class="site-header__cta site-header__cta--primary" href={newcomerAction.href}>
-              {newcomerAction.label}
-            </a>
-          )
-        }
-        {
-          liveAction && (
-            <a class="site-header__cta site-header__cta--secondary" href={liveAction.href}>
-              <span class="site-header__live-dot" aria-hidden="true"></span>
-              {liveAction.label}
-            </a>
-          )
-        }
-      </div>
-    </nav>
-
-    <button
-      class="site-header__toggle"
-      type="button"
-      aria-expanded="false"
-      aria-controls={menuId}
-      data-menu-toggle
-    >
-      <span class="visually-hidden">Abrir menú de navegación</span>
-      <span class="site-header__toggle-icon site-header__toggle-icon--menu">
-        <Menu size={24} />
-      </span>
-      <span class="site-header__toggle-icon site-header__toggle-icon--close">
-        <X size={24} />
-      </span>
-    </button>
+      <button
+        class="site-header__toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls={menuId}
+        data-menu-toggle
+      >
+        <span class="visually-hidden">Abrir menú de navegación</span>
+        <span class="site-header__toggle-icon site-header__toggle-icon--menu">
+          <Menu size={24} />
+        </span>
+        <span class="site-header__toggle-icon site-header__toggle-icon--close">
+          <X size={24} />
+        </span>
+      </button>
+    </div>
   </Container>
 </header>
 
@@ -130,27 +137,36 @@ const menuId = 'primary-navigation';
       backdrop-filter var(--duration-base) var(--ease-out);
   }
 
-  /* Solid state applied by the scroll script. */
-  .site-header.is-scrolled,
-  .site-header.is-menu-open {
-    background-color: rgba(11, 18, 32, 0.96);
+  /* Solid state applied by the scroll script.
+     NOTE: `backdrop-filter` makes the header a containing block for fixed
+     descendants. The mobile menu is a fixed full-screen panel inside this
+     header, so it must not inherit a backdrop filter: otherwise `inset: 0`
+     resolves against the 84px header instead of the viewport. */
+  .site-header.is-scrolled:not(.is-menu-open) {
+    background-color: rgba(8, 14, 26, 0.94);
     border-bottom-color: var(--border-on-dark);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .site-header.is-menu-open {
+    background-color: rgba(8, 14, 26, 0.94);
+    border-bottom-color: var(--border-on-dark);
   }
 
   .site-header__inner {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-24);
-    min-height: 4.5rem;
+    gap: var(--space-16);
+    min-height: 5.25rem;
     padding-block: var(--space-12);
   }
 
   .site-header__brand {
     display: inline-flex;
     align-items: center;
+    justify-self: start;
     flex-shrink: 0;
   }
 
@@ -161,23 +177,24 @@ const menuId = 'primary-navigation';
   }
 
   .site-header__nav {
-    display: flex;
-    align-items: center;
-    gap: var(--space-32);
+    display: contents;
   }
 
   .site-header__links {
     display: flex;
     align-items: center;
-    gap: var(--space-24);
+    justify-self: center;
+    gap: clamp(0.75rem, 0.2rem + 1vw, 1.75rem);
   }
 
   .site-header__link {
     position: relative;
+    display: inline-block;
     padding-block: var(--space-8);
     color: var(--color-white);
     font-size: var(--font-size-navigation);
     letter-spacing: var(--letter-spacing-nav);
+    white-space: nowrap;
     transition: color var(--duration-fast) var(--ease-out);
   }
 
@@ -210,50 +227,49 @@ const menuId = 'primary-navigation';
   .site-header__actions {
     display: flex;
     align-items: center;
+    justify-self: end;
     gap: var(--space-12);
   }
 
   .site-header__cta {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--space-8);
-    padding: var(--space-8) var(--space-16);
+    padding: 0.6875rem var(--space-24);
     border-radius: var(--radius-md);
     font-size: var(--font-size-body-small);
     font-weight: var(--font-weight-semibold);
     letter-spacing: var(--letter-spacing-nav);
+    white-space: nowrap;
     transition:
       background-color var(--duration-fast) var(--ease-out),
-      border-color var(--duration-fast) var(--ease-out);
+      border-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
   }
 
-  .site-header__cta--primary {
+  /* “Soy nuevo”: translucent dark pill, the quieter action. */
+  .site-header__cta--ghost {
+    background-color: rgba(5, 7, 10, 0.35);
+    color: var(--color-white);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+  }
+
+  .site-header__cta--ghost:hover {
+    background-color: rgba(5, 7, 10, 0.6);
+    border-color: rgba(255, 255, 255, 0.55);
+  }
+
+  /* “Ver en vivo”: gold, the primary action. */
+  .site-header__cta--gold {
     background-color: var(--color-gold);
     color: var(--color-black);
     border: 1px solid var(--color-gold);
   }
 
-  .site-header__cta--primary:hover {
+  .site-header__cta--gold:hover {
     background-color: var(--color-gold-light);
     border-color: var(--color-gold-light);
-  }
-
-  .site-header__cta--secondary {
-    color: var(--color-white);
-    border: 1px solid var(--border-on-dark-strong);
-  }
-
-  .site-header__cta--secondary:hover {
-    background-color: rgba(91, 184, 245, 0.12);
-    border-color: var(--color-blue-light);
-  }
-
-  .site-header__live-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background-color: var(--color-gold);
-    box-shadow: 0 0 0 3px rgba(217, 164, 65, 0.22);
   }
 
   /* --- Mobile toggle ---------------------------------------------------- */
@@ -262,6 +278,7 @@ const menuId = 'primary-navigation';
     position: relative;
     align-items: center;
     justify-content: center;
+    justify-self: end;
     width: 2.75rem;
     height: 2.75rem;
     padding: var(--space-8);
@@ -296,6 +313,11 @@ const menuId = 'primary-navigation';
 
   /* --- Mobile ----------------------------------------------------------- */
   @media (max-width: 1023px) {
+    .site-header__inner {
+      grid-template-columns: 1fr auto;
+      min-height: 4.75rem;
+    }
+
     .site-header__toggle {
       display: flex;
     }
@@ -304,6 +326,7 @@ const menuId = 'primary-navigation';
       position: fixed;
       inset: 0;
       z-index: var(--z-mobile-menu);
+      display: flex;
       flex-direction: column;
       align-items: stretch;
       justify-content: flex-start;
@@ -326,6 +349,7 @@ const menuId = 'primary-navigation';
     .site-header__links {
       flex-direction: column;
       align-items: stretch;
+      justify-self: stretch;
       gap: var(--space-4);
     }
 
@@ -342,6 +366,7 @@ const menuId = 'primary-navigation';
     .site-header__actions {
       flex-direction: column;
       align-items: stretch;
+      justify-self: stretch;
       gap: var(--space-12);
     }
 
@@ -355,6 +380,16 @@ const menuId = 'primary-navigation';
     .site-header__toggle {
       position: relative;
       z-index: calc(var(--z-mobile-menu) + 1);
+    }
+
+    .site-header__logo {
+      height: 2.5rem;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .site-header__logo {
+      height: 2.25rem;
     }
   }
 </style>

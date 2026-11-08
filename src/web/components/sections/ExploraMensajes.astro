@@ -44,24 +44,32 @@ const dateFormatter = new Intl.DateTimeFormat('es-CO', {
     <header class="mensajes__header">
       <div class="mensajes__intro">
         <SectionLabel accent="blue">{section.label}</SectionLabel>
-        <h2 class="mensajes__heading font-display">{section.heading}</h2>
-      </div>
 
-      {/* Filter taxonomy — static in this phase (see component note). */}
-      <ul class="mensajes__filters" aria-label="Filtros de sermones">
-        {
-          section.filters.map((filter, index) => (
-            <li>
-              <span
-                class:list={['mensajes__filter', { 'is-active': index === 0 }]}
-                aria-current={index === 0 ? 'true' : undefined}
-              >
-                {filter}
-              </span>
-            </li>
-          ))
-        }
-      </ul>
+        <div class="mensajes__title-row">
+          <h2 class="mensajes__heading font-display">{section.heading}</h2>
+          <div class="mensajes__header-cta">
+            <Button href={section.cta.href} variant="text" contrast="navy">
+              {section.cta.label}
+            </Button>
+          </div>
+        </div>
+
+        {/* Filter taxonomy — static in this phase (see component note). */}
+        <ul class="mensajes__filters" aria-label="Filtros de sermones">
+          {
+            section.filters.map((filter, index) => (
+              <li>
+                <span
+                  class:list={['mensajes__filter', { 'is-active': index === 0 }]}
+                  aria-current={index === 0 ? 'true' : undefined}
+                >
+                  {filter}
+                </span>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
     </header>
 
     {
@@ -124,12 +132,6 @@ const dateFormatter = new Intl.DateTimeFormat('es-CO', {
     </ul>
       )
     }
-
-    <div class="mensajes__actions">
-      <Button href={section.cta.href} variant="text" contrast="navy">
-        {section.cta.label}
-      </Button>
-    </div>
   </Container>
 </Section>
 
@@ -144,14 +146,28 @@ const dateFormatter = new Intl.DateTimeFormat('es-CO', {
   .mensajes__intro {
     display: flex;
     flex-direction: column;
-    gap: var(--space-12);
+    gap: var(--space-16);
+  }
+
+  .mensajes__title-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-24);
+  }
+
+  .mensajes__header-cta {
+    flex-shrink: 0;
+    padding-bottom: var(--space-8);
   }
 
   .mensajes__heading {
-    max-width: 20ch;
+    max-width: 32ch;
     font-size: var(--font-size-heading-2);
     font-weight: var(--font-weight-medium);
     color: var(--color-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
   }
 
   .mensajes__filters {
@@ -257,10 +273,6 @@ const dateFormatter = new Intl.DateTimeFormat('es-CO', {
     text-transform: uppercase;
   }
 
-  .mensajes__actions {
-    margin-top: var(--space-40);
-  }
-
   @media (max-width: 1023px) {
     .mensajes__grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -268,6 +280,16 @@ const dateFormatter = new Intl.DateTimeFormat('es-CO', {
   }
 
   @media (max-width: 639px) {
+    .mensajes__title-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-12);
+    }
+
+    .mensajes__header-cta {
+      padding-bottom: 0;
+    }
+
     .mensajes__grid {
       grid-template-columns: 1fr;
     }

@@ -56,8 +56,8 @@ export const homepageHeadingsFixture: {
   },
   about: {
     label: 'SOMOS UCI',
-    heading: 'Una iglesia que intercede',
-    body: 'Creemos en una iglesia que permanece en oración, que ama la Palabra de Dios y que camina junta como familia. En UCI cada persona es bienvenida a encontrar su lugar.',
+    heading: 'Unidad Cristiana de Intercesión',
+    body: 'Somos una comunidad que cree en el poder de la oración, en la autoridad de la Palabra de Dios y en el llamado de cada persona a vivir una relación genuina con Cristo.',
     cta: { label: 'CONÓCENOS MÁS', href: '/nosotros' },
   },
   pillars: {
@@ -67,7 +67,7 @@ export const homepageHeadingsFixture: {
   },
   proximoServicio: {
     label: 'NOS VEMOS ESTE DOMINGO',
-    heading: 'Próximo servicio',
+    heading: 'Servicio de adoración',
     supportingText:
       'Un espacio para adorar juntos, escuchar la Palabra y orar como familia.',
     cta: { label: 'PLANEA TU VISITA', href: '/soy-nuevo' },

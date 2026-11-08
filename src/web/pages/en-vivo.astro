@@ -1,0 +1,255 @@
+---
+/**
+ * /en-vivo — honest live-stream landing (docs/01 §17, docs/05 §23).
+ *
+ * The navigation always exposes “Ver en vivo”. There is no live-stream
+ * configuration model yet, so this page never pretends a stream is running:
+ * it links to the configured YouTube profile when one exists and otherwise
+ * routes visitors to the sermon archive, as docs/01 §17 requires.
+ */
+import { Play, Radio } from '@lucide/astro';
+import { getChurchProfile, getNavigation, getSettings, getServiceSchedules } from '../data/site';
+import { buildStaticPageJsonLd } from '../lib/seo';
+import { formatTime12h } from '../lib/format';
+import ContentLayout from '../layouts/ContentLayout.astro';
+import ArchiveHero from '../components/ui/ArchiveHero.astro';
+import Button from '../components/ui/Button.astro';
+import Container from '../components/ui/Container.astro';
+import Section from '../components/ui/Section.astro';
+import SectionLabel from '../components/ui/SectionLabel.astro';
+
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+
+const [settings, navigation] = await Promise.all([getSettings(), getNavigation()]);
+const church = await getChurchProfile(settings);
+const schedules = await getServiceSchedules(settings);
+
+const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const scheduleLines = schedules.map(
+  (schedule) =>
+    `${DAY_NAMES[schedule.dayOfWeek]} · ${formatTime12h(schedule.startTime) ?? schedule.startTime}`,
+);
+
+const youtubeUrl =
+  church.socialLinks.find(
+    (social) => social.platform === 'youtube' && social.url.trim().length > 0,
+  )?.url ?? null;
+
+const title = 'En vivo | Iglesia UCI';
+const description =
+  'Acompáñanos en nuestras transmisiones en vivo. Cuando no hay una transmisión activa, puedes escuchar los mensajes en el archivo de sermones.';
+const jsonLd = buildStaticPageJsonLd({
+  name: 'En vivo',
+  description,
+  path: '/en-vivo',
+  siteUrl,
+});
+---
+
+<ContentLayout
+  title={title}
+  description={description}
+  canonicalPath="/en-vivo"
+  jsonLd={jsonLd}
+  church={church}
+  navigation={navigation}
+>
+  <ArchiveHero
+    label="EN VIVO"
+    title="Transmisión en vivo"
+    description="Acompáñanos desde donde estés."
+  />
+
+  <Section surface="light" spacing="lg" class="live">
+    <Container narrow>
+      <div class="live__card">
+        <div class="live__screen" aria-hidden="true">
+          <span class="live__screen-icon">
+            <Play size={26} stroke-width={1.75} fill="currentColor" />
+          </span>
+        </div>
+
+        <div class="live__content">
+          <SectionLabel accent="blue">TRANSMISIÓN</SectionLabel>
+
+          {
+            youtubeUrl ? (
+              <>
+                <h2 class="live__heading font-display">
+                  Nuestras transmisiones están en YouTube
+                </h2>
+                <p class="live__text">
+                  Cuando estamos en vivo, puedes acompañarnos desde nuestro
+                  canal. Si no hay transmisión activa, allí encontrarás los
+                  mensajes anteriores.
+                </p>
+                <div class="live__actions">
+                  <Button
+                    href={youtubeUrl}
+                    variant="primary"
+                    external
+                    arrow
+                  >
+                    Ver en YouTube
+                  </Button>
+                  <Button href="/sermones" variant="secondary">
+                    Ver sermones
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 class="live__heading font-display">
+                  No hay una transmisión activa configurada
+                </h2>
+                <p class="live__text">
+                  Mientras habilitamos el canal oficial, puedes escuchar los
+                  mensajes en el archivo de sermones o escribirnos para
+                  acompañarte.
+                </p>
+                <div class="live__actions">
+                  <Button href="/sermones" variant="primary" arrow>
+                    Escuchar sermones
+                  </Button>
+                  <Button href="/contacto" variant="secondary">
+                    Escríbenos
+                  </Button>
+                </div>
+              </>
+            )
+          }
+
+          {
+            scheduleLines.length > 0 && (
+              <div class="live__schedule">
+                <span class="live__schedule-icon" aria-hidden="true">
+                  <Radio size={18} stroke-width={1.75} />
+                </span>
+                <div>
+                  <h3 class="live__schedule-title">Nuestros encuentros</h3>
+                  <ul class="live__schedule-list">
+                    {scheduleLines.map((line) => (
+                      <li>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )
+          }
+        </div>
+      </div>
+    </Container>
+  </Section>
+</ContentLayout>
+
+<style>
+  .live__card {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: center;
+    gap: var(--space-40);
+    padding: var(--space-32);
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+  }
+
+  .live__screen {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 16 / 10;
+    border-radius: var(--radius-md);
+    background:
+      radial-gradient(
+        circle at 50% 40%,
+        rgba(22, 117, 209, 0.35) 0%,
+        rgba(5, 7, 10, 0) 65%
+      ),
+      var(--color-navy);
+  }
+
+  .live__screen-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 50%;
+    color: var(--color-white);
+  }
+
+  .live__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+  }
+
+  .live__heading {
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-navy);
+  }
+
+  .live__text {
+    color: var(--color-navy);
+    opacity: 0.78;
+    font-size: var(--font-size-body-large);
+  }
+
+  .live__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-12);
+    margin-top: var(--space-8);
+  }
+
+  .live__actions :global(.btn--secondary) {
+    color: var(--color-navy);
+    border-color: var(--border-on-light);
+  }
+
+  .live__actions :global(.btn--secondary:hover) {
+    background-color: rgba(22, 117, 209, 0.06);
+    border-color: var(--color-blue);
+  }
+
+  .live__schedule {
+    display: flex;
+    gap: var(--space-12);
+    margin-top: var(--space-16);
+    padding-top: var(--space-16);
+    border-top: 1px solid var(--border-on-light);
+  }
+
+  .live__schedule-icon {
+    color: var(--color-blue);
+  }
+
+  .live__schedule-title {
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-navy);
+  }
+
+  .live__schedule-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4) var(--space-16);
+    color: var(--color-navy);
+    opacity: 0.7;
+    font-size: var(--font-size-body-small);
+  }
+
+  @media (max-width: 767px) {
+    .live__card {
+      grid-template-columns: 1fr;
+      padding: var(--space-24);
+    }
+
+    .live__actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+</style>

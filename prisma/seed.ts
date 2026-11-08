@@ -22,6 +22,7 @@ import {
 import { prisma } from '@server/db';
 import { loadEnvFile } from '@server/env';
 import { seedPublicSettings } from '../src/db/seed/settings';
+import { seedSiteStructure } from '../src/db/seed/site';
 
 /** Initial roles and their descriptions (docs/11 §8). */
 const ROLES = [
@@ -136,8 +137,9 @@ async function main(): Promise<void> {
   const roleIds = await seedRolesAndPermissions();
   await seedInitialAdmin(roleIds);
   await seedPublicSettings();
+  await seedSiteStructure();
   console.log(
-    `[seed] Done: ${PERMISSIONS.length} permissions, ${ROLES.length} roles, public settings.`,
+    `[seed] Done: ${PERMISSIONS.length} permissions, ${ROLES.length} roles, public settings, navigation and institutional page.`,
   );
 }
 

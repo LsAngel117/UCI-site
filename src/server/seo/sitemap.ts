@@ -5,9 +5,10 @@
  * unpublished and archived rows never appear because the query filters on
  * `status = 'published'`. Technical routes (/admin, /panel, /api, /preview,
  * /login) and the public section routes (/sermones, /eventos, /ministerios,
- * /nosotros, /soy-nuevo, /contacto) are never content routes at all, and a
- * page whose slug collides with one of them is deliberately skipped so the
- * sitemap cannot advertise a duplicate canonical URL.
+ * /soy-nuevo, /contacto) are never content routes at all, and a page whose
+ * slug collides with one of them is deliberately skipped so the sitemap cannot
+ * advertise a duplicate canonical URL. `/nosotros` is a Pages-module route and
+ * is listed normally.
  *
  * A published entity with an editorial `SeoMetadata.canonicalUrl` override is
  * listed at that canonical instead of its default slug route (docs/10 §5.4
@@ -32,11 +33,12 @@ const RESERVED_SLUGS = new Set([
   'preview',
   'login',
   // Public section routes: a page with one of these slugs would duplicate the
-  // section's own canonical URL.
+  // section's own canonical URL. `/nosotros` is NOT in this list: it is an
+  // institutional page managed by the Pages module (docs/05 §20), so it is a
+  // real content route and must be discoverable.
   'sermones',
   'eventos',
   'ministerios',
-  'nosotros',
   'soy-nuevo',
   'contacto',
 ]);

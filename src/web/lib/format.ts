@@ -183,3 +183,40 @@ export function isPastEvent(
   const end = parse(endAt) ?? parse(startAt);
   return end !== null && end.getTime() < now.getTime();
 }
+
+/**
+ * Format a stored 24h `HH:mm` time as a church-friendly 12h label
+ * (`09:00 AM`). Unrecognized values are returned untouched so a malformed CMS
+ * value is visible to editors instead of being silently rewritten.
+ */
+export function formatTime12h(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  const match = /^(\d{1,2}):(\d{2})$/.exec(trimmed);
+  if (!match) return trimmed;
+  const hours = Number(match[1]);
+  const minutes = match[2];
+  if (!Number.isInteger(hours) || hours < 0 || hours > 23) return trimmed;
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  return `${String(displayHour).padStart(2, '0')}:${minutes} ${period}`;
+}
+
+/** Plural weekday label used by the hero service strip (`DOMINGOS`). */
+const WEEKDAY_PLURALS = [
+  'DOMINGOS',
+  'LUNES',
+  'MARTES',
+  'MIÉRCOLES',
+  'JUEVES',
+  'VIERNES',
+  'SÁBADOS',
+] as const;
+
+export function formatServiceDay(dayOfWeek: number | null | undefined): string | null {
+  if (typeof dayOfWeek !== 'number' || dayOfWeek < 0 || dayOfWeek > 6) {
+    return null;
+  }
+  return WEEKDAY_PLURALS[dayOfWeek] ?? null;
+}

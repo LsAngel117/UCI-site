@@ -1,87 +1,94 @@
 ---
 /**
- * ThreePillars — "En UCI" (docs/04 §8, docs/03 §14).
+ * ThreePillars — "En UCI / Te invitamos a..." (docs/04 §8, docs/03 §14).
  *
- * Light community surface after the dark identity block (rhythm docs/03 §43).
- * The three pillars are photographic editorial blocks, deliberately NOT
- * SaaS-style cards: full-bleed imagery with quiet typography underneath, no
- * white boxes, one restrained action each.
+ * The approved mockup places the three photographic blocks and the practical
+ * "Nos vemos este domingo" panel side by side on a light surface, so this
+ * component renders only the header + card grid and lets the homepage own the
+ * composite section (see `pages/index.astro`).
  *
- * Pillar images are approved local assets resolved by the data layer.
+ * The blocks are photographic editorial cards: image first, quiet sans
+ * typography and a restrained circular action. They deliberately avoid heavy
+ * shadows and SaaS-style chrome (docs/03 §14).
  */
+import { Plus } from '@lucide/astro';
 import { Image } from 'astro:assets';
 import { getPillarsSection } from '../../data/site';
-import Container from '../ui/Container.astro';
 import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
 import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
-import Section from '../ui/Section.astro';
 import SectionLabel from '../ui/SectionLabel.astro';
 
 const section = getPillarsSection();
 ---
 
-<Section id="en-uci" surface="light" spacing="lg" class="pillars">
-  <Container>
-    <header class="pillars__header">
-      <SectionLabel accent="blue">{section.label}</SectionLabel>
-      <h2 class="pillars__heading font-display">{section.heading}</h2>
-    </header>
+<div class="pillars">
+  <header class="pillars__header">
+    <SectionLabel accent="blue">{section.label}</SectionLabel>
+    <h2 class="pillars__heading font-display">{section.heading}</h2>
+  </header>
 
-    <ul class="pillars__grid">
-      {
-        section.pillars.map((pillar, index) => (
-          <li class="pillar">
+  <ul class="pillars__grid">
+    {
+      section.pillars.map((pillar, index) => (
+        <li class="pillar">
+          <article class="pillar__card">
             <div class="pillar__media">
-              {
-                isLocalAsset(pillar.imageUrl) ? (
-                  <Image
-                    class="pillar__image"
-                    src={pillar.imageUrl}
-                    alt=""
-                    aria-hidden="true"
-                    width={688}
-                    height={386}
-                    widths={[360, 520, 688]}
-                    sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
-                    loading={index === 0 ? 'eager' : 'lazy'}
-                    decoding="async"
-                  />
-                ) : isRemoteAsset(pillar.imageUrl) ? (
-                  <img
-                    class="pillar__image"
-                    src={pillar.imageUrl}
-                    alt=""
-                    aria-hidden="true"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ) : (
-                  <MediaPlaceholder
-                    label={pillar.name}
-                    aspect="16 / 9"
-                    asset={`pillar-${pillar.id}.jpg`}
-                  />
-                )
-              }
+              {isLocalAsset(pillar.imageUrl) ? (
+                <Image
+                  class="pillar__image"
+                  src={pillar.imageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  width={688}
+                  height={386}
+                  widths={[360, 520, 688]}
+                  sizes="(min-width: 1024px) 18vw, (min-width: 640px) 45vw, 90vw"
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                />
+              ) : isRemoteAsset(pillar.imageUrl) ? (
+                <img
+                  class="pillar__image"
+                  src={pillar.imageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <MediaPlaceholder
+                  label={pillar.name}
+                  aspect="16 / 10"
+                  asset={`pillar-${pillar.id}.jpg`}
+                />
+              )}
             </div>
 
             <div class="pillar__body">
               <h3 class="pillar__name">{pillar.name}</h3>
               <p class="pillar__description">{pillar.description}</p>
+              <span class="pillar__plus" aria-hidden="true">
+                <Plus size={16} stroke-width={1.75} />
+              </span>
             </div>
-          </li>
-        ))
-      }
-    </ul>
-  </Container>
-</Section>
+          </article>
+        </li>
+      ))
+    }
+  </ul>
+</div>
 
 <style>
+  .pillars {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-32);
+  }
+
   .pillars__header {
     display: flex;
     flex-direction: column;
-    gap: var(--space-16);
-    margin-bottom: var(--space-48);
+    gap: var(--space-12);
   }
 
   .pillars__heading {
@@ -93,19 +100,26 @@ const section = getPillarsSection();
   .pillars__grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-32);
+    gap: var(--space-24);
   }
 
   .pillar {
     display: flex;
+  }
+
+  .pillar__card {
+    display: flex;
     flex-direction: column;
-    gap: var(--space-24);
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--border-on-light);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
   }
 
   .pillar__media {
     position: relative;
     overflow: hidden;
-    border-radius: var(--radius-md);
     background-color: var(--color-navy);
   }
 
@@ -113,65 +127,77 @@ const section = getPillarsSection();
     width: 100%;
     height: 100%;
     object-fit: cover;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 16 / 10;
     transition: transform var(--duration-slow) var(--ease-out);
   }
 
-  .pillar:hover .pillar__image {
+  .pillar__card:hover .pillar__image {
     transform: scale(1.04);
   }
 
   .pillar__body {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
+    padding: var(--space-24);
+    padding-bottom: var(--space-64);
   }
 
   .pillar__name {
-    display: flex;
-    align-items: center;
-    gap: var(--space-8);
     color: var(--color-navy);
     font-family: var(--font-sans);
-    font-size: var(--font-size-body-large);
-    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-bold);
     letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
   }
 
   .pillar__description {
-    max-width: 34ch;
     color: var(--color-navy);
-    opacity: 0.76;
-    font-size: var(--font-size-body);
+    opacity: 0.72;
+    font-size: var(--font-size-body-small);
   }
 
-  @media (max-width: 1023px) {
+  .pillar__plus {
+    position: absolute;
+    left: var(--space-24);
+    bottom: var(--space-24);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--border-on-light);
+    border-radius: 50%;
+    color: var(--color-navy);
+  }
+
+  @media (max-width: 1180px) {
     .pillars__grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-16);
     }
 
-    .pillar:last-child {
-      grid-column: 1 / -1;
-      max-width: 34rem;
+    .pillar__body {
+      padding: var(--space-16);
+      padding-bottom: var(--space-48);
+    }
+
+    .pillar__plus {
+      left: var(--space-16);
+      bottom: var(--space-16);
     }
   }
 
-  @media (max-width: 639px) {
-    .pillars__header {
-      margin-bottom: var(--space-32);
-    }
-
+  @media (max-width: 767px) {
     .pillars__grid {
       grid-template-columns: 1fr;
-    }
-
-    .pillar:last-child {
-      max-width: none;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .pillar:hover .pillar__image {
+    .pillar__card:hover .pillar__image {
       transform: none;
     }
   }

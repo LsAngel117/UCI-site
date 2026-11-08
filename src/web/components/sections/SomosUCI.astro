@@ -6,17 +6,16 @@
  * integrated into the background with an atmospheric blue glow rather than
  * placed inside a generic card (docs/04 §7.4).
  *
- * Media decision — `conocenos-v1.png` (2170×725, ≈3:1, opaque RGB):
- * this is a wide editorial photograph, NOT the square globe/Bible/heartbeat
- * identity mark. Placing it in the right-column visual slot would crop or
- * distort the intended composition, so the globe mark stays as the identity
- * centerpiece (docs/03 §13) and the wide photograph is used where its native
- * ratio fits: a full-bleed congregational band closing the section. This keeps
- * real, approved photography in the homepage without fighting the layout.
+ * The approved mockup keeps this section to the identity mark alone (globe +
+ * Bible + heartbeat); the wide congregational photograph is used instead by
+ * the first-visit section, where the mockup places community photography.
+ *
+ * Layout note: the two-column grid lives in a native wrapper inside
+ * `Container`, because Astro scoped styles do not reach a child component
+ * root element.
  */
 import { Image } from 'astro:assets';
 import brandVisual from '../../assets/brand/uci-globe-bible-heartbeat.png';
-import conocenosImage from '../../assets/home/conocenos-v1.png';
 import { getAboutSection } from '../../data/site';
 import Button from '../ui/Button.astro';
 import Container from '../ui/Container.astro';
@@ -27,61 +26,62 @@ const about = getAboutSection();
 ---
 
 <Section id="somos-uci" surface="navy" spacing="lg" class="somos">
-  <Container class="somos__inner">
-    <div class="somos__content">
-      <SectionLabel>{about.label}</SectionLabel>
-      <h2 class="somos__heading font-display">{about.heading}</h2>
-      <p class="somos__body text-body-large">{about.body}</p>
-      <div class="somos__cta">
-        <Button href={about.cta.href} variant="text">{about.cta.label}</Button>
+  <div class="somos__glow" aria-hidden="true"></div>
+
+  <Container>
+    <div class="somos__inner">
+      <div class="somos__content">
+        <SectionLabel>{about.label}</SectionLabel>
+        <h2 class="somos__heading font-display">{about.heading}</h2>
+        <p class="somos__body text-body-large">{about.body}</p>
+        <div class="somos__cta">
+          <Button href={about.cta.href} variant="secondary" arrow>
+            {about.cta.label}
+          </Button>
+        </div>
+      </div>
+
+      <div class="somos__visual" aria-hidden="true">
+        <div class="somos__orbit"></div>
+        <Image
+          class="somos__visual-image"
+          src={brandVisual}
+          alt=""
+          aria-hidden="true"
+          width={900}
+          height={900}
+          widths={[420, 640, 900]}
+          sizes="(min-width: 1024px) 44vw, 80vw"
+          loading="lazy"
+          decoding="async"
+        />
       </div>
     </div>
-
-    <div class="somos__visual" aria-hidden="true">
-      <div class="somos__glow"></div>
-      <Image
-        class="somos__visual-image"
-        src={brandVisual}
-        alt=""
-        aria-hidden="true"
-        width={900}
-        height={900}
-        widths={[420, 640, 900]}
-        sizes="(min-width: 1024px) 46vw, 80vw"
-        loading="lazy"
-        decoding="async"
-      />
-    </div>
   </Container>
-
-  {/* Real congregational band (conocenos-v1.png, ≈3:1). */}
-  <div class="somos__band">
-    <Image
-      class="somos__band-image"
-      src={conocenosImage}
-      alt="Comunidad de Iglesia UCI reunida."
-      width={2170}
-      height={725}
-      widths={[720, 1200, 1600, 2170]}
-      sizes="100vw"
-      loading="lazy"
-      decoding="async"
-    />
-  </div>
 </Section>
 
 <style>
-  .somos {
+  :global(.somos) {
     overflow: hidden;
     /* Deep navy -> black, keeping the identity surface cinematic. */
     background: var(--gradient-dark);
   }
 
+  .somos__glow {
+    position: absolute;
+    inset: -20% -10% auto 35%;
+    height: 120%;
+    background: var(--gradient-blue-glow);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
   .somos__inner {
+    position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
     align-items: center;
-    gap: var(--space-64);
+    gap: clamp(3rem, 1rem + 6vw, 6rem);
   }
 
   .somos__content {
@@ -89,17 +89,19 @@ const about = getAboutSection();
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-24);
-    max-width: 34rem;
+    max-width: 36rem;
   }
 
   .somos__heading {
     font-size: var(--font-size-heading-1);
     font-weight: var(--font-weight-medium);
     color: var(--color-white);
+    max-width: 18ch;
   }
 
   .somos__body {
     color: var(--color-gray-light);
+    max-width: 46ch;
   }
 
   .somos__cta {
@@ -111,50 +113,26 @@ const about = getAboutSection();
     position: relative;
     display: flex;
     justify-content: center;
+    align-items: center;
   }
 
-  .somos__glow {
+  /* Faint concentric orbit behind the mark, echoing its own gold orbit. */
+  .somos__orbit {
     position: absolute;
-    inset: -15%;
-    background: var(--gradient-blue-glow);
+    width: 96%;
+    aspect-ratio: 1;
+    border: 1px solid rgba(91, 184, 245, 0.18);
+    border-radius: 50%;
+    transform: rotate(-18deg) scaleY(0.62);
     pointer-events: none;
   }
 
   .somos__visual-image {
     position: relative;
-    width: min(100%, 34rem);
+    width: min(100%, 36rem);
     height: auto;
     /* The asset is a transparent PNG; no background box by design. */
     filter: drop-shadow(0 24px 60px rgba(5, 7, 10, 0.55));
-  }
-
-  /* --- Full-bleed congregational band ----------------------------------- */
-  .somos__band {
-    position: relative;
-    margin-top: var(--space-80);
-    /* Blend the photograph into the dark surface at both edges. */
-    -webkit-mask-image: linear-gradient(
-      to right,
-      transparent 0%,
-      #000 8%,
-      #000 92%,
-      transparent 100%
-    );
-    mask-image: linear-gradient(
-      to right,
-      transparent 0%,
-      #000 8%,
-      #000 92%,
-      transparent 100%
-    );
-  }
-
-  .somos__band-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    aspect-ratio: 2170 / 725;
-    opacity: 0.9;
   }
 
   @media (max-width: 1023px) {
@@ -163,16 +141,12 @@ const about = getAboutSection();
       gap: var(--space-40);
     }
 
-    .somos__visual {
-      order: -1;
-    }
-
     .somos__visual-image {
-      width: min(100%, 22rem);
+      width: min(100%, 20rem);
     }
 
-    .somos__band {
-      margin-top: var(--space-48);
+    .somos__orbit {
+      width: 82%;
     }
   }
 </style>

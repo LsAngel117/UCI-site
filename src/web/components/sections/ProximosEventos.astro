@@ -2,17 +2,18 @@
 /**
  * ProximosEventos — "Lo que está pasando en UCI" (docs/04 §13, docs/03 §19).
  *
- * Light practical surface (rhythm docs/03 §43). Each event is a horizontal
- * row with a compact date block on the left (day over month, strong hierarchy)
- * and the event details adjacent (docs/04 §13.5). Only upcoming, published
- * events are returned by the data layer; otherwise an honest empty message is
- * shown (docs/04 §13.7).
+ * Light practical composition. The approved mockup places this list and the
+ * ministries card side by side, so the component renders only its own header
+ * and list and the homepage owns the mosaic row (see `pages/index.astro`).
+ *
+ * Each event is a horizontal row with a compact date block on the left (day
+ * over month, strong hierarchy) and the event details adjacent (docs/04 §13.5).
+ * Only upcoming, published events are returned by the data layer; otherwise an
+ * honest empty message is shown (docs/04 §13.7).
  */
 import { ArrowRight, Clock, MapPin } from '@lucide/astro';
 import { getProximosEventosContent, getUpcomingEvents } from '../../data/site';
 import Button from '../ui/Button.astro';
-import Container from '../ui/Container.astro';
-import Section from '../ui/Section.astro';
 import SectionLabel from '../ui/SectionLabel.astro';
 import type { Event } from '@shared/types';
 
@@ -30,85 +31,101 @@ const monthFormatter = new Intl.DateTimeFormat('es-CO', {
   month: 'short',
   timeZone: 'UTC',
 });
-
 ---
 
-<Section id="eventos" surface="light" spacing="lg" class="eventos">
-  <Container>
-    <header class="eventos__header">
+<div class="eventos">
+  <header class="eventos__header">
+    <div class="eventos__intro">
       <SectionLabel accent="blue">{section.label}</SectionLabel>
       <h2 class="eventos__heading font-display">{section.heading}</h2>
-    </header>
-
-    {
-      events.length > 0 ? (
-        <ul class="eventos__list">
-          {events.map((event) => {
-            // `startDate` is already a church-local `YYYY-MM-DD`; split it
-            // instead of re-parsing it in the viewer's timezone (B1).
-            const [, month, day] = event.startDate.split('-');
-            const monthName = monthFormatter.format(
-              new Date(Date.UTC(2000, Number(month) - 1, 1)),
-            );
-            return (
-              <li class="evento">
-                <a class="evento__link" href={`/eventos/${event.slug}`}>
-                  <time class="evento__date" datetime={event.startDate}>
-                    <span class="evento__day">{day}</span>
-                    <span class="evento__month">
-                      {monthName.replace('.', '').toUpperCase()}
-                    </span>
-                  </time>
-
-                  <div class="evento__body">
-                    <p class="evento__category">{event.category.name}</p>
-                    <h3 class="evento__title font-display">{event.title}</h3>
-                    <p class="evento__meta">
-                      <span>
-                        <Clock size={16} stroke-width={1.75} />
-                        {event.startTime}
-                        {event.endTime ? `–${event.endTime}` : ''}
-                      </span>
-                      <span>
-                        <MapPin size={16} stroke-width={1.75} />
-                        {event.location.city}
-                      </span>
-                    </p>
-                  </div>
-
-                  <span class="evento__arrow" aria-hidden="true">
-                    <ArrowRight size={20} stroke-width={1.75} />
-                  </span>
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p class="eventos__empty">{section.emptyMessage}</p>
-      )
-    }
-
-    <div class="eventos__actions">
+    </div>
+    <div class="eventos__header-cta">
       <Button href={section.cta.href} variant="text" contrast="navy">
         {section.cta.label}
       </Button>
     </div>
-  </Container>
-</Section>
+  </header>
+
+  {
+    events.length > 0 ? (
+      <ul class="eventos__list">
+        {events.map((event) => {
+          // `startDate` is already a church-local `YYYY-MM-DD`; split it
+          // instead of re-parsing it in the viewer's timezone (B1).
+          const [, month, day] = event.startDate.split('-');
+          const monthName = monthFormatter.format(
+            new Date(Date.UTC(2000, Number(month) - 1, 1)),
+          );
+          return (
+            <li class="evento">
+              <a class="evento__link" href={`/eventos/${event.slug}`}>
+                <time class="evento__date" datetime={event.startDate}>
+                  <span class="evento__day">{day}</span>
+                  <span class="evento__month">
+                    {monthName.replace('.', '').toUpperCase()}
+                  </span>
+                </time>
+
+                <div class="evento__body">
+                  <p class="evento__category">{event.category.name}</p>
+                  <h3 class="evento__title font-display">{event.title}</h3>
+                  <p class="evento__meta">
+                    <span>
+                      <Clock size={16} stroke-width={1.75} />
+                      {event.startTime}
+                      {event.endTime ? `–${event.endTime}` : ''}
+                    </span>
+                    <span>
+                      <MapPin size={16} stroke-width={1.75} />
+                      {event.location.city}
+                    </span>
+                  </p>
+                </div>
+
+                <span class="evento__arrow" aria-hidden="true">
+                  <ArrowRight size={20} stroke-width={1.75} />
+                </span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    ) : (
+      <p class="eventos__empty">{section.emptyMessage}</p>
+    )
+  }
+</div>
 
 <style>
+  .eventos {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+    height: 100%;
+  }
+
   .eventos__header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-24);
+  }
+
+  .eventos__intro {
     display: flex;
     flex-direction: column;
     gap: var(--space-12);
-    margin-bottom: var(--space-48);
   }
 
   .eventos__heading {
     font-size: var(--font-size-heading-2);
     font-weight: var(--font-weight-medium);
     color: var(--color-navy);
+  }
+
+  .eventos__header-cta {
+    flex-shrink: 0;
+    padding-bottom: var(--space-4);
   }
 
   .eventos__list {
@@ -125,7 +142,7 @@ const monthFormatter = new Intl.DateTimeFormat('es-CO', {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: var(--space-32);
+    gap: var(--space-24);
     padding-block: var(--space-24);
     transition: background-color var(--duration-fast) var(--ease-out);
   }
@@ -138,7 +155,7 @@ const monthFormatter = new Intl.DateTimeFormat('es-CO', {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 4.5rem;
+    min-width: 4.25rem;
     padding: var(--space-8);
     border: 1px solid var(--border-on-light);
     border-radius: var(--radius-sm);
@@ -147,7 +164,7 @@ const monthFormatter = new Intl.DateTimeFormat('es-CO', {
   .evento__day {
     color: var(--color-navy);
     font-family: var(--font-display);
-    font-size: var(--font-size-heading-2);
+    font-size: var(--font-size-heading-3);
     font-weight: var(--font-weight-medium);
     line-height: 1;
   }
@@ -214,11 +231,12 @@ const monthFormatter = new Intl.DateTimeFormat('es-CO', {
     font-size: var(--font-size-body-large);
   }
 
-  .eventos__actions {
-    margin-top: var(--space-40);
-  }
-
   @media (max-width: 639px) {
+    .eventos__header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
     .evento__link {
       grid-template-columns: auto minmax(0, 1fr);
       gap: var(--space-16);
