@@ -1,269 +1,1414 @@
 ---
 /**
- * /sermones — public sermon archive (Phase 9B1, docs/03 §18, docs/08 §11.1).
+ * /sermones — sermon archive (mockup-approved composition).
  *
- * SSR route: filters and pagination come from the query string, the published
- * sermons come from `GET /api/v1/sermons`. Filtered states are utility views,
- * so they are canonicalized to the clean archive and marked noindex.
+ * Sections:
+ * 1. Cinematic hero over the approved worship photograph.
+ * 2. Featured latest sermon with the preacher placeholder and pull quotes.
+ * 3. Light archive surface: category chips, search, sort and sermon cards.
+ * 4. Featured series band.
+ * 5. Final invitation over the supplied Bible/globe background.
+ *
+ * The hero reuses the approved worship image because it is the same photograph
+ * shown in the mockup. The preacher portrait, card covers and series image are
+ * intentionally styled placeholders until the real assets are added. Product
+ * copy is transcribed verbatim from the approved mockup.
  */
-import { getNavigation, getChurchProfile } from '../../data/site';
-import { getSermonsArchive } from '../../data/content';
 import {
-  ARCHIVE_PAGE_SIZE,
-  buildArchiveHref,
-  parseSermonFilters,
-} from '../../lib/archive';
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  ChevronDown,
+  Image as ImageIcon,
+  Mic,
+  Play,
+  Search,
+  UserRound,
+} from '@lucide/astro';
+import { Image } from 'astro:assets';
+import { getChurchProfile, getNavigation } from '../../data/site';
+import { buildStaticPageJsonLd } from '../../lib/seo';
 import ContentLayout from '../../layouts/ContentLayout.astro';
-import ArchiveHero from '../../components/ui/ArchiveHero.astro';
 import Button from '../../components/ui/Button.astro';
 import Container from '../../components/ui/Container.astro';
-import EmptyState from '../../components/ui/EmptyState.astro';
-import NotFoundState from '../../components/ui/NotFoundState.astro';
-import Pagination from '../../components/ui/Pagination.astro';
-import Section from '../../components/ui/Section.astro';
-import SermonCard from '../../components/content/SermonCard.astro';
+import SectionLabel from '../../components/ui/SectionLabel.astro';
 
-const search = Astro.url.searchParams;
-const parsed = parseSermonFilters(search, ARCHIVE_PAGE_SIZE);
+import heroImage from '../../assets/home/hero-worship.png';
+import ctaImage from '../../assets/sermones/la-palabra-sigue-fondo.webp';
 
-const [church, navigation, result] = await Promise.all([
+const [church, navigation] = await Promise.all([
   getChurchProfile(),
   getNavigation(),
-  getSermonsArchive({
-    ...parsed.filters,
-    page: parsed.page,
-    limit: parsed.limit,
-    sort: 'sermonDate',
-    order: 'desc',
-  }),
 ]);
 
-if (result.status === 'unavailable') Astro.response.status = 503;
-
-const meta = result.status === 'ok' ? result.meta : null;
-const page = meta?.page ?? parsed.page;
-const totalPages = meta?.totalPages ?? 1;
-const canonicalPath =
-  page > 1 ? `/sermones?page=${page}` : '/sermones';
 const title = 'Sermones | Iglesia UCI';
 const description =
-  'Escucha los mensajes de Iglesia UCI: predicaciones organizadas por fecha, predicador y texto bíblico.';
+  'Escucha la Palabra y vive la Palabra. En cada mensaje encontramos dirección, esperanza y una invitación a crecer en Cristo.';
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+const jsonLd = buildStaticPageJsonLd({
+  name: 'Sermones',
+  description,
+  path: '/sermones',
+  siteUrl,
+});
 
-// A page beyond the last real page is not a thin archive view: it does not
-// exist, so it answers 404 (and is canonicalized to itself with noindex)
-// instead of returning an indexable empty state (docs/10 §7.4).
-const outOfRange = result.status === 'ok' && meta !== null && page > totalPages;
-if (outOfRange) Astro.response.status = 404;
+const latestSermon = {
+  title: 'De la sombra a la gloria',
+  slug: 'de-la-sombra-a-la-gloria',
+  scripture: 'Juan 11:4',
+  preacher: 'Juan',
+  date: '31 AGO 2026',
+  description:
+    'Un mensaje poderoso sobre la esperanza de Cristo, que nos llama a salir de la oscuridad y caminar en Su luz.',
+};
 
-const firstPageHref = buildArchiveHref('/sermones', search, 1);
-const prevHref =
-  page > 1 ? buildArchiveHref('/sermones', search, page - 1) : null;
-const nextHref =
-  page < totalPages ? buildArchiveHref('/sermones', search, page + 1) : null;
-const clearHref = '/sermones';
+const sermons = [
+  {
+    title: 'De la sombra a la gloria',
+    slug: 'de-la-sombra-a-la-gloria',
+    scripture: 'Juan 11:4',
+    preacher: 'Juan',
+    date: '31 AGO 2026',
+    dateIso: '2026-08-31',
+  },
+  {
+    title: 'La fe que vence',
+    slug: 'la-fe-que-vence',
+    scripture: 'Marcos 5:36',
+    preacher: 'Juan',
+    date: '24 AGO 2026',
+    dateIso: '2026-08-24',
+  },
+  {
+    title: 'El propósito de Dios',
+    slug: 'el-proposito-de-dios',
+    scripture: 'Jeremías 29:11',
+    preacher: 'Ana Torres',
+    date: '17 AGO 2026',
+    dateIso: '2026-08-17',
+  },
+  {
+    title: 'No te rindas',
+    slug: 'no-te-rindas',
+    scripture: 'Gálatas 6:9',
+    preacher: 'Juan',
+    date: '10 AGO 2026',
+    dateIso: '2026-08-10',
+  },
+  {
+    title: 'Cuando avanzar exige soltar',
+    slug: 'cuando-avanzar-exige-soltar',
+    scripture: '2 Reyes 3:16-20',
+    preacher: 'Carlos Méndez',
+    date: '03 AGO 2026',
+    dateIso: '2026-08-03',
+  },
+  {
+    title: 'Una vida de oración',
+    slug: 'una-vida-de-oracion',
+    scripture: '1 Tesalonicenses 5:17',
+    preacher: 'Ana Torres',
+    date: '27 JUL 2026',
+    dateIso: '2026-07-27',
+  },
+];
 ---
 
 <ContentLayout
   title={title}
   description={description}
-  canonicalPath={canonicalPath}
-  noindex={parsed.hasFilters || result.status === 'unavailable' || outOfRange}
+  canonicalPath="/sermones"
+  jsonLd={jsonLd}
   church={church}
   navigation={navigation}
 >
-  {
-    outOfRange ? (
-      <NotFoundState
-        title="Esta página no existe"
-        message="La página solicitada no existe en el archivo de sermones. Vuelve al inicio para seguir explorando."
-        backHref={firstPageHref}
-        backLabel="Ir a la primera página"
-      />
-    ) : (
-      <>
-        <ArchiveHero
-          label="Mensajes"
-          title="Sermones"
-          description="Predicaciones que nos ayudan a conocer la Palabra, crecer en fe y vivirla cada día."
+  <div class="sermones">
+    {/* =================================================================
+        Hero
+        ================================================================= */}
+    <section class="hero" aria-labelledby="sermones-hero-title">
+      <div class="hero__media" aria-hidden="true">
+        <Image
+          class="hero__image"
+          src={heroImage}
+          alt=""
+          width={2307}
+          height={794}
+          widths={[768, 1280, 1920, 2307]}
+          sizes="100vw"
+          format="webp"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
         />
+        <div class="hero__scrim"></div>
+        <div class="hero__glow"></div>
+      </div>
 
-        <Section surface="light" spacing="lg">
-          <Container>
-      <form
-        class="archive-filters"
-        method="get"
-        action="/sermones"
-        role="search"
-        aria-label="Filtrar sermones"
-      >
-        <div class="archive-filters__field">
-          <label for="sermon-search">Buscar</label>
-          <input
-            id="sermon-search"
-            name="search"
-            type="search"
-            placeholder="Título o tema"
-            value={parsed.filters.search ?? ''}
-          />
-        </div>
-        <div class="archive-filters__field">
-          <label for="sermon-preacher">Predicador</label>
-          <input
-            id="sermon-preacher"
-            name="preacher"
-            type="search"
-            placeholder="Nombre"
-            value={parsed.filters.preacher ?? ''}
-          />
-        </div>
-        <div class="archive-filters__field">
-          <label for="sermon-from">Desde</label>
-          <input
-            id="sermon-from"
-            name="from"
-            type="date"
-            value={parsed.filters.from ?? ''}
-          />
-        </div>
-        <div class="archive-filters__field">
-          <label for="sermon-to">Hasta</label>
-          <input
-            id="sermon-to"
-            name="to"
-            type="date"
-            value={parsed.filters.to ?? ''}
-          />
-        </div>
-        <div class="archive-filters__actions">
-          <Button type="submit" variant="primary">Filtrar</Button>
-          {
-            parsed.hasFilters && (
-              <a class="archive-filters__clear" href={clearHref}>
-                Limpiar filtros
-              </a>
-            )
-          }
-        </div>
-      </form>
+      <Container>
+        <div class="hero__content">
+          <SectionLabel accent="gold" withRule>
+            Mensajes que transforman
+          </SectionLabel>
 
-      {
-        result.status === 'unavailable' ? (
-          <EmptyState
-            title="No pudimos cargar los sermones"
-            message="El archivo no está disponible en este momento. Intenta de nuevo en unos minutos."
-          />
-        ) : result.data.length === 0 ? (
-          <EmptyState
-            title={
-              parsed.hasFilters
-                ? 'No encontramos sermones con estos criterios'
-                : 'Aún no hay sermones publicados'
-            }
-            message={
-              parsed.hasFilters
-                ? 'Prueba con otra búsqueda o quita los filtros para ver todo el archivo.'
-                : 'Estamos preparando el archivo de mensajes. Vuelve pronto.'
-            }
-          >
-            {parsed.hasFilters && (
-              <Button href={clearHref} variant="text" contrast="navy">
-                Ver todos los sermones
+          <h1 id="sermones-hero-title" class="hero__title font-display">
+            <span class="hero__title-line">Escucha la Palabra.</span>{' '}
+            <span class="hero__title-accent">Vive la Palabra.</span>
+          </h1>
+
+          <p class="hero__support">
+            En cada mensaje encontramos dirección, esperanza y una invitación a
+            crecer en Cristo.
+          </p>
+
+          <a class="hero__link" href="#explora">
+            Explora nuestros mensajes
+            <ArrowRight size={17} stroke-width={1.75} />
+          </a>
+        </div>
+      </Container>
+    </section>
+
+    {/* =================================================================
+        Latest sermon
+        ================================================================= */}
+    <section class="ultimo" aria-labelledby="ultimo-title">
+      <div class="ultimo__glow" aria-hidden="true"></div>
+
+      <Container>
+        <div class="ultimo__grid">
+          <div class="ultimo__copy">
+            <SectionLabel accent="gold" withRule>Último sermón</SectionLabel>
+
+            <h2 id="ultimo-title" class="ultimo__title font-display">
+              <span>De la sombra</span>{' '}
+              <span class="ultimo__title-accent">A la gloria</span>
+            </h2>
+
+            <p class="ultimo__scripture">
+              <BookOpen size={17} stroke-width={1.6} aria-hidden="true" />
+              {latestSermon.scripture}
+            </p>
+
+            <p class="ultimo__text">{latestSermon.description}</p>
+
+            <div class="ultimo__meta">
+              <span>
+                <UserRound size={16} stroke-width={1.6} aria-hidden="true" />
+                {latestSermon.preacher}
+              </span>
+              <span class="ultimo__divider" aria-hidden="true"></span>
+              <span>
+                <CalendarDays size={16} stroke-width={1.6} aria-hidden="true" />
+                {latestSermon.date}
+              </span>
+            </div>
+
+            <div class="ultimo__actions">
+              <Button
+                href={`/sermones/${latestSermon.slug}`}
+                variant="primary"
+                icon="play"
+              >
+                Ver sermón
               </Button>
-            )}
-          </EmptyState>
-        ) : (
-          <ul class="sermon-grid">
-            {result.data.map((sermon) => (
-              <SermonCard sermon={sermon} />
-            ))}
-          </ul>
-        )
-      }
+              <Button
+                href={`/sermones/${latestSermon.slug}#notas`}
+                variant="secondary"
+                icon="file"
+              >
+                Ver notas
+              </Button>
+            </div>
+          </div>
 
-      {
-        result.status === 'ok' && result.data.length > 0 && (
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            prevHref={prevHref}
-            nextHref={nextHref}
-            label="sermones"
-          />
-        )
-      }
-          </Container>
-        </Section>
-      </>
-    )
-  }
+          <div class="ultimo__media">
+            <div class="ultimo__portrait" aria-hidden="true">
+              <span class="ultimo__portrait-halo"></span>
+              <UserRound
+                class="ultimo__portrait-icon"
+                size={132}
+                stroke-width={0.7}
+              />
+              <Mic
+                class="ultimo__portrait-mic"
+                size={38}
+                stroke-width={1.2}
+              />
+              <span class="ultimo__pending">Imagen pendiente</span>
+            </div>
+
+            <blockquote class="ultimo__quote ultimo__quote--top">
+              <span>Su presencia</span>
+              <span>vale más que</span>
+              <span>cualquier tradición.</span>
+            </blockquote>
+
+            <svg
+              class="ultimo__arrow ultimo__arrow--top"
+              viewBox="0 0 132 76"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M124 14C94 8 58 12 23 40"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+              <path
+                d="M23 40L34 24M23 40L42 44"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+            </svg>
+
+            <blockquote class="ultimo__quote ultimo__quote--bottom">
+              <span>La puedes</span>
+              <span>no anunciar tu final.</span>
+            </blockquote>
+
+            <svg
+              class="ultimo__arrow ultimo__arrow--bottom"
+              viewBox="0 0 132 76"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M8 58C32 24 68 8 116 22"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+              <path
+                d="M116 22L103 18M116 22L109 35"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+        </div>
+      </Container>
+    </section>
+
+    {/* =================================================================
+        Archive
+        ================================================================= */}
+    <section id="explora" class="explora" aria-labelledby="explora-title">
+      <Container>
+        <div class="explora__head">
+          <h2 id="explora-title" class="explora__title font-display">
+            <span class="explora__rule" aria-hidden="true"></span>
+            Explora nuestros mensajes
+          </h2>
+          <p class="explora__intro">
+            Encuentra inspiración, aprende y crece en la Palabra de Dios.
+          </p>
+        </div>
+
+        <div class="explora__toolbar">
+          <div class="explora__tabs" aria-label="Categorías de sermones">
+            <span class="explora__tab is-active">Todos</span>
+            <span class="explora__tab">Predicadores</span>
+            <span class="explora__tab">Series</span>
+            <span class="explora__tab">Temas</span>
+          </div>
+
+          <div class="explora__controls">
+            <div class="explora__search">
+              <Search size={17} stroke-width={1.7} aria-hidden="true" />
+              <label class="visually-hidden" for="sermon-search">
+                Buscar un mensaje
+              </label>
+              <input
+                id="sermon-search"
+                type="search"
+                placeholder="Buscar un mensaje..."
+                autocomplete="off"
+                data-sermon-search
+              />
+            </div>
+
+            <div class="explora__sort">
+              <label class="visually-hidden" for="sermon-sort">
+                Ordenar sermones
+              </label>
+              <select id="sermon-sort" data-sermon-sort>
+                <option value="recent">Más recientes</option>
+                <option value="oldest">Más antiguos</option>
+              </select>
+              <ChevronDown size={16} stroke-width={1.7} aria-hidden="true" />
+            </div>
+          </div>
+        </div>
+
+        <ul class="sermon-grid" data-sermon-grid>
+          {
+            sermons.map((sermon, index) => (
+              <li
+                class="sermon-card"
+                data-sermon
+                data-search={`${sermon.title} ${sermon.scripture} ${sermon.preacher}`.toLowerCase()}
+                data-date={sermon.dateIso}
+              >
+                <a
+                  class="sermon-card__link"
+                  href={`/sermones/${sermon.slug}`}
+                >
+                  <div class={`sermon-card__media sermon-card__media--${index + 1}`}>
+                    <span class="sermon-card__pending" aria-hidden="true">
+                      <ImageIcon size={22} stroke-width={1.4} />
+                      <span>Imagen pendiente</span>
+                    </span>
+                    <span class="sermon-card__play" aria-hidden="true">
+                      <Play size={17} stroke-width={1.8} fill="currentColor" />
+                    </span>
+                  </div>
+
+                  <div class="sermon-card__body">
+                    <h3 class="sermon-card__title">{sermon.title}</h3>
+                    <div class="sermon-card__meta">
+                      <span class="sermon-card__scripture">
+                        {sermon.scripture}
+                      </span>
+                      <span class="sermon-card__separator" aria-hidden="true">
+                        |
+                      </span>
+                      <span class="sermon-card__preacher">
+                        {sermon.preacher}
+                      </span>
+                      <span class="sermon-card__date">
+                        <CalendarDays
+                          size={13}
+                          stroke-width={1.6}
+                          aria-hidden="true"
+                        />
+                        {sermon.date}
+                      </span>
+                    </div>
+                  </div>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+
+        <p class="sermon-empty" data-sermon-empty hidden>
+          No encontramos mensajes con esa búsqueda.
+        </p>
+
+        <nav class="pagination" aria-label="Paginación de sermones">
+          <span class="pagination__page is-active" aria-current="page">1</span>
+          <span class="pagination__page">2</span>
+          <span class="pagination__page">3</span>
+          <span class="pagination__ellipsis" aria-hidden="true">...</span>
+          <span class="pagination__next">
+            Siguiente
+            <ArrowRight size={15} stroke-width={1.7} aria-hidden="true" />
+          </span>
+        </nav>
+      </Container>
+    </section>
+
+    {/* =================================================================
+        Featured series
+        ================================================================= */}
+    <section class="serie" aria-labelledby="serie-title">
+      <div class="serie__media" aria-hidden="true">
+        <div class="serie__glow"></div>
+        <div class="serie__grain"></div>
+        <span class="serie__pending">
+          <ImageIcon size={18} stroke-width={1.4} />
+          Imagen pendiente
+        </span>
+      </div>
+
+      <Container>
+        <div class="serie__content">
+          <SectionLabel accent="gold" withRule>Serie destacada:</SectionLabel>
+          <h2 id="serie-title" class="serie__title font-display">
+            Caminando en fe
+          </h2>
+          <p class="serie__text">
+            Una serie para fortalecer tu fe y seguir a Cristo.
+          </p>
+        </div>
+      </Container>
+    </section>
+
+    {/* =================================================================
+        Final invitation
+        ================================================================= */}
+    <section class="cierre" aria-labelledby="sermones-cierre-title">
+      <div class="cierre__media" aria-hidden="true">
+        <Image
+          class="cierre__image"
+          src={ctaImage}
+          alt=""
+          width={1672}
+          height={734}
+          widths={[768, 1280, 1672]}
+          sizes="100vw"
+          format="webp"
+          loading="lazy"
+          decoding="async"
+        />
+        <div class="cierre__scrim"></div>
+      </div>
+
+      <Container>
+        <div class="cierre__content">
+          <h2 id="sermones-cierre-title" class="cierre__title font-display">
+            La palabra de Dios sigue hablando
+          </h2>
+          <p class="cierre__text">
+            Ven y descubre un mensaje que transformará tu vida.
+          </p>
+          <div class="cierre__action">
+            <Button href="/soy-nuevo" variant="primary" arrow>
+              Planea tu visita
+            </Button>
+          </div>
+        </div>
+      </Container>
+    </section>
+  </div>
 </ContentLayout>
 
+<script>
+  const grid = document.querySelector<HTMLUListElement>('[data-sermon-grid]');
+  const search = document.querySelector<HTMLInputElement>(
+    '[data-sermon-search]',
+  );
+  const sort = document.querySelector<HTMLSelectElement>('[data-sermon-sort]');
+  const empty = document.querySelector<HTMLParagraphElement>(
+    '[data-sermon-empty]',
+  );
+
+  if (grid && search && sort) {
+    const cards = [...grid.querySelectorAll<HTMLLIElement>('[data-sermon]')];
+
+    const apply = () => {
+      const query = search.value.trim().toLowerCase();
+      let visible = 0;
+
+      for (const card of cards) {
+        const matches =
+          query.length === 0 ||
+          (card.dataset.search ?? '').includes(query);
+        card.hidden = !matches;
+        if (matches) visible += 1;
+      }
+
+      const ordered = [...cards].sort((a, b) => {
+        const aDate = a.dataset.date ?? '';
+        const bDate = b.dataset.date ?? '';
+        return sort.value === 'oldest'
+          ? aDate.localeCompare(bDate)
+          : bDate.localeCompare(aDate);
+      });
+
+      for (const card of ordered) grid.append(card);
+
+      if (empty) empty.hidden = visible > 0;
+    };
+
+    search.addEventListener('input', apply);
+    sort.addEventListener('change', apply);
+    apply();
+  }
+</script>
+
 <style>
-  .archive-filters {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--space-16);
-    margin-bottom: var(--space-40);
-    padding-bottom: var(--space-32);
-    border-bottom: 1px solid var(--border-on-light);
+  .sermones {
+    background-color: var(--color-black);
   }
 
-  .archive-filters__field {
+  #explora {
+    scroll-margin-top: 6rem;
+  }
+
+  /* =====================================================================
+     Hero
+     ===================================================================== */
+  .hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: clamp(24rem, 28vw, 29rem);
+    padding-block: 6rem 1.5rem;
+    overflow: hidden;
+    isolation: isolate;
+    background-color: var(--color-black);
+    color: var(--color-white);
+  }
+
+  .hero__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .hero__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 35%;
+  }
+
+  .hero__scrim {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        95deg,
+        rgba(4, 9, 18, 0.96) 0%,
+        rgba(6, 16, 32, 0.78) 45%,
+        rgba(6, 16, 32, 0.25) 100%
+      ),
+      linear-gradient(
+        to top,
+        rgba(5, 15, 28, 0.98) 0%,
+        rgba(5, 15, 28, 0) 48%
+      );
+  }
+
+  .hero__glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle at 64% 36%,
+      rgba(22, 117, 209, 0.35) 0%,
+      rgba(22, 117, 209, 0) 56%
+    );
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+
+  .hero__content {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 50rem;
+  }
+
+  .hero__title {
+    margin: 0;
+    font-size: clamp(2.5rem, 1.8rem + 2.4vw, 3.6rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.02;
+    letter-spacing: var(--letter-spacing-tight);
+    text-transform: uppercase;
+  }
+
+  .hero__title-line,
+  .hero__title-accent {
+    display: block;
+  }
+
+  .hero__title-accent {
+    color: var(--color-gold);
+  }
+
+  .hero__support {
+    max-width: 34rem;
+    margin: 0;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+  }
+
+  .hero__link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    margin-top: var(--space-8);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-gold);
+    color: var(--color-white);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    transition:
+      color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out);
+  }
+
+  .hero__link :global(svg) {
+    color: var(--color-gold);
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .hero__link:hover {
+    color: var(--color-gold-light);
+    border-color: var(--color-gold-light);
+  }
+
+  .hero__link:hover :global(svg) {
+    transform: translateX(3px);
+  }
+
+  /* =====================================================================
+     Latest sermon
+     ===================================================================== */
+  .ultimo {
+    position: relative;
+    padding-block: clamp(2.5rem, 3.5vw, 3.5rem);
+    overflow: hidden;
+    isolation: isolate;
+    background-color: #07182b;
+    color: var(--color-white);
+  }
+
+  .ultimo__glow {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(
+        circle at 82% 36%,
+        rgba(22, 117, 209, 0.18) 0%,
+        rgba(22, 117, 209, 0) 44%
+      ),
+      linear-gradient(
+        90deg,
+        rgba(5, 15, 28, 0.56) 0%,
+        rgba(5, 15, 28, 0) 55%
+      );
+    pointer-events: none;
+  }
+
+  .ultimo__grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+    align-items: center;
+    gap: clamp(2rem, 4vw, 4rem);
+  }
+
+  .ultimo__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-12);
+    max-width: 35rem;
+  }
+
+  .ultimo__title {
+    margin: 0;
+    font-size: clamp(1.95rem, 1.4rem + 1.6vw, 2.85rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.05;
+    letter-spacing: var(--letter-spacing-tight);
+    text-transform: uppercase;
+  }
+
+  .ultimo__title span {
+    display: block;
+  }
+
+  .ultimo__title-accent {
+    color: var(--color-gold);
+  }
+
+  .ultimo__scripture {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    margin: 0;
+    color: var(--color-gold);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .ultimo__text {
+    max-width: 30rem;
+    margin: 0;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body);
+    line-height: var(--line-height-body);
+  }
+
+  .ultimo__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-12);
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-small);
+  }
+
+  .ultimo__meta > span {
+    display: inline-flex;
+    align-items: center;
     gap: var(--space-8);
   }
 
-  .archive-filters__field label {
-    color: var(--color-navy);
-    font-size: var(--font-size-caption);
+  .ultimo__divider {
+    width: 1px;
+    height: 1rem;
+    background-color: var(--border-on-dark);
+  }
+
+  .ultimo__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-12);
+    margin-top: var(--space-8);
+  }
+
+  .ultimo__media {
+    position: relative;
+    min-height: clamp(17rem, 23vw, 21rem);
+  }
+
+  .ultimo__portrait {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    right: 4%;
+    width: 62%;
+    overflow: hidden;
+    background: radial-gradient(
+      circle at 50% 38%,
+      rgba(91, 184, 245, 0.16) 0%,
+      rgba(91, 184, 245, 0) 62%
+    );
+    color: rgba(255, 255, 255, 0.22);
+  }
+
+  .ultimo__portrait-halo {
+    position: absolute;
+    width: 15rem;
+    height: 15rem;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      rgba(91, 184, 245, 0.18) 0%,
+      rgba(91, 184, 245, 0) 68%
+    );
+  }
+
+  .ultimo__portrait-icon {
+    position: relative;
+    z-index: 1;
+    margin-top: 1rem;
+    opacity: 0.42;
+  }
+
+  .ultimo__portrait-mic {
+    position: absolute;
+    left: 2rem;
+    bottom: 2.4rem;
+    z-index: 1;
+    color: rgba(240, 201, 106, 0.65);
+  }
+
+  .ultimo__pending {
+    position: absolute;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 1;
+    color: rgba(255, 255, 255, 0.38);
+    font-size: 0.625rem;
     font-weight: var(--font-weight-semibold);
     letter-spacing: var(--letter-spacing-label);
     text-transform: uppercase;
   }
 
-  .archive-filters__field input {
-    min-height: 2.75rem;
-    padding: var(--space-8) var(--space-12);
-    border: 1px solid var(--border-on-light);
-    border-radius: var(--radius-md);
-    background-color: var(--color-white-pure);
+  .ultimo__quote {
+    position: absolute;
+    z-index: 2;
+    margin: 0;
+    color: var(--color-white);
+    font-family: var(--font-display);
+    font-size: clamp(1rem, 0.85rem + 0.55vw, 1.3rem);
+    font-style: italic;
+    line-height: 1.18;
+    text-shadow: 0 2px 18px rgba(5, 7, 10, 0.5);
+  }
+
+  .ultimo__quote span {
+    display: block;
+  }
+
+  .ultimo__quote--top {
+    left: 0;
+    top: 2.75rem;
+    max-width: 12rem;
+    transform: rotate(-5deg);
+  }
+
+  .ultimo__quote--bottom {
+    left: 1.5rem;
+    bottom: 2.4rem;
+    max-width: 12.5rem;
+    transform: rotate(-4deg);
+  }
+
+  .ultimo__arrow {
+    position: absolute;
+    z-index: 1;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .ultimo__arrow--top {
+    left: 9.5rem;
+    top: 2.4rem;
+    width: 8rem;
+  }
+
+  .ultimo__arrow--bottom {
+    left: 12.5rem;
+    bottom: 2rem;
+    width: 8rem;
+  }
+
+  /* =====================================================================
+     Archive
+     ===================================================================== */
+  .explora {
+    padding-block: clamp(3.5rem, 5vw, 5rem);
+    background-color: #f3f5f8;
     color: var(--color-navy);
+  }
+
+  .explora__head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .explora__title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-16);
+    margin: 0;
+    font-size: clamp(1.55rem, 1.2rem + 1.4vw, 2.1rem);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .explora__rule {
+    display: inline-block;
+    width: 2rem;
+    height: 1px;
+    flex-shrink: 0;
+    background-color: var(--color-gold-ink);
+    opacity: 0.8;
+  }
+
+  .explora__intro {
+    margin: 0;
+    max-width: 40rem;
+    color: var(--color-navy);
+    opacity: 0.72;
     font-size: var(--font-size-body);
   }
 
-  .archive-filters__field input:focus-visible {
-    outline: var(--focus-ring-width) solid var(--color-blue);
-    outline-offset: var(--focus-ring-offset);
+  .explora__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-24);
+    margin-top: var(--space-24);
   }
 
-  .archive-filters__actions {
-    grid-column: 1 / -1;
+  .explora__tabs {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-16);
+    gap: var(--space-8);
   }
 
-  .archive-filters__clear {
-    color: var(--color-blue);
-    font-size: var(--font-size-body-small);
+  .explora__tab {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid rgba(11, 18, 32, 0.16);
+    border-radius: var(--radius-pill);
+    color: var(--color-navy);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .explora__tab.is-active {
+    background-color: var(--color-gold);
+    border-color: var(--color-gold);
+    color: var(--color-black);
     font-weight: var(--font-weight-semibold);
   }
 
-  .archive-filters__clear:hover {
+  .explora__controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+  }
+
+  .explora__search,
+  .explora__sort {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 2.5rem;
+    border: 1px solid rgba(11, 18, 32, 0.16);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+  }
+
+  .explora__search {
+    width: min(15rem, 38vw);
+    gap: var(--space-8);
+    padding-inline: var(--space-12);
     color: var(--color-navy);
+  }
+
+  .explora__search:focus-within,
+  .explora__sort:focus-within {
+    border-color: var(--color-blue);
+    box-shadow: 0 0 0 3px rgba(22, 117, 209, 0.15);
+  }
+
+  .explora__search :global(svg) {
+    flex-shrink: 0;
+    opacity: 0.55;
+  }
+
+  .explora__search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--color-navy);
+    font-size: var(--font-size-body-small);
+  }
+
+  .explora__search input::placeholder {
+    color: rgba(11, 18, 32, 0.46);
+  }
+
+  .explora__sort {
+    width: 10.5rem;
+  }
+
+  .explora__sort select {
+    width: 100%;
+    height: 100%;
+    padding: 0 2rem 0 var(--space-12);
+    border: 0;
+    outline: 0;
+    appearance: none;
+    background: transparent;
+    color: var(--color-navy);
+    font-size: var(--font-size-body-small);
+    cursor: pointer;
+  }
+
+  .explora__sort :global(svg) {
+    position: absolute;
+    right: 0.75rem;
+    pointer-events: none;
+    opacity: 0.55;
   }
 
   .sermon-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--space-24) var(--space-24);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+    margin-top: var(--space-24);
   }
 
+  .sermon-card {
+    min-width: 0;
+  }
+
+  .sermon-card[hidden] {
+    display: none;
+  }
+
+  .sermon-card__link {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(11, 18, 32, 0.1);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+    box-shadow: 0 1px 2px rgba(11, 18, 32, 0.03);
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  .sermon-card__link:hover {
+    border-color: rgba(11, 18, 32, 0.18);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .sermon-card__media {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background-color: #0a1b2d;
+    color: rgba(255, 255, 255, 0.48);
+  }
+
+  .sermon-card__media--1 {
+    background:
+      radial-gradient(circle at 42% 35%, rgba(240, 201, 106, 0.24), transparent 40%),
+      linear-gradient(135deg, #101e2e, #081523);
+  }
+
+  .sermon-card__media--2 {
+    background:
+      radial-gradient(circle at 65% 45%, rgba(91, 184, 245, 0.22), transparent 45%),
+      linear-gradient(135deg, #0c1a2c, #06111e);
+  }
+
+  .sermon-card__media--3 {
+    background:
+      radial-gradient(circle at 70% 40%, rgba(240, 201, 106, 0.42), transparent 42%),
+      linear-gradient(135deg, #2a1f1b, #100c0d);
+  }
+
+  .sermon-card__media--4 {
+    background:
+      radial-gradient(circle at 40% 45%, rgba(91, 184, 245, 0.18), transparent 48%),
+      linear-gradient(135deg, #17202b, #0a1018);
+  }
+
+  .sermon-card__media--5 {
+    background:
+      radial-gradient(circle at 72% 38%, rgba(240, 201, 106, 0.28), transparent 45%),
+      linear-gradient(135deg, #13253a, #07111d);
+  }
+
+  .sermon-card__media--6 {
+    background:
+      radial-gradient(circle at 60% 38%, rgba(91, 184, 245, 0.2), transparent 50%),
+      linear-gradient(135deg, #1c1b18, #0b0c0e);
+  }
+
+  .sermon-card__pending {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.625rem;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .sermon-card__play {
+    position: absolute;
+    left: var(--space-12);
+    bottom: var(--space-12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: var(--radius-pill);
+    background-color: rgba(5, 7, 10, 0.66);
+    color: var(--color-white);
+    backdrop-filter: blur(4px);
+  }
+
+  .sermon-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    padding: var(--space-16) var(--space-16) var(--space-16);
+  }
+
+  .sermon-card__title {
+    margin: 0;
+    color: var(--color-navy);
+    font-size: 1.05rem;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3;
+  }
+
+  .sermon-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8);
+    color: rgba(11, 18, 32, 0.58);
+    font-size: 0.6875rem;
+    line-height: 1.4;
+  }
+
+  .sermon-card__scripture {
+    color: var(--color-gold-ink);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .sermon-card__separator {
+    opacity: 0.45;
+  }
+
+  .sermon-card__date {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .sermon-empty {
+    margin: var(--space-32) 0 0;
+    color: var(--color-navy);
+    font-size: var(--font-size-body);
+    text-align: center;
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-12);
+    margin-top: var(--space-32);
+    color: var(--color-navy);
+    font-size: var(--font-size-body-small);
+  }
+
+  .pagination__page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+  }
+
+  .pagination__page.is-active {
+    background-color: var(--color-gold);
+    color: var(--color-black);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .pagination__ellipsis {
+    color: rgba(11, 18, 32, 0.48);
+  }
+
+  .pagination__next {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-left: var(--space-8);
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* =====================================================================
+     Featured series
+     ===================================================================== */
+  .serie {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: clamp(14rem, 18vw, 17rem);
+    padding-block: clamp(2.5rem, 4vw, 3.5rem);
+    overflow: hidden;
+    isolation: isolate;
+    background-color: #07182b;
+    color: var(--color-white);
+  }
+
+  .serie__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(
+        circle at 78% 52%,
+        rgba(22, 117, 209, 0.4) 0%,
+        rgba(22, 117, 209, 0) 40%
+      ),
+      linear-gradient(110deg, #06101e 0%, #0a2038 54%, #123d66 100%);
+  }
+
+  .serie__glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at 70% 50%,
+      rgba(91, 184, 245, 0.22) 0%,
+      rgba(91, 184, 245, 0) 50%
+    );
+    mix-blend-mode: screen;
+  }
+
+  .serie__grain {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(
+      rgba(255, 255, 255, 0.12) 0.6px,
+      transparent 0.6px
+    );
+    background-size: 18px 18px;
+    opacity: 0.18;
+  }
+
+  .serie__content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-8);
+    max-width: 36rem;
+  }
+
+  .serie__title {
+    margin: 0;
+    color: var(--color-gold);
+    font-size: clamp(2rem, 1.45rem + 2vw, 3rem);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--letter-spacing-tight);
+    line-height: 1.05;
+    text-transform: uppercase;
+  }
+
+  .serie__text {
+    margin: 0;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body);
+  }
+
+  .serie__pending {
+    position: absolute;
+    right: 1.5rem;
+    bottom: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.625rem;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  /* =====================================================================
+     Final invitation
+     ===================================================================== */
+  .cierre {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: clamp(20rem, 34vw, 28rem);
+    padding-block: clamp(3.5rem, 6vw, 5.5rem);
+    overflow: hidden;
+    isolation: isolate;
+    background-color: var(--color-black);
+    color: var(--color-white);
+  }
+
+  .cierre__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .cierre__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 56%;
+  }
+
+  .cierre__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      rgba(5, 10, 20, 0.95) 0%,
+      rgba(5, 10, 20, 0.82) 38%,
+      rgba(5, 10, 20, 0.34) 68%,
+      rgba(5, 10, 20, 0.04) 100%
+    );
+  }
+
+  .cierre__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 46rem;
+  }
+
+  .cierre__title {
+    margin: 0;
+    max-width: 46rem;
+    font-size: clamp(1.5rem, 1rem + 1.6vw, 2.25rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.08;
+    letter-spacing: var(--letter-spacing-tight);
+    text-transform: uppercase;
+  }
+
+  .cierre__text {
+    max-width: 38rem;
+    margin: 0;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+  }
+
+  .cierre__action {
+    margin-top: var(--space-8);
+  }
+
+  /* =====================================================================
+     Responsive
+     ===================================================================== */
   @media (max-width: 1023px) {
-    .archive-filters {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    .ultimo__grid {
+      grid-template-columns: 1fr;
+    }
+
+    .ultimo__copy {
+      max-width: 42rem;
+    }
+
+    .ultimo__media {
+      min-height: 23rem;
+    }
+
+    .ultimo__portrait {
+      width: 58%;
+    }
+
+    .explora__toolbar {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: var(--space-16);
+    }
+
+    .explora__controls {
+      width: 100%;
+    }
+
+    .explora__search {
+      width: min(22rem, 58vw);
     }
 
     .sermon-grid {
@@ -271,13 +1416,138 @@ const clearHref = '/sermones';
     }
   }
 
-  @media (max-width: 639px) {
-    .archive-filters {
-      grid-template-columns: 1fr;
+  @media (max-width: 767px) {
+    .hero {
+      min-height: 30rem;
+      padding-block: 8.5rem 3rem;
+    }
+
+    .hero__image {
+      object-position: 60% 38%;
+    }
+
+    .hero__content {
+      gap: var(--space-12);
+    }
+
+    .hero__title {
+      font-size: clamp(2.35rem, 9vw, 3.2rem);
+    }
+
+    .hero__link {
+      margin-top: var(--space-4);
+    }
+
+    .ultimo {
+      padding-block: var(--space-40) var(--space-48);
+    }
+
+    .ultimo__media {
+      min-height: 21rem;
+    }
+
+    .ultimo__portrait {
+      width: 70%;
+    }
+
+    .ultimo__quote--top {
+      top: 1rem;
+      max-width: 9.5rem;
+      font-size: 1rem;
+    }
+
+    .ultimo__quote--bottom {
+      left: 0;
+      bottom: 1.5rem;
+      max-width: 9rem;
+      font-size: 0.95rem;
+    }
+
+    .ultimo__arrow {
+      display: none;
+    }
+
+    .ultimo__portrait-icon {
+      width: 5.5rem;
+      height: 5.5rem;
+    }
+
+    .ultimo__portrait-mic {
+      left: 1.2rem;
+      bottom: 1.5rem;
+      width: 1.9rem;
+      height: 1.9rem;
+    }
+
+    .ultimo__pending {
+      right: 1rem;
+      bottom: 1rem;
+      font-size: 0.5rem;
+    }
+
+    .explora {
+      padding-block: var(--space-40);
+    }
+
+    .explora__title {
+      align-items: flex-start;
+      font-size: 1.4rem;
+    }
+
+    .explora__rule {
+      margin-top: 0.45rem;
+    }
+
+    .explora__controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .explora__search,
+    .explora__sort {
+      width: 100%;
     }
 
     .sermon-grid {
       grid-template-columns: 1fr;
+    }
+
+    .sermon-card__date {
+      margin-left: 0;
+    }
+
+    .pagination {
+      gap: var(--space-8);
+    }
+
+    .serie {
+      min-height: 13rem;
+    }
+
+    .serie__pending {
+      right: 1rem;
+      bottom: 1rem;
+    }
+
+    .cierre {
+      min-height: 24rem;
+    }
+
+    .cierre__scrim {
+      background: linear-gradient(
+        180deg,
+        rgba(5, 10, 20, 0.9) 0%,
+        rgba(5, 10, 20, 0.72) 48%,
+        rgba(5, 10, 20, 0.4) 76%,
+        rgba(5, 10, 20, 0.1) 100%
+      );
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero__link:hover :global(svg),
+    .sermon-card__link:hover {
+      transform: none;
     }
   }
 </style>
