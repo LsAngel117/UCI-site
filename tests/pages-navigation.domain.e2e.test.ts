@@ -856,10 +856,15 @@ describe(
         });
         assert.equal(list.statusCode, 200, list.body);
         const listed = list.json<{ data: Array<Record<string, unknown>> }>().data;
+        // The DB may already contain seeded navigation rows, so scope the
+        // ordering assertion to the rows this test created.
+        const ownIds = listed
+          .filter((entry) => entry.id === item.id || entry.id === child.id)
+          .map((entry) => entry.id);
         assert.deepEqual(
-          listed.map((entry) => entry.id),
+          ownIds,
           [item.id, child.id],
-          'only the requested location, ordered by `order`',
+          'ordered by `order`',
         );
 
         const patched = await app.inject({

@@ -1192,13 +1192,29 @@ a.dashboard-list__link:hover .dashboard-list__title {
 }
 
 .login__brand {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: var(--space-48);
   padding: clamp(2rem, 5vw, 4.5rem);
-  background: var(--gradient-dark);
+  /* Brand banner: cinematic globe artwork with a dark scrim so the white
+     typography keeps AA contrast over the brightest highlights. */
+  background-color: var(--color-black);
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(5, 7, 10, 0.82) 0%,
+      rgba(5, 7, 10, 0.62) 45%,
+      rgba(5, 7, 10, 0.88) 100%
+    ),
+    url('../../assets/fondo-baner-cms.png');
+  background-position: center, 72% center;
+  background-size: cover, cover;
+  background-repeat: no-repeat, no-repeat;
   color: var(--color-white);
+  overflow: hidden;
 }
 
 .login__brandmark {

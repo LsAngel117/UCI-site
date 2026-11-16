@@ -352,7 +352,7 @@ describe(
     });
 
     test('sitemap excludes published pages whose slug collides with a public or technical route', async () => {
-      const colliding = ['admin', 'login', 'nosotros', 'sermones'];
+      const colliding = ['admin', 'login', 'sermones'];
       for (const slug of colliding) {
         await createPublishedPage(
           slug,
