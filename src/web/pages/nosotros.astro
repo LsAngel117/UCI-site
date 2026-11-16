@@ -1,0 +1,1085 @@
+---
+/**
+ * /nosotros — institutional page (mockup-approved composition).
+ *
+ * The page follows the approved mockup section by section:
+ *
+ * 1. Cinematic hero over the worship photograph.
+ * 2. Light "¿Quiénes somos?" panel that overlaps the hero with a rounded top
+ *    edge and a portrait card that pierces above the panel.
+ * 3. Mission / vision cards on the same light surface.
+ * 4. "Nuestra historia" over the globe background, with the three-step
+ *    timeline.
+ * 5. Final invitation over the open-Bible photograph.
+ *
+ * Background resources live in `assets/nosotros`; the hero photograph is the
+ * same approved worship image used by the homepage so the brand narrative
+ * stays consistent. Copy is product-controlled and transcribed verbatim from
+ * the approved mockup.
+ */
+import { ArrowRight, Eye, Target } from '@lucide/astro';
+import { Image } from 'astro:assets';
+import { getChurchProfile, getNavigation } from '../data/site';
+import { buildStaticPageJsonLd } from '../lib/seo';
+import ContentLayout from '../layouts/ContentLayout.astro';
+import Button from '../components/ui/Button.astro';
+import Container from '../components/ui/Container.astro';
+import SectionLabel from '../components/ui/SectionLabel.astro';
+
+import heroImage from '../assets/home/hero-worship.png';
+import introImage from '../assets/nosotros/adoracion-congregacion.webp';
+import historyImage from '../assets/nosotros/nuestra-historia-fondo.png';
+import bibleImage from '../assets/nosotros/biblia_abierta.png';
+import communityImage from '../assets/home/conocenos-v1.png';
+import worshipImage from '../assets/home/pillar-adoramos.png';
+
+const [church, navigation] = await Promise.all([
+  getChurchProfile(),
+  getNavigation(),
+]);
+
+const title = 'Nosotros | Iglesia UCI';
+const description =
+  'Somos una comunidad que ama a Dios, cree en su Palabra y camina juntos en la fe. Conoce nuestra historia, misión y visión.';
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+const jsonLd = buildStaticPageJsonLd({
+  name: 'Nosotros',
+  description,
+  path: '/nosotros',
+  siteUrl,
+});
+---
+
+<ContentLayout
+  title={title}
+  description={description}
+  canonicalPath="/nosotros"
+  jsonLd={jsonLd}
+  church={church}
+  navigation={navigation}
+>
+  <div class="nosotros">
+    {/* =================================================================
+        Hero
+        ================================================================= */}
+    <section class="hero" aria-labelledby="nosotros-hero-title">
+      <div class="hero__media" aria-hidden="true">
+        <Image
+          class="hero__image"
+          src={heroImage}
+          alt=""
+          width={2048}
+          height={768}
+          widths={[768, 1280, 1920, 2048]}
+          sizes="100vw"
+          format="webp"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+        />
+        <div class="hero__scrim"></div>
+        <div class="hero__glow"></div>
+      </div>
+
+      <Container>
+        <div class="hero__content">
+          <SectionLabel accent="gold" withRule>Nosotros</SectionLabel>
+
+          <h1 id="nosotros-hero-title" class="hero__title font-display">
+            Una iglesia{' '}
+            <span class="hero__title-accent">para todos</span>
+          </h1>
+
+          <p class="hero__support">
+            Somos una comunidad que ama a Dios, cree en su Palabra y camina
+            juntos en la fe.
+          </p>
+
+          <div class="hero__cta">
+            <Button href="#quienes-somos" variant="primary" arrow>
+              Conoce nuestra iglesia
+            </Button>
+          </div>
+        </div>
+      </Container>
+      <svg width="0" height="0" style="position: absolute; pointer-events: none;">
+        <defs>
+          <clipPath id="trapezoid-clip" clipPathUnits="objectBoundingBox">
+            <!-- 
+              Inicia arriba a la derecha (1, 0)
+              Va hacia arriba a la izquierda bajando un 6% (0.04, 0.06)
+              Hace una curva suave (border-radius) hacia (0, 0.12)
+              Baja recto hasta (0, 0.88)
+              Hace otra curva suave hacia (0.04, 0.94)
+              Termina abajo a la derecha (1, 1)
+            -->
+            <path d="M 1,0 L 0.03,0.06 Q 0,0.065 0,0.11 L 0,0.89 Q 0,0.935 0.03,0.94 L 1,1 Z" />
+          </clipPath>
+        </defs>
+      </svg>
+
+    </section>
+
+    {/* =================================================================
+        ¿Quiénes somos? + misión / visión
+        ================================================================= */}
+    <section id="quienes-somos" class="intro" aria-labelledby="intro-title">
+      <div class="intro__top" aria-hidden="true">
+        <svg viewBox="0 0 1440 80" preserveAspectRatio="none" focusable="false">
+          <path d="M0 80 L0 40 Q0 0 40 0 L1440 40 L1440 80 Z" fill="#ffffff" />
+        </svg>
+      </div>
+
+      <div class="intro__body" aria-hidden="true"></div>
+
+      <div class="intro__layer">
+        <Container>
+          <div class="intro__grid">
+          <div class="intro__copy">
+            <SectionLabel accent="gold-ink" withRule>
+              ¿Quiénes somos?
+            </SectionLabel>
+
+            <h2 id="intro-title" class="intro__title font-display">
+              Una familia en Cristo
+            </h2>
+
+            <p class="intro__text">
+              En Iglesia UCI (Unidad Cristiana de Intercesión) creemos en el poder transformador de
+              Jesucristo. Somos una iglesia cristiana, una familia espiritual,
+              donde todas las personas son bienvenidas, sin importar su
+              historia, edad o etapa de vida.
+            </p>
+
+            <p class="intro__text">
+              Oramos por los enfermos para que encuentren a 
+              través de Jesucristo <b>AMOR, PERDÓN</b> y <b>SALVACIÓN</b>
+            </p>
+          </div>
+
+          <figure class="intro__media">
+            <Image
+              class="intro__image"
+              src={introImage}
+              alt="Miembros de la congregación adorando durante un servicio"
+              width={2048}
+              height={768}
+              widths={[640, 960, 1280, 1600]}
+              sizes="(min-width: 1024px) 52vw, 92vw"
+              format="webp"
+              loading="lazy"
+              decoding="async"
+            />
+          </figure>
+        </div>
+
+        <div class="mv">
+          <article class="mv__card" aria-labelledby="mision-title">
+            <span class="mv__icon" aria-hidden="true">
+              <Target size={38} stroke-width={1.5} />
+            </span>
+            <span class="mv__rule" aria-hidden="true"></span>
+            <div class="mv__body">
+              <SectionLabel accent="gold-ink" class="mv__eyebrow">
+                Nuestra
+              </SectionLabel>
+              <h3
+                id="mision-title"
+                class="mv__title font-display"
+                aria-label="Nuestra misión"
+              >
+                Misión
+              </h3>
+              <p class="mv__text">
+                Adorar a Dios, hacer discípulos y servir a nuestra comunidad,
+                llevando el mensaje de Jesús con amor, verdad y esperanza.
+              </p>
+            </div>
+          </article>
+
+          <article class="mv__card" aria-labelledby="vision-title">
+            <span class="mv__icon" aria-hidden="true">
+              <Eye size={38} stroke-width={1.5} />
+            </span>
+            <span class="mv__rule" aria-hidden="true"></span>
+            <div class="mv__body">
+              <SectionLabel accent="gold-ink" class="mv__eyebrow">
+                Nuestra
+              </SectionLabel>
+              <h3
+                id="vision-title"
+                class="mv__title font-display"
+                aria-label="Nuestra visión"
+              >
+                Visión
+              </h3>
+              <p class="mv__text">
+                Ser una iglesia relevante, saludable y en crecimiento, que
+                impacta vidas y glorifica a Dios en nuestra ciudad y más allá.
+              </p>
+            </div>
+          </article>
+          </div>
+        </Container>
+      </div>
+    </section>
+
+    {/* =================================================================
+        Nuestra historia
+        ================================================================= */}
+    <section
+      id="nuestra-historia"
+      class="historia"
+      aria-labelledby="historia-title"
+    >
+      <div class="historia__media" aria-hidden="true">
+        <Image
+          class="historia__image"
+          src={historyImage}
+          alt=""
+          width={2048}
+          height={768}
+          widths={[1024, 1600, 2048]}
+          sizes="100vw"
+          format="webp"
+          loading="lazy"
+          decoding="async"
+        />
+        <div class="historia__scrim"></div>
+      </div>
+
+      <Container>
+        <div class="historia__grid">
+          <div class="historia__copy">
+            <SectionLabel accent="gold" withRule>
+              Nuestra historia
+            </SectionLabel>
+
+            <h2 id="historia-title" class="historia__title font-display">
+              Un llamado que{' '}
+              <span>se multiplica</span>
+            </h2>
+
+            <p class="historia__text">
+              UCI Iglesia de la Fe nació con un propósito claro: llevar el
+              evangelio de Jesucristo y formar una iglesia que refleje Su amor.
+              Desde nuestros inicios, hemos visto la fidelidad de Dios,
+              guiándonos en cada etapa.
+            </p>
+
+            <a class="historia__cta" href="#nuestra-historia-timeline">
+              Conoce más sobre nuestra historia
+              <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+            </a>
+          </div>
+
+          <ol
+            id="nuestra-historia-timeline"
+            class="timeline"
+            aria-label="Etapas de nuestra historia"
+          >
+            <li class="timeline__item">
+              <span class="timeline__thumb">
+                <Image
+                  class="timeline__image"
+                  src={communityImage}
+                  alt="Pequeño grupo de creyentes compartiendo"
+                  width={2048}
+                  height={768}
+                  widths={[160, 240, 320]}
+                  sizes="7rem"
+                  format="webp"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </span>
+              <h3 class="timeline__year font-display">2010</h3>
+              <p class="timeline__text">
+                Comenzamos como un pequeño grupo de creyentes.
+              </p>
+            </li>
+
+            <li class="timeline__item">
+              <span class="timeline__thumb">
+                <Image
+                  class="timeline__image"
+                  src={introImage}
+                  alt="Congregación reunida en nuestro primer templo"
+                  width={2048}
+                  height={768}
+                  widths={[160, 240, 320]}
+                  sizes="7rem"
+                  format="webp"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </span>
+              <h3 class="timeline__year font-display">2015</h3>
+              <p class="timeline__text">
+                Dimos un paso de fe con nuestro primer templo.
+              </p>
+            </li>
+
+            <li class="timeline__item">
+              <span class="timeline__thumb">
+                <Image
+                  class="timeline__image"
+                  src={worshipImage}
+                  alt="Manos levantadas en adoración"
+                  width={686}
+                  height={386}
+                  widths={[160, 240, 320]}
+                  sizes="7rem"
+                  format="webp"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </span>
+              <h3 class="timeline__year font-display">Hoy</h3>
+              <p class="timeline__text">
+                Seguimos creciendo para alcanzar más vidas para Cristo.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </Container>
+    </section>
+
+    {/* =================================================================
+        Final invitation
+        ================================================================= */}
+    <section class="cierre" aria-labelledby="cierre-title">
+      <div class="cierre__media" aria-hidden="true">
+        <Image
+          class="cierre__image"
+          src={bibleImage}
+          alt=""
+          width={2048}
+          height={768}
+          widths={[768, 1280, 1920, 2048]}
+          sizes="100vw"
+          format="webp"
+          loading="lazy"
+          decoding="async"
+        />
+        <div class="cierre__scrim"></div>
+      </div>
+
+      <Container>
+        <div class="cierre__content">
+          <SectionLabel accent="gold" withRule>
+            Sé parte de nuestra iglesia
+          </SectionLabel>
+
+          <h2 id="cierre-title" class="cierre__title font-display">
+            Juntos en la fe
+          </h2>
+
+          <p class="cierre__text">
+            Te invitamos a ser parte de esta familia, adorar con nosotros y
+            descubrir el propósito que Dios tiene para tu vida.
+          </p>
+
+          <div class="cierre__action">
+            <Button href="/soy-nuevo" variant="primary" arrow>
+              Conoce nuestros servicios
+            </Button>
+          </div>
+        </div>
+      </Container>
+    </section>
+  </div>
+</ContentLayout>
+
+<style>
+  /* =====================================================================
+     Hero
+     ===================================================================== */
+  .hero {
+    position: relative;
+    display: grid;
+    align-content: end;
+    min-height: clamp(34rem, 58vh, 42rem);
+    padding-block: 10rem clamp(7rem, 11vw, 9.5rem);
+    overflow: hidden;
+    isolation: isolate;
+    background-color: var(--color-black);
+    color: var(--color-white);
+  }
+
+  .hero__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .hero__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 42%;
+  }
+
+  .hero__scrim {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        95deg,
+        rgba(4, 9, 18, 0.95) 0%,
+        rgba(6, 16, 32, 0.8) 42%,
+        rgba(6, 16, 32, 0.34) 100%
+      ),
+      linear-gradient(
+        to top,
+        rgba(4, 9, 18, 0.9) 0%,
+        rgba(4, 9, 18, 0) 46%
+      );
+  }
+
+  .hero__glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle at 64% 36%,
+      rgba(22, 117, 209, 0.38) 0%,
+      rgba(22, 117, 209, 0) 56%
+    );
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+
+  .hero__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 44rem;
+  }
+
+  .hero__title {
+    margin: 0;
+    font-size: clamp(2.875rem, 1.55rem + 4.8vw, 5rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.03;
+    letter-spacing: var(--letter-spacing-tight);
+    text-transform: uppercase;
+  }
+
+  .hero__title-accent {
+    display: block;
+    color: var(--color-gold);
+  }
+
+  .hero__support {
+    max-width: 26.5rem;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+  }
+
+  .hero__cta {
+    margin-top: var(--space-8);
+  }
+
+  /* =====================================================================
+     ¿Quiénes somos?
+     ===================================================================== */
+  .intro {
+    position: relative;
+    z-index: 2;
+    margin-top: clamp(-1rem, -6vw, -4.5rem);
+    padding-block: clamp(6rem, 7vw, 7rem) clamp(4.5rem, 6vw, 6rem);
+    color: var(--color-navy);
+  }
+
+  /* Decorative layers: a diagonal white top edge and the light surface.
+     The surface is clipped into a pointed lower edge; the history section is
+     pulled up behind it so the real background shows through the cut. */
+  .intro__top,
+  .intro__body {
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+  }
+
+  .intro__top {
+    top: 0;
+    /*height: 5rem;*/
+    z-index: 0;
+  }
+
+  .intro__top svg,
+  .intro__bottom svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .intro__body {
+    top: 5rem;
+    bottom: 0;
+    z-index: 0;
+    background: linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #f6f8fb 52%,
+      #eef3f9 100%
+    );
+    clip-path: polygon(
+      0 0,
+      100% 0,
+      100% calc(100% - 3.5rem),
+      62.5% 100%,
+      0 calc(100% - 1rem)
+    );
+  }
+
+  .intro__layer {
+    position: relative;
+    z-index: 2;
+  }
+
+  .intro__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    align-items: start;
+    gap: clamp(2.5rem, 4vw, 4.5rem);
+  }
+
+  .intro__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 35rem;
+  }
+
+  .intro__title {
+    margin: 0;
+    font-size: clamp(2.25rem, 1.6rem + 2.4vw, 3.25rem);
+    font-weight: var(--font-weight-medium);
+    color: #0c1d3e;
+  }
+
+  .intro__text {
+    margin: 0;
+    color: #0c1d3e;
+    opacity: 0.78;
+    font-size: var(--font-size-body-large);
+    line-height: 1.65;
+  }
+
+  .intro__media-wrapper {
+  /* Este contenedor padre mantiene la sombra intacta */
+  filter: drop-shadow(0 30px 40px rgba(11, 18, 32, 0.24));
+}
+
+  .intro__media {
+  position: relative;
+  margin: clamp(-12rem, -12vw, -9rem)
+    calc(-1 * ((100vw - min(100vw, 1280px)) / 2 + clamp(1.25rem, 0.75rem + 2vw, 2.5rem)))
+    0 0;
+  aspect-ratio: 1.5 / 1;
+
+  /* 1. Este padding actúa como el borde blanco de 6px */
+  padding: 6px 0 6px 6px;
+  background-color: rgba(155, 185, 224, 0.95);
+
+  /* 2. Aplica el recorte trapezoidal con esquinas redondeadas a la izquierda */
+  clip-path: url(#trapezoid-clip);
+
+  /* 3. El box-shadow normal se recorta con clip-path, así que usamos drop-shadow */
+  filter: drop-shadow(0 30px 35px rgba(11, 18, 32, 0.24));
+}
+
+.intro__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 78% 45%;
+  display: block;
+
+  /* 4. Aplica exactamente el mismo recorte a la imagen interna */
+  clip-path: url(#trapezoid-clip);
+}
+
+
+  /* --- Mission / vision ------------------------------------------------ */
+  .mv {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(1.25rem, 2.4vw, 2rem);
+    margin-top: clamp(1.5rem, 2.5vw, 2.5rem);
+  }
+
+  .mv__card {
+    display: grid;
+    grid-template-columns: auto 1px minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(1.25rem, 2.2vw, 2rem);
+    padding: clamp(1.5rem, 2.6vw, 2.25rem);
+    border: 1px solid rgba(11, 18, 32, 0.07);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(
+      120deg,
+      #ffffff 0%,
+      #f8fafd 55%,
+      #eef4fb 100%
+    );
+    box-shadow:
+      0 18px 40px rgba(11, 18, 32, 0.07),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  .mv__icon {
+    display: grid;
+    place-items: center;
+    width: clamp(4.5rem, 6.5vw, 5.5rem);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at 34% 28%,
+      #1d3f6c 0%,
+      #0a1a30 72%
+    );
+    color: var(--color-white);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 10px 24px rgba(11, 18, 32, 0.2);
+  }
+
+  .mv__rule {
+    align-self: stretch;
+    margin-block: 0.35rem;
+    background: linear-gradient(
+      180deg,
+      rgba(217, 164, 65, 0) 0%,
+      rgba(217, 164, 65, 0.65) 35%,
+      rgba(217, 164, 65, 0.65) 65%,
+      rgba(217, 164, 65, 0) 100%
+    );
+  }
+
+  .mv__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .mv__eyebrow {
+    margin-bottom: var(--space-4);
+  }
+
+  .mv__title {
+    margin: 0 0 var(--space-8);
+    font-size: clamp(1.75rem, 1.35rem + 1.4vw, 2.25rem);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #0c1d3e;
+  }
+
+  .mv__text {
+    margin: 0;
+    color: var(--color-navy);
+    opacity: 0.76;
+    font-size: var(--font-size-body-small);
+    line-height: 1.6;
+  }
+
+  /* =====================================================================
+     Nuestra historia
+     ===================================================================== */
+  .historia {
+    position: relative;
+    z-index: 1;
+    margin-top: -3.5rem;
+    padding-block: calc(clamp(3.5rem, 5vw, 4.5rem) + 3.5rem)
+      clamp(3.5rem, 5vw, 4.5rem);
+    overflow: hidden;
+    isolation: isolate;
+    background-color: #071a30;
+    color: var(--color-white);
+  }
+
+  .historia__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .historia__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: right center;
+  }
+
+  .historia__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      #071a30 0%,
+      rgba(7, 26, 48, 0.96) 34%,
+      rgba(7, 26, 48, 0.62) 68%,
+      rgba(7, 26, 48, 0.3) 100%
+    );
+  }
+
+  .historia__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.35fr);
+    align-items: center;
+    gap: clamp(3rem, 5.5vw, 6rem);
+  }
+
+  .historia__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 33rem;
+  }
+
+  .historia__title {
+    margin: 0;
+    font-size: clamp(2.25rem, 1.55rem + 2.6vw, 3.5rem);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .historia__title span {
+    display: block;
+  }
+
+  .historia__text {
+    margin: 0;
+    max-width: 44ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body);
+    line-height: 1.7;
+  }
+
+  .historia__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-12);
+    margin-top: var(--space-8);
+    padding: 0.8125rem var(--space-24);
+    border: 1px solid rgba(217, 164, 65, 0.62);
+    border-radius: var(--radius-md);
+    color: var(--color-gold);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-nav);
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+
+  .historia__cta:hover {
+    background-color: rgba(217, 164, 65, 0.12);
+    border-color: var(--color-gold-light);
+    color: var(--color-gold-light);
+  }
+
+  .historia__cta :global(svg) {
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .historia__cta:hover :global(svg) {
+    transform: translateX(3px);
+  }
+
+  /* --- Timeline -------------------------------------------------------- */
+  .timeline {
+    --circle: clamp(5.25rem, 7.5vw, 6.75rem);
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(1rem, 2.4vw, 2rem);
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    list-style: none;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    top: calc(var(--circle) / 2);
+    left: 16.6%;
+    right: 16.6%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      rgba(217, 164, 65, 0) 0%,
+      rgba(217, 164, 65, 0.78) 14%,
+      rgba(217, 164, 65, 0.78) 86%,
+      rgba(217, 164, 65, 0) 100%
+    );
+  }
+
+  .timeline__item {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-12);
+  }
+
+  .timeline__thumb {
+    display: block;
+    width: var(--circle);
+    height: var(--circle);
+    overflow: hidden;
+    border: 2px solid rgba(217, 164, 65, 0.9);
+    border-radius: 50%;
+    background-color: var(--color-navy);
+    box-shadow: 0 0 0 6px rgba(7, 26, 48, 0.92);
+  }
+
+  .timeline__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .timeline__item:nth-child(1) .timeline__image {
+    object-position: 80% 50%;
+  }
+
+  .timeline__item:nth-child(2) .timeline__image {
+    object-position: 52% 46%;
+  }
+
+  .timeline__item:nth-child(3) .timeline__image {
+    object-position: center 42%;
+  }
+
+  .timeline__year {
+    margin: 0;
+    font-size: clamp(1.25rem, 1.05rem + 0.7vw, 1.5rem);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-gold);
+  }
+
+  .timeline__text {
+    margin: 0;
+    max-width: 22ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-small);
+    line-height: 1.55;
+  }
+
+  /* =====================================================================
+     Final invitation
+     ===================================================================== */
+  .cierre {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: clamp(21rem, 34vw, 28rem);
+    padding-block: clamp(3.5rem, 6vw, 5.5rem);
+    overflow: hidden;
+    isolation: isolate;
+    background-color: var(--color-black);
+    color: var(--color-white);
+  }
+
+  .cierre__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .cierre__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 58%;
+    filter: brightness(1.05) saturate(1.06);
+  }
+
+  .cierre__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      rgba(5, 7, 10, 0.94) 0,
+      rgba(5, 7, 10, 0.86) 20rem,
+      rgba(5, 7, 10, 0.65) 32rem,
+      rgba(5, 7, 10, 0.4) 40rem,
+      rgba(5, 7, 10, 0.12) 48rem,
+      rgba(5, 7, 10, 0) 60rem
+    );
+  }
+
+  .cierre__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 40rem;
+  }
+
+  .cierre__title {
+    margin: 0;
+    font-size: clamp(2.25rem, 1.5rem + 2.6vw, 3.5rem);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .cierre__text {
+    margin: 0;
+    max-width: 40rem;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+  }
+
+  .cierre__action {
+    margin-top: var(--space-8);
+  }
+
+  /* --- Anchor offset for the fixed header ------------------------------ */
+  #quienes-somos,
+  #nuestra-historia,
+  #nuestra-historia-timeline {
+    scroll-margin-top: 6rem;
+  }
+
+  /* =====================================================================
+     Responsive
+     ===================================================================== */
+  @media (max-width: 1023px) {
+    .cierre__scrim {
+      background: linear-gradient(
+        180deg,
+        rgba(5, 7, 10, 0.92) 0%,
+        rgba(5, 7, 10, 0.78) 42%,
+        rgba(5, 7, 10, 0.5) 64%,
+        rgba(5, 7, 10, 0.2) 84%,
+        rgba(5, 7, 10, 0.04) 100%
+      );
+    }
+
+    .intro__grid,
+    .historia__grid {
+      grid-template-columns: 1fr;
+    }
+
+    .intro__copy,
+    .historia__copy {
+      max-width: 42rem;
+    }
+
+    .intro__media {
+      margin: 0;
+      max-width: 40rem;
+      border: 6px solid rgba(255, 255, 255, 0.95);
+      border-radius: clamp(1rem, 1.8vw, 1.5rem);
+      transform: none;
+    }
+
+    .historia__scrim {
+      background: linear-gradient(
+        90deg,
+        #071a30 0%,
+        rgba(7, 26, 48, 0.9) 55%,
+        rgba(7, 26, 48, 0.45) 100%
+      );
+    }
+  }
+
+  @media (max-width: 767px) {
+    .hero {
+      min-height: 32rem;
+      padding-block: 8.5rem 8rem;
+    }
+
+    .hero__image {
+      object-position: 60% 42%;
+    }
+
+    .hero__content {
+      gap: var(--space-16);
+    }
+
+    .hero__cta {
+      width: 100%;
+    }
+
+    .hero__cta :global(.btn) {
+      width: 100%;
+    }
+
+    .intro {
+      margin-top: -4.5rem;
+    }
+
+    .mv {
+      grid-template-columns: 1fr;
+    }
+
+    .timeline {
+      --circle: 4.5rem;
+      gap: 0.75rem;
+    }
+
+    .timeline::before {
+      left: 16%;
+      right: 16%;
+    }
+
+    .timeline__text {
+      font-size: 0.8125rem;
+    }
+
+    .timeline__item {
+      gap: var(--space-8);
+    }
+
+    .cierre {
+      min-height: 24rem;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .hero__title {
+      font-size: clamp(2.5rem, 11vw, 3rem);
+    }
+
+    .timeline {
+      --circle: 3.75rem;
+      gap: 0.5rem;
+    }
+
+    .timeline__text {
+      font-size: 0.75rem;
+    }
+
+    .timeline__year {
+      font-size: 1.125rem;
+    }
+
+    .mv__card {
+      gap: var(--space-16);
+    }
+
+    .mv__icon {
+      width: 3.75rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .historia__cta:hover :global(svg) {
+      transform: none;
+    }
+  }
+</style>

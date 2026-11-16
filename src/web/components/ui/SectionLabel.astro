@@ -4,10 +4,11 @@
  * (docs/03 §7.2). Pinned by the brief as part of the UCI visual language.
  * Gold is the default accent; blue is available for blue surfaces.
  * Gold must never be used on light surfaces (docs/03 §37), so callers on a
- * light background should use accent="blue" or the default "navy".
+ * light background should use accent="gold-ink" (the accessible deep-gold
+ * variant), accent="blue", or accent="navy".
  */
 interface Props {
-  accent?: 'gold' | 'blue' | 'navy' | 'light';
+  accent?: 'gold' | 'gold-ink' | 'blue' | 'navy' | 'light';
   /** Render a short gold rule before the label. Default off to stay restrained. */
   withRule?: boolean;
   as?: 'p' | 'span' | 'div';
@@ -53,6 +54,10 @@ const {
 
   .section-label--gold {
     color: var(--color-gold);
+  }
+
+  .section-label--gold-ink {
+    color: var(--color-gold-ink);
   }
 
   .section-label--blue {

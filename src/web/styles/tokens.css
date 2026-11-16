@@ -20,6 +20,9 @@
   --color-blue-light: #5bb8f5;
   --color-gold: #d9a441;
   --color-gold-light: #f0c96a;
+  /* Deep gold for small text on light surfaces (WCAG AA); the approved
+     bright gold stays reserved for dark surfaces (docs/03 §37). */
+  --color-gold-ink: #966414;
   --color-white: #f5f5f5;
   --color-gray: #9ca3af;
   --color-gray-light: #d9dde2;

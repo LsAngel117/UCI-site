@@ -56,6 +56,9 @@
      a darker gold for small marks and keeps the palette gold for fills. */
   --admin-gold-ink: #8a6417;
 
+  /* Shared cinematic banner artwork (login + dashboard welcome). */
+  --admin-banner-image: url('../../assets/fondo-baner-cms.png');
+
   /* Blue focus ring reads correctly on the light canvas. */
   --focus-ring: var(--color-blue);
 }
@@ -857,11 +860,24 @@ strong {
   position: relative;
   padding: var(--space-24) var(--space-32);
   overflow: hidden;
-  background:
-    linear-gradient(135deg, var(--admin-surface-panel) 0%, #f7f9fc 100%);
-  border: 1px solid var(--admin-border);
+  /* Same cinematic globe artwork as the login banner, with a horizontal scrim
+     that keeps the welcome copy legible while leaving the globe visible. */
+  background-color: var(--color-black);
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(5, 7, 10, 0.94) 0%,
+      rgba(5, 7, 10, 0.78) 48%,
+      rgba(5, 7, 10, 0.38) 100%
+    ),
+    var(--admin-banner-image);
+  background-position: center, 70% center;
+  background-size: cover, cover;
+  background-repeat: no-repeat, no-repeat;
+  border: 1px solid var(--border-on-dark);
   border-radius: var(--admin-radius);
   box-shadow: var(--admin-shadow-panel);
+  color: var(--color-white);
 }
 
 .dashboard__welcome::before {
@@ -874,7 +890,7 @@ strong {
 
 .dashboard__eyebrow {
   margin-bottom: var(--space-8);
-  color: var(--admin-gold-ink);
+  color: var(--color-gold);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-semibold);
   letter-spacing: 0.14em;
@@ -886,13 +902,13 @@ strong {
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-heading);
   letter-spacing: var(--letter-spacing-tight);
-  color: var(--admin-text-primary);
+  color: var(--color-white);
 }
 
 .dashboard__lede {
   max-width: 64ch;
   margin-top: var(--space-8);
-  color: var(--admin-text-secondary);
+  color: var(--color-gray-light);
   font-size: var(--font-size-body);
 }
 
@@ -1209,7 +1225,7 @@ a.dashboard-list__link:hover .dashboard-list__title {
       rgba(5, 7, 10, 0.62) 45%,
       rgba(5, 7, 10, 0.88) 100%
     ),
-    url('../../assets/fondo-baner-cms.png');
+    var(--admin-banner-image);
   background-position: center, 72% center;
   background-size: cover, cover;
   background-repeat: no-repeat, no-repeat;
