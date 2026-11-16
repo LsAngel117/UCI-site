@@ -1,0 +1,120 @@
+---
+/**
+ * MinistryCard — photographic community card (docs/03 §20).
+ *
+ * The name and short description sit over the cover with the same restrained
+ * gradient used on the homepage, keeping ministries visually coherent across
+ * the site.
+ */
+import { ArrowRight } from '@lucide/astro';
+import type { PublicMinistryDto } from '@shared/cms';
+import CoverImage from '../ui/CoverImage.astro';
+
+interface Props {
+  ministry: PublicMinistryDto;
+  headingLevel?: 'h2' | 'h3';
+}
+
+const { ministry, headingLevel: Heading = 'h2' } = Astro.props;
+---
+
+<li class="ministry-card">
+  <a class="ministry-card__link" href={`/ministerios/${ministry.slug}`}>
+    <div class="ministry-card__media">
+      <CoverImage
+        class="ministry-card__image"
+        src={ministry.coverImageUrl}
+        alt={ministry.coverImageAlt ?? ''}
+        aspect="4 / 5"
+        label={ministry.name}
+      />
+      <div class="ministry-card__overlay" aria-hidden="true"></div>
+      <div class="ministry-card__text">
+        <Heading class="ministry-card__name font-display">{ministry.name}</Heading>
+        {ministry.shortDescription && (
+          <p class="ministry-card__description">{ministry.shortDescription}</p>
+        )}
+        <span class="ministry-card__action" aria-hidden="true">
+          Ver ministerio
+          <ArrowRight size={16} stroke-width={1.75} />
+        </span>
+      </div>
+    </div>
+  </a>
+</li>
+
+<style>
+  .ministry-card__media {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background-color: var(--color-navy-800);
+  }
+
+  :global(.ministry-card__image) {
+    width: 100%;
+    transition: transform var(--duration-slow) var(--ease-out);
+  }
+
+  .ministry-card__link:hover :global(.ministry-card__image) {
+    transform: scale(1.05);
+  }
+
+  .ministry-card__overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(5, 7, 10, 0.9) 0%,
+      rgba(5, 7, 10, 0.2) 55%,
+      rgba(5, 7, 10, 0) 100%
+    );
+  }
+
+  .ministry-card__text {
+    position: absolute;
+    inset: auto 0 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    padding: var(--space-24);
+  }
+
+  .ministry-card__name {
+    color: var(--color-white);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .ministry-card__description {
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-small);
+  }
+
+  .ministry-card__action {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    margin-top: var(--space-4);
+    color: var(--color-gold);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .ministry-card__action svg {
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .ministry-card__link:hover .ministry-card__action svg {
+    transform: translateX(4px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ministry-card__link:hover :global(.ministry-card__image),
+    .ministry-card__link:hover .ministry-card__action svg {
+      transform: none;
+    }
+  }
+</style>

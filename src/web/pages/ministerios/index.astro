@@ -1,0 +1,140 @@
+---
+/**
+ * /ministerios — public ministry directory (Phase 9B1, docs/08 §13.1).
+ *
+ * Published ministries are listed alphabetically; the same honest empty and
+ * unavailable states as the other archives apply.
+ */
+import { getChurchProfile, getNavigation } from '../../data/site';
+import { getMinistriesArchive } from '../../data/content';
+import {
+  ARCHIVE_PAGE_SIZE,
+  buildArchiveHref,
+  parsePage,
+} from '../../lib/archive';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import ArchiveHero from '../../components/ui/ArchiveHero.astro';
+import Container from '../../components/ui/Container.astro';
+import EmptyState from '../../components/ui/EmptyState.astro';
+import NotFoundState from '../../components/ui/NotFoundState.astro';
+import Pagination from '../../components/ui/Pagination.astro';
+import Section from '../../components/ui/Section.astro';
+import MinistryCard from '../../components/content/MinistryCard.astro';
+
+const search = Astro.url.searchParams;
+const requestedPage = parsePage(search.get('page'));
+
+const [church, navigation, result] = await Promise.all([
+  getChurchProfile(),
+  getNavigation(),
+  getMinistriesArchive({
+    page: requestedPage,
+    limit: ARCHIVE_PAGE_SIZE,
+    sort: 'name',
+    order: 'asc',
+  }),
+]);
+
+if (result.status === 'unavailable') Astro.response.status = 503;
+
+const meta = result.status === 'ok' ? result.meta : null;
+const page = meta?.page ?? requestedPage;
+const totalPages = meta?.totalPages ?? 1;
+const canonicalPath = page > 1 ? `/ministerios?page=${page}` : '/ministerios';
+const title = 'Ministerios | Iglesia UCI';
+const description =
+  'Conoce los ministerios de Iglesia UCI y encuentra un lugar para servir y crecer en comunidad.';
+
+const outOfRange =
+  result.status === 'ok' && meta !== null && page > totalPages;
+if (outOfRange) Astro.response.status = 404;
+const firstPageHref = buildArchiveHref('/ministerios', search, 1);
+const prevHref =
+  page > 1 ? buildArchiveHref('/ministerios', search, page - 1) : null;
+const nextHref =
+  page < totalPages ? buildArchiveHref('/ministerios', search, page + 1) : null;
+---
+
+<ContentLayout
+  title={title}
+  description={description}
+  canonicalPath={canonicalPath}
+  noindex={result.status === 'unavailable' || outOfRange}
+  church={church}
+  navigation={navigation}
+>
+  {
+    outOfRange ? (
+      <NotFoundState
+        title="Esta página no existe"
+        message="La página solicitada no existe en el directorio. Vuelve al inicio para seguir explorando."
+        backHref={firstPageHref}
+        backLabel="Ir a la primera página"
+      />
+    ) : (
+      <>
+        <ArchiveHero
+          label="Comunidad"
+          title="Ministerios"
+          description="Encuentra tu lugar: comunidades donde servimos, crecemos y caminamos juntos."
+        />
+
+        <Section surface="light" spacing="lg">
+          <Container>
+            {
+              result.status === 'unavailable' ? (
+                <EmptyState
+                  title="No pudimos cargar los ministerios"
+                  message="El directorio no está disponible en este momento. Intenta de nuevo en unos minutos."
+                />
+              ) : result.data.length === 0 ? (
+                <EmptyState
+                  title="Estamos preparando el directorio de ministerios"
+                  message="Todavía no hay ministerios publicados. Vuelve pronto para conocer las comunidades de UCI."
+                />
+              ) : (
+                <ul class="ministry-grid">
+                  {result.data.map((ministry) => (
+                    <MinistryCard ministry={ministry} />
+                  ))}
+                </ul>
+              )
+            }
+
+            {
+              result.status === 'ok' && result.data.length > 0 && (
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  prevHref={prevHref}
+                  nextHref={nextHref}
+                  label="ministerios"
+                />
+              )
+            }
+          </Container>
+        </Section>
+      </>
+    )
+  }
+</ContentLayout>
+
+<style>
+  .ministry-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-24);
+  }
+
+  @media (max-width: 1023px) {
+    .ministry-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 639px) {
+    .ministry-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

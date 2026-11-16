@@ -1,0 +1,224 @@
+---
+/**
+ * Historias — "Dios sigue haciendo historia" (docs/04 §15, docs/03 §21).
+ *
+ * The approved mockup turns this into a dark editorial card beside the
+ * generosity card, so the component renders only the card and the homepage
+ * owns the mosaic row (see `pages/index.astro`).
+ *
+ * Governance (docs/04 §15.5, docs/05 §14): only published, editorially
+ * approved stories may surface. When no approved story exists the card keeps
+ * its structural heading and states honestly that real stories are being
+ * prepared, without inventing a testimony, name or portrait.
+ */
+import { Image } from 'astro:assets';
+import { getFeaturedStory, getHistoriasContent } from '../../data/site';
+import Button from '../ui/Button.astro';
+import MediaPlaceholder from '../ui/MediaPlaceholder.astro';
+import { isLocalAsset, isRemoteAsset } from '../ui/media-source';
+import SectionLabel from '../ui/SectionLabel.astro';
+import type { Story } from '@shared/types';
+
+interface Props {
+  /** Featured story resolved by the homepage; `undefined` fetches it here. */
+  story?: Story | null;
+}
+
+const section = getHistoriasContent();
+const story =
+  Astro.props.story === undefined ? await getFeaturedStory() : Astro.props.story;
+---
+
+<article class="historias" aria-labelledby="historias-heading">
+  <header class="historias__header">
+    <SectionLabel>{section.label}</SectionLabel>
+    <h2 id="historias-heading" class="historias__heading font-display">
+      {section.heading}
+    </h2>
+  </header>
+
+  {
+    story ? (
+      <figure class="historia">
+        <div class="historia__portrait">
+          {isLocalAsset(story.imageUrl) ? (
+            <Image
+              class="historia__image"
+              src={story.imageUrl}
+              alt={`Retrato de ${story.displayName}`}
+              width={640}
+              height={800}
+              widths={[280, 400, 640]}
+              sizes="(min-width: 1024px) 16vw, 60vw"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : isRemoteAsset(story.imageUrl) ? (
+            <img
+              class="historia__image"
+              src={story.imageUrl}
+              alt={`Retrato de ${story.displayName}`}
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <MediaPlaceholder
+              class="historia__image"
+              label={story.displayName}
+              aspect="4 / 5"
+              asset="story-portrait-default.jpg"
+            />
+          )}
+        </div>
+
+        <figcaption class="historia__content">
+          <blockquote class="historia__quote font-display">
+            “{story.quote}”
+          </blockquote>
+          <p class="historia__name">{story.displayName}</p>
+        </figcaption>
+      </figure>
+    ) : (
+      <div class="historias__empty">
+        <div class="historias__empty-portrait">
+          <MediaPlaceholder
+            class="historias__empty-media"
+            label="Historia por confirmar"
+            aspect="4 / 5"
+            asset="story-portrait-default.jpg"
+          />
+        </div>
+        <div class="historias__empty-content">
+          <p class="historias__empty-text">
+            Estamos preparando historias reales de nuestra comunidad.
+          </p>
+          <Button href="/historias" variant="secondary" arrow>
+            Visitar historias
+          </Button>
+        </div>
+      </div>
+    )
+  }
+</article>
+
+<style>
+  .historias {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+    height: 100%;
+    overflow: hidden;
+    padding: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+    border-radius: var(--radius-md);
+    background:
+      radial-gradient(
+        circle at 20% 0%,
+        rgba(22, 117, 209, 0.18) 0%,
+        rgba(5, 7, 10, 0) 55%
+      ),
+      var(--color-black);
+  }
+
+  .historias__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .historias__heading {
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    max-width: 20ch;
+  }
+
+  .historia {
+    display: grid;
+    grid-template-columns: minmax(0, 0.62fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-32);
+    margin-top: auto;
+  }
+
+  .historia__portrait {
+    position: relative;
+  }
+
+  .historia__portrait::before {
+    content: '';
+    position: absolute;
+    inset: -10% -10% -10% 10%;
+    background: var(--gradient-blue-glow);
+    pointer-events: none;
+  }
+
+  .historia__image {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+  }
+
+  .historia__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+  }
+
+  .historia__quote {
+    font-size: var(--font-size-heading-3);
+    font-style: italic;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+    text-wrap: balance;
+  }
+
+  .historia__name {
+    color: var(--color-gold);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .historias__empty {
+    display: grid;
+    grid-template-columns: minmax(0, 0.5fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-32);
+    margin-top: auto;
+  }
+
+  .historias__empty-portrait {
+    width: 100%;
+  }
+
+  .historias__empty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+  }
+
+  .historias__empty-text {
+    max-width: 28ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body);
+  }
+
+  @media (max-width: 1023px) {
+    .historia,
+    .historias__empty {
+      grid-template-columns: 1fr;
+      gap: var(--space-24);
+    }
+
+    .historia__portrait,
+    .historias__empty-portrait {
+      max-width: 14rem;
+    }
+  }
+</style>

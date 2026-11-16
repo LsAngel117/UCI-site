@@ -300,10 +300,16 @@ sort
 order
 ```
 
+`status` accepts `ACTIVE` or `INACTIVE` (case-insensitive) and filters by
+account state; it is an alias of the `active` boolean filter. Any other
+`status` value is rejected with `400 VALIDATION_ERROR` rather than silently
+ignored. Supplying `active` and `status` with contradictory values is also a
+`400`.
+
 Example:
 
 ```http
-GET /api/v1/users?page=1&limit=20&search=juan&role=EDITOR
+GET /api/v1/users?page=1&limit=20&search=juan&role=EDITOR&status=ACTIVE
 ```
 
 ---
@@ -328,10 +334,16 @@ Example:
 {
   "name": "Juan Pérez",
   "email": "juan@example.org",
+  "password": "a-long-enough-password",
   "role": "EDITOR",
   "status": "ACTIVE"
 }
 ```
+
+`role` is a single role name and is accepted as an alias of a `roles` array;
+supplying both is a `400`. An unknown role name is a `400`. `status` accepts
+`ACTIVE` or `INACTIVE` (case-insensitive), defaults to `ACTIVE` when omitted,
+and is normalized into the stored `active` flag.
 
 ---
 
@@ -432,7 +444,21 @@ Examples:
 GET /api/v1/pages/:slug
 ```
 
-Only published pages are returned.
+Only published pages are returned. Draft, scheduled, archived and unknown slugs all receive the same `404 NOT_FOUND` response so unpublished content cannot be discovered.
+
+**Redirect foundation.** When a published page changes slug, the previous slug is recorded. A request for that old slug returns the same `404` envelope, with the resolved destination added under `error.details`:
+
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Page not found.",
+    "details": { "redirectTo": "/new-slug" }
+  }
+}
+```
+
+`redirectTo` is a rooted path. The public site layer (Phase 9) turns it into the permanent HTTP redirect; the API itself never issues the redirect.
 
 Example:
 
@@ -618,11 +644,15 @@ Additional filters:
 status
 author
 preacher
+search
 publishedFrom
 publishedTo
 createdFrom
 createdTo
 ```
+
+`search` matches title, slug or description (case-insensitive) and can be
+combined with `status`/`preacher`; the conditions are ANDed.
 
 ---
 
@@ -1059,6 +1089,20 @@ Example:
 
 ---
 
+## 15.7 Media Orphans
+
+```http
+GET /api/v1/admin/media/orphans
+```
+
+Read-only review of assets with no content references. Supports the same
+filtering, sorting and pagination parameters as `GET /api/v1/admin/media`.
+
+This endpoint never deletes assets: orphan cleanup remains an explicit
+administrator action, not an automatic job (docs/12 §18, §60).
+
+---
+
 # 16. External Media API
 
 External video must not be uploaded to the UCI server.
@@ -1177,21 +1221,56 @@ Example:
 {
   "name": "Juan Pérez",
   "email": "juan@example.com",
-  "subject": "Información",
   "message": "Quisiera conocer los horarios."
 }
 ```
+
+The accepted body is strict: only `name`, `email` and `message` are read. Any
+other field (for example `subject`) is rejected with `400 VALIDATION_ERROR`
+instead of being silently discarded, because the persisted model only stores
+those three values.
 
 The API must validate:
 
 - required fields;
 - email format;
 - message length;
+- unknown/unsupported fields (400 `VALIDATION_ERROR`);
 - abuse/rate limits.
+
+Transport errors precede semantic validation: a body larger than Fastify's
+1 MiB limit is rejected with `413` before the route runs, so a `413` can be
+returned even when the JSON would also be invalid (`400`).
 
 Contact submissions may be persisted or forwarded to the configured notification mechanism according to the final implementation.
 
 The endpoint must not expose internal contact records publicly.
+
+## 19.1 Administrative Contact Inbox
+
+Stored submissions are read and managed exclusively through the authenticated
+administrative API (Phase 11A/11B):
+
+```http
+GET   /api/v1/admin/contact-submissions
+GET   /api/v1/admin/contact-submissions/:id
+PATCH /api/v1/admin/contact-submissions/:id
+```
+
+- `GET` list and `GET` by id require `contact.read`.
+- `PATCH` requires `contact.manage`.
+- The list accepts `search` (name, email or message, case-insensitive),
+  `status` (`NEW` or `HANDLED`), `from`/`to` (inclusive ISO 8601 bounds on
+  `createdAt`) and the standard `page`/`limit` pagination. Results are always
+  newest-first.
+- The only writable field is `status`. `handledAt` is derived server-side: it is
+  set the first time a submission is marked handled and cleared when it is
+  reopened. Every real transition is written to `audit_logs`.
+- The administrative projection is `ContactSubmissionDto`; it is never returned
+  by a public route. The public `POST /api/v1/contact` still answers only with
+  `{ "received": true }`.
+
+The panel screen consuming these endpoints is documented in docs/09 §110.
 
 ---
 
@@ -2214,6 +2293,7 @@ POST   /api/v1/admin/navigation/reorder
 
 GET    /api/v1/admin/media
 POST   /api/v1/admin/media/upload
+GET    /api/v1/admin/media/orphans
 GET    /api/v1/admin/media/:id
 PATCH  /api/v1/admin/media/:id
 DELETE /api/v1/admin/media/:id

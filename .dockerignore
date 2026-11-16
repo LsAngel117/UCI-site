@@ -1,0 +1,28 @@
+# Build context for the production images. Keep it small and secret-free:
+# production secrets live in `.env.production` (never in an image layer).
+.git
+.gitignore
+node_modules
+dist
+dist-server
+.astro
+
+# Runtime data and backups must never enter an image.
+media
+backups
+*.dump
+*.tar.gz
+
+# Local configuration / secrets.
+.env
+.env.*
+*.log
+
+# Documentation, task files, tests and agent metadata are not needed to build.
+docs
+odd
+tests
+.agents
+.opencode
+.atl
+README.md

@@ -1,0 +1,223 @@
+---
+/**
+ * ProximoServicio — "Nos vemos este domingo" (docs/04 §9, docs/03 §15).
+ *
+ * The approved mockup integrates the practical service information as a dark
+ * photographic panel beside the three pillar cards, so this component renders
+ * only that panel and lets the homepage own the composite section (see
+ * `pages/index.astro`).
+ *
+ * Honesty rule (docs/04 §6.6, §24): when no active schedule exists, every
+ * practical field shows a "por confirmar" state instead of a fabricated date
+ * or time.
+ */
+import { Calendar, MapPin } from '@lucide/astro';
+import { Image } from 'astro:assets';
+import panelImage from '../../assets/home/pillar-adoramos.png';
+import {
+  getChurchProfile,
+  getNextService,
+  getProximoServicioContent,
+} from '../../data/site';
+import { formatServiceDay, formatTime12h } from '../../lib/format';
+import Button from '../ui/Button.astro';
+import SectionLabel from '../ui/SectionLabel.astro';
+import type { ChurchProfile, ServiceOccurrence } from '@shared/types';
+
+interface Props {
+  church?: ChurchProfile;
+  nextService?: ServiceOccurrence | null;
+}
+
+const section = getProximoServicioContent();
+const church =
+  Astro.props.church === undefined
+    ? await getChurchProfile()
+    : Astro.props.church;
+const nextService =
+  Astro.props.nextService === undefined
+    ? await getNextService()
+    : Astro.props.nextService;
+
+const dayLabel = nextService
+  ? formatServiceDay(nextService.schedule.dayOfWeek) ?? 'PRÓXIMO SERVICIO'
+  : 'PRÓXIMO SERVICIO';
+const timeLabel = nextService
+  ? formatTime12h(nextService.schedule.startTime) ?? 'Por confirmar'
+  : 'Por confirmar';
+const serviceType = nextService?.schedule.name ?? section.heading;
+
+// Prefer the resolved service venue; fall back to the church profile when the
+// next occurrence is unknown.
+const location = nextService?.location ?? church.location;
+const address = location.address || 'Dirección por confirmar';
+const cityLine = [location.city, location.state].filter(Boolean).join(', ');
+---
+
+<aside
+  class="servicio"
+  id="proximo-servicio"
+  aria-labelledby="proximo-servicio-heading"
+>
+  <div class="servicio__media" aria-hidden="true">
+    <Image
+      class="servicio__image"
+      src={panelImage}
+      alt=""
+      aria-hidden="true"
+      width={686}
+      height={386}
+      widths={[420, 686]}
+      sizes="(min-width: 1024px) 32vw, 90vw"
+      loading="lazy"
+      decoding="async"
+    />
+    <div class="servicio__overlay"></div>
+  </div>
+
+  <div class="servicio__content">
+    <div class="servicio__intro">
+      <SectionLabel>{section.label}</SectionLabel>
+      <h2 id="proximo-servicio-heading" class="servicio__heading font-display">
+        {serviceType}
+      </h2>
+    </div>
+
+    <dl class="servicio__details">
+      <div class="servicio__detail">
+        <dt class="servicio__detail-label">
+          <Calendar size={18} stroke-width={1.75} />
+          {dayLabel}
+        </dt>
+        <dd class="servicio__detail-value">{timeLabel}</dd>
+      </div>
+
+      <div class="servicio__detail">
+        <dt class="servicio__detail-label">
+          <MapPin size={18} stroke-width={1.75} />
+          Ubicación
+        </dt>
+        <dd class="servicio__detail-value">
+          <span class="servicio__place">{address}</span>
+          {cityLine && <span class="servicio__address">{cityLine}</span>}
+        </dd>
+      </div>
+    </dl>
+
+    <div class="servicio__action">
+      <Button href={section.cta.href} variant="secondary" arrow>
+        {section.cta.label}
+      </Button>
+    </div>
+  </div>
+</aside>
+
+<style>
+  .servicio {
+    position: relative;
+    display: flex;
+    overflow: hidden;
+    min-height: 26rem;
+    border-radius: var(--radius-md);
+    background-color: var(--color-navy);
+    isolation: isolate;
+  }
+
+  .servicio__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .servicio__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .servicio__overlay {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        to top,
+        rgba(5, 7, 10, 0.94) 0%,
+        rgba(5, 7, 10, 0.62) 45%,
+        rgba(5, 7, 10, 0.35) 100%
+      ),
+      linear-gradient(120deg, rgba(11, 18, 32, 0.85) 0%, rgba(11, 18, 32, 0.25) 70%);
+  }
+
+  .servicio__content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-24);
+    padding: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+  }
+
+  .servicio__intro {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .servicio__heading {
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .servicio__details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+    margin-top: auto;
+  }
+
+  .servicio__detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .servicio__detail-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    color: var(--color-gray-light);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .servicio__detail-value {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    color: var(--color-white);
+    font-size: var(--font-size-body-large);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .servicio__place {
+    text-transform: none;
+  }
+
+  .servicio__address {
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-regular);
+  }
+
+  .servicio__action {
+    display: flex;
+  }
+
+  .servicio__action :global(.btn) {
+    width: 100%;
+    justify-content: space-between;
+  }
+</style>

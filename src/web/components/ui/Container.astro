@@ -1,0 +1,43 @@
+---
+/**
+ * Container — centered content wrapper enforcing the global max-width and
+ * inline padding (docs/03 §9.1). Full-bleed sections use it inside to keep
+ * their content aligned to the same grid.
+ */
+interface Props {
+  /** Use the wider editorial max-width (1320px). */
+  wide?: boolean;
+  /** Use a narrow reading measure (720px). */
+  narrow?: boolean;
+  class?: string;
+}
+
+const { wide = false, narrow = false, class: className } = Astro.props;
+---
+
+<div
+  class:list={[
+    'container',
+    { 'container--wide': wide, 'container--narrow': narrow },
+    className,
+  ]}
+>
+  <slot />
+</div>
+
+<style>
+  .container {
+    width: 100%;
+    max-width: var(--container-max);
+    margin-inline: auto;
+    padding-inline: var(--container-padding-inline);
+  }
+
+  .container--wide {
+    max-width: var(--container-wide);
+  }
+
+  .container--narrow {
+    max-width: var(--container-narrow);
+  }
+</style>

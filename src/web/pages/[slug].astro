@@ -1,0 +1,339 @@
+---
+/**
+ * /{slug} — public CMS institutional page (Phase 9B2, docs/08 §10.1, docs/10
+ * §6, docs/05 §20).
+ *
+ * Renders only published pages. Drafts, scheduled, archived and unknown slugs
+ * are indistinguishable and answer a real 404; an API outage answers 503.
+ *
+ * Astro gives the static routes precedence over this dynamic segment, so
+ * `/`, `/sermones`, `/eventos`, `/ministerios`, `/soy-nuevo`, `/contacto`,
+ * `/robots.txt` and `/sitemap.xml` are never captured here.
+ *
+ * Content is structured JSON from the API. It is normalized by
+ * `normalizePageContent` into a closed set of safe blocks — no arbitrary HTML
+ * is ever injected.
+ */
+import { getChurchProfile, getNavigation } from '../data/site';
+import { getPageDetail } from '../data/content';
+import { normalizePageContent } from '../lib/page-content';
+import { buildPageSeo } from '../lib/seo';
+import ContentLayout from '../layouts/ContentLayout.astro';
+import Button from '../components/ui/Button.astro';
+import Container from '../components/ui/Container.astro';
+import CoverImage from '../components/ui/CoverImage.astro';
+import DetailHero from '../components/ui/DetailHero.astro';
+import NotFoundState from '../components/ui/NotFoundState.astro';
+import Section from '../components/ui/Section.astro';
+
+const slug = Astro.params.slug ?? '';
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+
+const [church, navigation] = await Promise.all([
+  getChurchProfile(),
+  getNavigation(),
+]);
+
+/**
+ * Accept a redirect destination only when it is a rooted, single-segment path
+ * (the route's dynamic segment is one slug) so an API response can never turn
+ * into an open redirect. The destination is then resolved through the public
+ * API to confirm it is still published before the permanent redirect.
+ */
+function publicRedirectSlug(redirectTo: string): string | null {
+  if (!redirectTo.startsWith('/') || redirectTo.startsWith('//')) return null;
+  let pathname: string;
+  try {
+    pathname = new URL(redirectTo, Astro.url).pathname;
+  } catch {
+    return null;
+  }
+  const trimmed = pathname.replace(/^\/+/, '').replace(/\/+$/, '');
+  if (trimmed.length === 0 || trimmed.includes('/')) return null;
+  return trimmed;
+}
+
+let result = await getPageDetail(slug);
+let redirectTarget: string | null = null;
+
+if (result.status === 'redirect') {
+  const targetSlug = publicRedirectSlug(result.redirectTo);
+  if (targetSlug === null) {
+    result = { status: 'not-found' };
+  } else {
+    const destination = await getPageDetail(targetSlug);
+    if (destination.status === 'ok') {
+      redirectTarget = `/${targetSlug}`;
+    } else if (destination.status === 'unavailable') {
+      result = destination;
+    } else {
+      // The destination is gone or itself redirects: never chase further, and
+      // never redirect to an unpublished/nonexistent slug.
+      result = { status: 'not-found' };
+    }
+  }
+}
+
+if (redirectTarget !== null) {
+  return Astro.redirect(redirectTarget, 308);
+}
+
+if (result.status === 'unavailable') Astro.response.status = 503;
+
+const notFound = result.status === 'not-found';
+if (notFound) Astro.response.status = 404;
+
+const page = result.status === 'ok' ? result.data : null;
+const seo = page
+  ? buildPageSeo(page, { siteUrl, siteName: church.name || 'Iglesia UCI' })
+  : null;
+const blocks = page ? normalizePageContent(page.content) : [];
+
+const breadcrumbs = [
+  { label: 'Inicio', href: '/' },
+  { label: page?.title ?? 'Página' },
+];
+
+const errorTitle = notFound
+  ? 'Página no encontrada | Iglesia UCI'
+  : 'Página no disponible | Iglesia UCI';
+const errorMessage = notFound
+  ? 'No encontramos esta página. Puede que el enlace sea incorrecto o que la página ya no esté publicada.'
+  : 'No pudimos cargar esta página en este momento. Intenta de nuevo en unos minutos.';
+---
+
+{
+  page && seo ? (
+    <ContentLayout
+      title={seo.title}
+      description={seo.description}
+      canonicalPath={seo.canonicalUrl}
+      ogImageUrl={seo.ogImageUrl ?? undefined}
+      ogType="website"
+      jsonLd={seo.jsonLd}
+      church={church}
+      navigation={navigation}
+    >
+      <article>
+        <DetailHero
+          label="Página"
+          title={page.title}
+          breadcrumbs={breadcrumbs}
+          hasMedia={Boolean(page.coverImageUrl)}
+        >
+          {page.excerpt && <p class="page-hero__summary">{page.excerpt}</p>}
+          {page.coverImageUrl && (
+            <CoverImage
+              slot="media"
+              src={page.coverImageUrl}
+              alt={page.coverImageAlt ?? page.title}
+              aspect="4 / 5"
+              label={page.title}
+            />
+          )}
+        </DetailHero>
+
+        <Section surface="light" spacing="lg">
+          <Container narrow>
+            {blocks.length > 0 ? (
+              <div class="page-body">
+                {blocks.map((block) => {
+                  if (block.type === 'heading') {
+                    return block.level === 3 ? (
+                      <h3 class="page-body__heading page-body__heading--minor font-display">
+                        {block.text}
+                      </h3>
+                    ) : (
+                      <h2 class="page-body__heading font-display">
+                        {block.text}
+                      </h2>
+                    );
+                  }
+                  if (block.type === 'paragraph') {
+                    return <p class="page-body__text">{block.text}</p>;
+                  }
+                  if (block.type === 'list') {
+                    const ListTag = block.ordered ? 'ol' : 'ul';
+                    return (
+                      <ListTag
+                        class:list={[
+                          'page-body__list',
+                          { 'page-body__list--ordered': block.ordered },
+                        ]}
+                      >
+                        {block.items.map((item) => (
+                          <li>{item}</li>
+                        ))}
+                      </ListTag>
+                    );
+                  }
+                  if (block.type === 'quote') {
+                    return (
+                      <blockquote class="page-body__quote">
+                        {block.text}
+                        {block.cite && <cite>{block.cite}</cite>}
+                      </blockquote>
+                    );
+                  }
+                  if (block.type === 'cta') {
+                    return (
+                      <div class="page-body__cta">
+                        <Button
+                          href={block.href}
+                          variant="primary"
+                          external={block.external}
+                        >
+                          {block.label}
+                        </Button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <figure class="page-body__figure">
+                      <img
+                        class="page-body__image"
+                        src={block.src}
+                        alt={block.alt}
+                        aria-hidden={block.alt === '' ? 'true' : undefined}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      {block.caption && (
+                        <figcaption class="page-body__caption">
+                          {block.caption}
+                        </figcaption>
+                      )}
+                    </figure>
+                  );
+                })}
+              </div>
+            ) : (
+              <p class="page-body__text">
+                Esta página todavía no tiene contenido adicional publicado.
+              </p>
+            )}
+
+            <div class="page-back">
+              <Button href="/" variant="text" contrast="navy">
+                Volver al inicio
+              </Button>
+            </div>
+          </Container>
+        </Section>
+      </article>
+    </ContentLayout>
+  ) : (
+    <ContentLayout
+      title={errorTitle}
+      description={errorMessage}
+      canonicalPath={`/${slug}`}
+      noindex
+      church={church}
+      navigation={navigation}
+    >
+      <NotFoundState
+        code={notFound ? 404 : 503}
+        title={notFound ? 'Página no encontrada' : 'No disponible'}
+        message={errorMessage}
+        backHref="/"
+        backLabel="Ir al inicio"
+      />
+    </ContentLayout>
+  )
+}
+
+<style>
+  .page-hero__summary {
+    max-width: 52ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+  }
+
+  .page-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+  }
+
+  .page-body__heading {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .page-body__heading--minor {
+    font-size: var(--font-size-heading-3);
+  }
+
+  .page-body__text {
+    color: var(--color-navy);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+    white-space: pre-line;
+  }
+
+  .page-body__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    padding-left: var(--space-24);
+    color: var(--color-navy);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+    list-style: disc;
+  }
+
+  .page-body__list--ordered {
+    list-style: decimal;
+  }
+
+  .page-body__quote {
+    padding: var(--space-24);
+    border-left: 3px solid var(--color-gold);
+    background-color: rgba(217, 164, 65, 0.08);
+    color: var(--color-navy);
+    font-family: var(--font-display);
+    font-size: var(--font-size-heading-3);
+    font-style: italic;
+    line-height: var(--line-height-body-serif);
+  }
+
+  .page-body__quote cite {
+    display: block;
+    margin-top: var(--space-12);
+    color: var(--color-blue);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-body-small);
+    font-style: normal;
+  }
+
+  .page-body__cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-top: var(--space-8);
+  }
+
+  .page-body__figure {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .page-body__image {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    background-color: var(--color-navy-800);
+  }
+
+  .page-body__caption {
+    color: var(--color-navy);
+    opacity: 0.7;
+    font-size: var(--font-size-body-small);
+  }
+
+  .page-back {
+    margin-top: var(--space-40);
+  }
+</style>

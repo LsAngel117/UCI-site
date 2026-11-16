@@ -1,0 +1,124 @@
+---
+/**
+ * SermonCard — archive card (docs/03 §18).
+ *
+ * Cover, title, scripture, date and a play indicator when the sermon has a
+ * video. The whole card is one link; the play glyph is decorative.
+ */
+import { Play } from '@lucide/astro';
+import type { PublicSermonDto } from '@shared/cms';
+import { formatSermonDate } from '../../lib/format';
+import CoverImage from '../ui/CoverImage.astro';
+
+interface Props {
+  sermon: PublicSermonDto;
+  headingLevel?: 'h2' | 'h3';
+}
+
+const { sermon, headingLevel: Heading = 'h2' } = Astro.props;
+const date = formatSermonDate(sermon.sermonDate ?? sermon.publishedAt);
+const hasVideo = Boolean(sermon.video);
+---
+
+<li class="sermon-card">
+  <a class="sermon-card__link" href={`/sermones/${sermon.slug}`}>
+    <div class="sermon-card__media">
+      <CoverImage
+        class="sermon-card__image"
+        src={sermon.coverImageUrl}
+        alt={sermon.coverImageAlt ?? ''}
+        aspect="16 / 9"
+        label={sermon.title}
+      />
+      {
+        hasVideo && (
+          <span class="sermon-card__play" aria-hidden="true">
+            <Play size={20} stroke-width={1.75} />
+          </span>
+        )
+      }
+    </div>
+
+    <div class="sermon-card__body">
+      <Heading class="sermon-card__title font-display">{sermon.title}</Heading>
+      {sermon.scriptureReference && (
+        <p class="sermon-card__scripture">{sermon.scriptureReference}</p>
+      )}
+      <p class="sermon-card__meta">
+        {sermon.preacher?.displayName ?? sermon.preacherName}
+        {date && <span> · {date}</span>}
+      </p>
+    </div>
+  </a>
+</li>
+
+<style>
+  .sermon-card__link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+    height: 100%;
+  }
+
+  .sermon-card__media {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background-color: var(--color-navy);
+  }
+
+  :global(.sermon-card__image) {
+    width: 100%;
+    transition: transform var(--duration-slow) var(--ease-out);
+  }
+
+  .sermon-card__link:hover :global(.sermon-card__image) {
+    transform: scale(1.05);
+  }
+
+  .sermon-card__play {
+    position: absolute;
+    right: var(--space-12);
+    bottom: var(--space-12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-pill);
+    background-color: rgba(5, 7, 10, 0.66);
+    color: var(--color-white);
+    backdrop-filter: blur(4px);
+  }
+
+  .sermon-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .sermon-card__title {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .sermon-card__scripture {
+    color: var(--color-blue);
+    font-size: var(--font-size-body-small);
+    font-style: italic;
+  }
+
+  .sermon-card__meta {
+    color: var(--color-navy);
+    opacity: 0.6;
+    font-size: var(--font-size-caption);
+    letter-spacing: var(--letter-spacing-nav);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sermon-card__link:hover :global(.sermon-card__image) {
+      transform: none;
+    }
+  }
+</style>

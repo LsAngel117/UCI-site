@@ -1,0 +1,247 @@
+---
+/**
+ * /ministerios/[slug] — public ministry detail (Phase 9B1, docs/08 §13.2).
+ *
+ * Shows the community's cover, description, meeting information, contact
+ * channels and editorial CTA. Structured data is limited to the breadcrumb
+ * trail because no honest ministry schema type exists (docs/10 §12.1).
+ */
+import { getChurchProfile, getNavigation } from '../../data/site';
+import { getMinistryDetail } from '../../data/content';
+import { buildMinistrySeo } from '../../lib/seo';
+import ContentLayout from '../../layouts/ContentLayout.astro';
+import Button from '../../components/ui/Button.astro';
+import Container from '../../components/ui/Container.astro';
+import CoverImage from '../../components/ui/CoverImage.astro';
+import DetailHero from '../../components/ui/DetailHero.astro';
+import NotFoundState from '../../components/ui/NotFoundState.astro';
+import Section from '../../components/ui/Section.astro';
+
+const slug = Astro.params.slug ?? '';
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+
+const [church, navigation, result] = await Promise.all([
+  getChurchProfile(),
+  getNavigation(),
+  getMinistryDetail(slug),
+]);
+
+if (result.status === 'unavailable') Astro.response.status = 503;
+
+const ministry = result.status === 'ok' ? result.data : null;
+const seo = ministry
+  ? buildMinistrySeo(ministry, { siteUrl, siteName: church.name || 'Iglesia UCI' })
+  : null;
+
+const notFound = result.status === 'not-found';
+if (notFound) Astro.response.status = 404;
+
+const errorTitle = notFound
+  ? 'Ministerio no encontrado | Iglesia UCI'
+  : 'Ministerio no disponible | Iglesia UCI';
+const errorMessage = notFound
+  ? 'No encontramos este ministerio. Puede que el enlace sea incorrecto o que ya no esté publicado.'
+  : 'No pudimos cargar este ministerio en este momento. Intenta de nuevo en unos minutos.';
+
+const breadcrumbs = [
+  { label: 'Inicio', href: '/' },
+  { label: 'Ministerios', href: '/ministerios' },
+  { label: ministry?.name ?? 'Ministerio' },
+];
+const ctaExternal = Boolean(
+  ministry?.ctaUrl && /^https?:\/\//i.test(ministry.ctaUrl),
+);
+---
+
+{
+  ministry && seo ? (
+    <ContentLayout
+      title={seo.title}
+      description={seo.description}
+      canonicalPath={seo.canonicalUrl}
+      ogImageUrl={seo.ogImageUrl ?? undefined}
+      ogType="article"
+      jsonLd={seo.jsonLd}
+      church={church}
+      navigation={navigation}
+    >
+      <article>
+        <DetailHero
+          label="Ministerio"
+          title={ministry.name}
+          breadcrumbs={breadcrumbs}
+          hasMedia={Boolean(ministry.coverImageUrl)}
+        >
+          {ministry.shortDescription && (
+            <p class="ministry-hero__summary">{ministry.shortDescription}</p>
+          )}
+          {ministry.ctaLabel && ministry.ctaUrl && (
+            <div class="ministry-hero__actions">
+              <Button
+                href={ministry.ctaUrl}
+                variant="primary"
+                external={ctaExternal}
+              >
+                {ministry.ctaLabel}
+              </Button>
+            </div>
+          )}
+          <CoverImage
+            slot="media"
+            src={ministry.coverImageUrl}
+            alt={ministry.coverImageAlt ?? ministry.name}
+            aspect="4 / 5"
+            label={ministry.name}
+          />
+        </DetailHero>
+
+        <Section surface="light" spacing="lg">
+          <Container narrow>
+            <div class="ministry-body">
+              {ministry.description && (
+                <div class="ministry-body__section">
+                  <h2 class="ministry-body__heading font-display">
+                    Sobre este ministerio
+                  </h2>
+                  <p class="ministry-body__text">{ministry.description}</p>
+                </div>
+              )}
+
+              {ministry.meetingInfo && (
+                <div class="ministry-body__section">
+                  <h2 class="ministry-body__heading font-display">
+                    Cuándo se reúne
+                  </h2>
+                  <p class="ministry-body__text">{ministry.meetingInfo}</p>
+                </div>
+              )}
+
+              {(ministry.contactEmail || ministry.contactPhone) && (
+                <div class="ministry-body__section">
+                  <h2 class="ministry-body__heading font-display">Contacto</h2>
+                  <ul class="ministry-contact">
+                    {ministry.contactEmail && (
+                      <li>
+                        <a href={`mailto:${ministry.contactEmail}`}>
+                          {ministry.contactEmail}
+                        </a>
+                      </li>
+                    )}
+                    {ministry.contactPhone && (
+                      <li>
+                        <a href={`tel:${ministry.contactPhone.replace(/\s+/g, '')}`}>
+                          {ministry.contactPhone}
+                        </a>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {!ministry.description &&
+                !ministry.meetingInfo &&
+                !ministry.contactEmail &&
+                !ministry.contactPhone && (
+                  <p class="ministry-body__text">
+                    Este ministerio todavía no tiene información adicional
+                    publicada.
+                  </p>
+                )}
+
+              <div class="ministry-back">
+                <Button href="/ministerios" variant="text" contrast="navy">
+                  Ver todos los ministerios
+                </Button>
+              </div>
+            </div>
+          </Container>
+        </Section>
+      </article>
+    </ContentLayout>
+  ) : (
+    <ContentLayout
+      title={errorTitle}
+      description={errorMessage}
+      canonicalPath={`/ministerios/${slug}`}
+      noindex
+      church={church}
+      navigation={navigation}
+    >
+      <NotFoundState
+        title={notFound ? 'Ministerio no encontrado' : 'No pudimos cargar este ministerio'}
+        message={errorMessage}
+        backHref="/ministerios"
+        backLabel="Ver todos los ministerios"
+      />
+    </ContentLayout>
+  )
+}
+
+<style>
+  .ministry-hero__summary {
+    max-width: 52ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+  }
+
+  .ministry-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-16);
+    margin-top: var(--space-16);
+  }
+
+  .ministry-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-40);
+  }
+
+  .ministry-body__section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+  }
+
+  .ministry-body__heading {
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .ministry-body__text {
+    color: var(--color-navy);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+    white-space: pre-line;
+  }
+
+  .ministry-contact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    font-size: var(--font-size-body-large);
+  }
+
+  .ministry-contact a {
+    color: var(--color-blue);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .ministry-contact a:hover {
+    color: var(--color-navy);
+  }
+
+  .ministry-back {
+    margin-top: var(--space-16);
+  }
+
+  @media (max-width: 639px) {
+    .ministry-hero__actions {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+</style>

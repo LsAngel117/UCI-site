@@ -1,0 +1,113 @@
+---
+/**
+ * DetailHero — dark opening panel for a content detail page (Phase 9B1).
+ *
+ * Owns the single `<h1>`, the visible breadcrumb trail and the fixed-header
+ * clearance. Detail pages pass their summary/meta and (optionally) a cover
+ * through slots so the surface stays consistent across sermons, events and
+ * ministries.
+ */
+import Breadcrumbs from './Breadcrumbs.astro';
+import Container from './Container.astro';
+import Section from './Section.astro';
+import SectionLabel from './SectionLabel.astro';
+
+interface Item {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  label: string;
+  title: string;
+  breadcrumbs: Item[];
+  hasMedia?: boolean;
+}
+
+const { label, title, breadcrumbs, hasMedia = false } = Astro.props;
+---
+
+<Section surface="dark" spacing="lg" class="detail-hero">
+  <div class="detail-hero__atmosphere" aria-hidden="true"></div>
+  <Container>
+    <div class="detail-hero__offset">
+      <Breadcrumbs items={breadcrumbs} />
+      <div
+        class:list={[
+          'detail-hero__inner',
+          { 'detail-hero__inner--media': hasMedia },
+        ]}
+      >
+        <div class="detail-hero__content">
+          <SectionLabel>{label}</SectionLabel>
+          <h1 class="detail-hero__title font-display">{title}</h1>
+          <slot />
+        </div>
+        {
+          hasMedia && (
+            <div class="detail-hero__media">
+              <slot name="media" />
+            </div>
+          )
+        }
+      </div>
+    </div>
+  </Container>
+</Section>
+
+<style>
+  :global(.detail-hero) {
+    overflow: hidden;
+  }
+
+  .detail-hero__atmosphere {
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-blue-glow);
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .detail-hero__offset {
+    padding-block-start: 4.5rem;
+  }
+
+  .detail-hero__inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+    margin-top: var(--space-24);
+  }
+
+  .detail-hero__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+    max-width: 52rem;
+  }
+
+  .detail-hero__title {
+    font-size: var(--font-size-display-l);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+  }
+
+  .detail-hero__media {
+    width: 100%;
+  }
+
+  @media (min-width: 1024px) {
+    .detail-hero__inner--media {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+      align-items: center;
+      gap: var(--space-64);
+    }
+
+    .detail-hero__media {
+      max-width: 28rem;
+      justify-self: end;
+    }
+  }
+</style>

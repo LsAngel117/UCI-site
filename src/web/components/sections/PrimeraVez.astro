@@ -1,0 +1,230 @@
+---
+/**
+ * PrimeraVez — "¿Es tu primera vez en UCI?" (docs/04 §10, docs/03 §16).
+ *
+ * Dark visitor surface with a community photograph fading into the right edge
+ * (the approved mockup uses the two-people photograph for this section). Three
+ * concise information blocks answer the essential first-visit questions with a
+ * consistent line icon each, and the action closes the row.
+ *
+ * The block icons are data-driven (`icon` key) and resolved against Lucide.
+ */
+import { Clock, Heart, MapPin } from '@lucide/astro';
+import { Image } from 'astro:assets';
+import communityImage from '../../assets/home/conocenos-v1.png';
+import { getPrimeraVezContent } from '../../data/site';
+import Button from '../ui/Button.astro';
+import Container from '../ui/Container.astro';
+import Section from '../ui/Section.astro';
+
+const section = getPrimeraVezContent();
+
+// Data-driven block icons resolve against the Lucide set; unknown keys fall
+// back to `Heart` (same behavior the old isIconName fallback had).
+const BLOCK_ICONS = { 'map-pin': MapPin, clock: Clock, heart: Heart } as const;
+const resolveBlockIcon = (name: string) =>
+  BLOCK_ICONS[name as keyof typeof BLOCK_ICONS] ?? Heart;
+---
+
+<Section id="primera-vez" surface="dark" spacing="lg" class="primera">
+  <div class="primera__photo" aria-hidden="true">
+    <Image
+      class="primera__photo-image"
+      src={communityImage}
+      alt=""
+      aria-hidden="true"
+      width={2170}
+      height={725}
+      widths={[900, 1500, 2170]}
+      sizes="(min-width: 1024px) 52vw, 100vw"
+      loading="lazy"
+      decoding="async"
+    />
+    <div class="primera__photo-overlay"></div>
+  </div>
+
+  <Container>
+    <div class="primera__inner">
+      <header class="primera__header">
+        <h2 class="primera__heading font-display">{section.heading}</h2>
+        <p class="primera__support text-body-large">{section.supportingText}</p>
+      </header>
+
+      <div class="primera__body">
+        <ul class="primera__blocks">
+          {
+            section.blocks.map((block) => {
+              const BlockIcon = resolveBlockIcon(block.icon);
+              return (
+                <li class="primera__block">
+                  <span class="primera__block-icon" aria-hidden="true">
+                    <BlockIcon size={22} stroke-width={1.6} />
+                  </span>
+                  <h3 class="primera__block-title">{block.title}</h3>
+                  <p class="primera__block-body">{block.body}</p>
+                </li>
+              );
+            })
+          }
+        </ul>
+
+        <div class="primera__action">
+          <Button href={section.cta.href} variant="primary" arrow>
+            {section.cta.label}
+          </Button>
+        </div>
+      </div>
+    </div>
+  </Container>
+</Section>
+
+<style>
+  :global(.primera) {
+    overflow: hidden;
+    background: var(--color-black);
+  }
+
+  .primera__photo {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 55%;
+    z-index: 0;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 38%);
+    mask-image: linear-gradient(to right, transparent 0%, #000 38%);
+  }
+
+  .primera__photo-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 62% center;
+    opacity: 0.6;
+  }
+
+  .primera__photo-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      var(--color-black) 0%,
+      rgba(5, 7, 10, 0.55) 45%,
+      rgba(5, 7, 10, 0.25) 100%
+    );
+  }
+
+  .primera__inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-40);
+  }
+
+  .primera__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    max-width: 44rem;
+  }
+
+  .primera__heading {
+    font-size: var(--font-size-heading-1);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    max-width: 18ch;
+  }
+
+  .primera__support {
+    color: var(--color-gray-light);
+  }
+
+  .primera__body {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    align-items: center;
+    gap: var(--space-32);
+    padding-top: var(--space-32);
+    border-top: 1px solid var(--border-on-dark);
+  }
+
+  .primera__blocks {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-column: span 3;
+    gap: var(--space-32);
+  }
+
+  .primera__block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+  }
+
+  .primera__block-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 1px solid var(--border-on-dark-strong);
+    border-radius: 50%;
+    color: var(--color-blue-light);
+  }
+
+  .primera__block-title {
+    color: var(--color-white);
+    font-family: var(--font-display);
+    font-size: var(--font-size-heading-3);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .primera__block-body {
+    max-width: 32ch;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-small);
+  }
+
+  .primera__action {
+    display: flex;
+    justify-content: flex-start;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 1279px) {
+    .primera__body {
+      grid-template-columns: 1fr;
+    }
+
+    .primera__blocks {
+      grid-column: auto;
+    }
+
+    .primera__action {
+      justify-content: flex-start;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .primera__photo {
+      width: 60%;
+      opacity: 0.5;
+    }
+
+    .primera__blocks {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 767px) {
+    .primera__photo {
+      display: none;
+    }
+
+    .primera__blocks {
+      grid-template-columns: 1fr;
+      gap: var(--space-24);
+    }
+  }
+</style>

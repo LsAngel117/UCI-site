@@ -1,0 +1,143 @@
+---
+/**
+ * Generosidad — "Una iglesia generosa" (docs/04 §16, docs/03 §22).
+ *
+ * The approved mockup turns this into a vivid blue card beside the stories
+ * card, so the component renders only the card and the homepage owns the
+ * mosaic row (see `pages/index.astro`).
+ *
+ * Giving honesty rule (docs/04 §16.4, §24): the website must not invent a
+ * giving mechanism. When `url` is null the CTA is replaced by an informative
+ * state instead of a broken or fake link.
+ */
+import { Heart } from '@lucide/astro';
+import { getGivingConfig } from '../../data/site';
+import Button from '../ui/Button.astro';
+import type { GivingConfig } from '@shared/types';
+
+interface Props {
+  giving?: GivingConfig;
+}
+
+const giving =
+  Astro.props.giving === undefined
+    ? await getGivingConfig()
+    : Astro.props.giving;
+const hasGivingUrl = typeof giving.url === 'string' && giving.url.length > 0;
+---
+
+<aside class="generosidad" aria-labelledby="generosidad-heading">
+  <span class="generosidad__icon" aria-hidden="true">
+    <Heart size={26} stroke-width={1.75} />
+  </span>
+
+  <div class="generosidad__content">
+    <h2 id="generosidad-heading" class="generosidad__heading font-display">
+      {giving.title}
+    </h2>
+    <p class="generosidad__message">{giving.message}</p>
+  </div>
+
+  <div class="generosidad__action">
+    {
+      hasGivingUrl ? (
+        <Button href={giving.url ?? undefined} variant="secondary" external arrow>
+          {giving.ctaLabel}
+        </Button>
+      ) : (
+        <p class="generosidad__pending">
+          El medio oficial para dar se habilitará pronto. Si deseas contribuir
+          hoy, escríbenos y con gusto te orientamos.
+        </p>
+      )
+    }
+  </div>
+</aside>
+
+<style>
+  .generosidad {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-24);
+    height: 100%;
+    overflow: hidden;
+    padding: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+    border-radius: var(--radius-md);
+    background: var(--gradient-blue-card);
+    color: var(--color-white);
+    isolation: isolate;
+  }
+
+  /* Soft light source in the upper-left, matching the mockup card. */
+  .generosidad::before {
+    content: '';
+    position: absolute;
+    inset: -30% 40% auto -20%;
+    height: 120%;
+    background: radial-gradient(
+      circle at 40% 40%,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0) 60%
+    );
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .generosidad__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    border-radius: var(--radius-md);
+    color: var(--color-white);
+  }
+
+  .generosidad__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    margin-top: auto;
+  }
+
+  .generosidad__heading {
+    font-size: var(--font-size-heading-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white);
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    max-width: 14ch;
+  }
+
+  .generosidad__message {
+    max-width: 40ch;
+    color: var(--color-white);
+    opacity: 0.92;
+    font-size: var(--font-size-body);
+  }
+
+  .generosidad__action {
+    display: flex;
+  }
+
+  .generosidad__action :global(.btn) {
+    border-color: rgba(255, 255, 255, 0.55);
+  }
+
+  .generosidad__action :global(.btn:hover) {
+    background-color: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.8);
+  }
+
+  .generosidad__pending {
+    max-width: 34ch;
+    padding: var(--space-12) var(--space-16);
+    border: 1px solid rgba(255, 255, 255, 0.36);
+    border-radius: var(--radius-sm);
+    color: var(--color-white);
+    font-size: var(--font-size-body-small);
+  }
+</style>

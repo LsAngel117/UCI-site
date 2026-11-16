@@ -1,0 +1,77 @@
+---
+/**
+ * NotFoundState — honest error body for a content detail route.
+ *
+ * The route sets the real HTTP status before rendering, so the visible code
+ * must match it: pass `code={503}` for a temporary outage instead of showing a
+ * misleading "404". The single `<h1>` belongs here.
+ */
+import Container from './Container.astro';
+import Section from './Section.astro';
+
+interface Props {
+  title: string;
+  message: string;
+  backHref: string;
+  backLabel: string;
+  /** HTTP status shown to the reader. Defaults to 404. */
+  code?: number | string;
+}
+
+const { title, message, backHref, backLabel, code = 404 } = Astro.props;
+---
+
+<Section surface="light" spacing="lg" class="not-found">
+  <Container narrow>
+    <div class="not-found__content">
+      <p class="not-found__code">{code}</p>
+      <h1 class="not-found__title font-display">{title}</h1>
+      <p class="not-found__message">{message}</p>
+      <a class="not-found__link" href={backHref}>{backLabel}</a>
+    </div>
+  </Container>
+</Section>
+
+<style>
+  .not-found__content {
+    padding-block-start: 4.5rem;
+  }
+
+  .not-found__code {
+    color: var(--color-blue);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .not-found__title {
+    margin-top: var(--space-12);
+    color: var(--color-navy);
+    font-size: var(--font-size-heading-1);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .not-found__message {
+    margin-top: var(--space-16);
+    max-width: 52ch;
+    color: var(--color-navy);
+    opacity: 0.75;
+    font-size: var(--font-size-body-large);
+  }
+
+  .not-found__link {
+    display: inline-block;
+    margin-top: var(--space-32);
+    padding: var(--space-12) var(--space-24);
+    border-radius: var(--radius-md);
+    background-color: var(--color-navy);
+    color: var(--color-white);
+    font-size: var(--font-size-navigation);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .not-found__link:hover {
+    background-color: var(--color-blue);
+  }
+</style>
