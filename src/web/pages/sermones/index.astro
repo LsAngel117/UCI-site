@@ -148,12 +148,12 @@ const sermons = [
       <Container>
         <div class="hero__content">
           <SectionLabel accent="gold" withRule>
-            Mensajes que transforman
+            Mensajes que edifican y transforman
           </SectionLabel>
 
           <h1 id="sermones-hero-title" class="hero__title font-display">
-            <span class="hero__title-line">Escucha la Palabra.</span>{' '}
-            <span class="hero__title-accent">Vive la Palabra.</span>
+            <!--<span class="hero__title-line">Escucha la Palabra.</span>-->{' '}
+            <span class="hero__title-accent">Hacedores de la Palabra.</span>
           </h1>
 
           <p class="hero__support">
@@ -341,6 +341,48 @@ const sermons = [
               </select>
               <ChevronDown size={16} stroke-width={1.7} aria-hidden="true" />
             </div>
+
+            <details class="explora__dates" data-date-filter>
+              <summary class="explora__date-toggle">
+                <CalendarDays size={16} stroke-width={1.6} aria-hidden="true" />
+                <span data-date-label>Filtrar por fechas</span>
+              </summary>
+
+              <div class="explora__date-panel">
+                <div class="explora__date-fields">
+                  <label class="explora__date-field" for="sermon-from">
+                    <span>Desde</span>
+                    <input
+                      id="sermon-from"
+                      type="date"
+                      data-sermon-from
+                    />
+                  </label>
+                  <label class="explora__date-field" for="sermon-to">
+                    <span>Hasta</span>
+                    <input id="sermon-to" type="date" data-sermon-to />
+                  </label>
+                </div>
+
+                <div class="explora__date-actions">
+                  <button
+                    type="button"
+                    class="explora__date-apply"
+                    data-date-apply
+                  >
+                    Aplicar
+                  </button>
+                  <button
+                    type="button"
+                    class="explora__date-clear"
+                    data-date-clear
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              </div>
+            </details>
+
           </div>
         </div>
 
@@ -396,7 +438,7 @@ const sermons = [
         </ul>
 
         <p class="sermon-empty" data-sermon-empty hidden>
-          No encontramos mensajes con esa búsqueda.
+          No encontramos mensajes con esos filtros.
         </p>
 
         <nav class="pagination" aria-label="Paginación de sermones">
@@ -483,21 +525,43 @@ const sermons = [
     '[data-sermon-search]',
   );
   const sort = document.querySelector<HTMLSelectElement>('[data-sermon-sort]');
+  const dateFilter = document.querySelector<HTMLDetailsElement>(
+    '[data-date-filter]',
+  );
+  const dateToggle = document.querySelector<HTMLElement>(
+    '.explora__date-toggle',
+  );
+  const dateLabel = document.querySelector<HTMLElement>('[data-date-label]');
+  const from = document.querySelector<HTMLInputElement>('[data-sermon-from]');
+  const to = document.querySelector<HTMLInputElement>('[data-sermon-to]');
+  const applyDates = document.querySelector<HTMLButtonElement>(
+    '[data-date-apply]',
+  );
+  const clearDates = document.querySelector<HTMLButtonElement>(
+    '[data-date-clear]',
+  );
   const empty = document.querySelector<HTMLParagraphElement>(
     '[data-sermon-empty]',
   );
 
-  if (grid && search && sort) {
+  if (grid && search && sort && from && to) {
     const cards = [...grid.querySelectorAll<HTMLLIElement>('[data-sermon]')];
 
     const apply = () => {
       const query = search.value.trim().toLowerCase();
+      const fromValue = from.value;
+      const toValue = to.value;
       let visible = 0;
 
       for (const card of cards) {
-        const matches =
+        const date = card.dataset.date ?? '';
+        const matchesQuery =
           query.length === 0 ||
           (card.dataset.search ?? '').includes(query);
+        const matchesDate =
+          (!fromValue || date >= fromValue) &&
+          (!toValue || date <= toValue);
+        const matches = matchesQuery && matchesDate;
         card.hidden = !matches;
         if (matches) visible += 1;
       }
@@ -513,10 +577,60 @@ const sermons = [
       for (const card of ordered) grid.append(card);
 
       if (empty) empty.hidden = visible > 0;
+      dateToggle?.classList.toggle(
+        'is-active',
+        Boolean(fromValue || toValue),
+      );
+
+      if (dateLabel) {
+        const months = [
+          'ENE',
+          'FEB',
+          'MAR',
+          'ABR',
+          'MAY',
+          'JUN',
+          'JUL',
+          'AGO',
+          'SEP',
+          'OCT',
+          'NOV',
+          'DIC',
+        ];
+        const format = (value: string) => {
+          if (!value) return '';
+          const [, month, day] = value.split('-');
+          return `${day} ${months[Number(month) - 1]}`;
+        };
+
+        if (fromValue && toValue) {
+          dateLabel.textContent = `${format(fromValue)} – ${format(toValue)}`;
+        } else if (fromValue) {
+          dateLabel.textContent = `Desde ${format(fromValue)}`;
+        } else if (toValue) {
+          dateLabel.textContent = `Hasta ${format(toValue)}`;
+        } else {
+          dateLabel.textContent = 'Filtrar por fechas';
+        }
+      }
     };
 
     search.addEventListener('input', apply);
     sort.addEventListener('change', apply);
+    from.addEventListener('change', apply);
+    to.addEventListener('change', apply);
+
+    applyDates?.addEventListener('click', () => {
+      apply();
+      if (dateFilter) dateFilter.open = false;
+    });
+
+    clearDates?.addEventListener('click', () => {
+      from.value = '';
+      to.value = '';
+      apply();
+    });
+
     apply();
   }
 </script>
@@ -950,6 +1064,7 @@ const sermons = [
 
   .explora__controls {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-12);
   }
@@ -966,7 +1081,7 @@ const sermons = [
   }
 
   .explora__search {
-    width: min(15rem, 38vw);
+    width: min(14.5rem, 38vw);
     gap: var(--space-8);
     padding-inline: var(--space-12);
     color: var(--color-navy);
@@ -1019,6 +1134,149 @@ const sermons = [
     right: 0.75rem;
     pointer-events: none;
     opacity: 0.55;
+  }
+
+  .explora__dates {
+    position: relative;
+  }
+
+  .explora__date-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    height: 2.5rem;
+    padding-inline: var(--space-12);
+    border: 1px solid rgba(11, 18, 32, 0.16);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+    color: var(--color-navy);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .explora__date-toggle::-webkit-details-marker {
+    display: none;
+  }
+
+  .explora__date-toggle::marker {
+    content: '';
+  }
+
+  .explora__date-toggle:hover {
+    border-color: rgba(11, 18, 32, 0.28);
+  }
+
+  .explora__date-toggle:focus-visible {
+    outline: var(--focus-ring-width) solid var(--color-blue);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  .explora__dates[open] .explora__date-toggle {
+    border-color: var(--color-blue);
+  }
+
+  .explora__date-toggle :global(svg) {
+    flex-shrink: 0;
+    opacity: 0.6;
+  }
+
+  .explora__date-toggle.is-active {
+    border-color: var(--color-gold-ink);
+    color: var(--color-gold-ink);
+  }
+
+  .explora__date-toggle.is-active :global(svg) {
+    opacity: 1;
+  }
+
+  .explora__date-panel {
+    position: absolute;
+    top: calc(100% + var(--space-8));
+    right: 0;
+    z-index: 20;
+    width: 21rem;
+    padding: var(--space-16);
+    border: 1px solid rgba(11, 18, 32, 0.12);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+    box-shadow: var(--shadow-md);
+  }
+
+  .explora__date-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-12);
+  }
+
+  .explora__date-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    color: var(--color-navy);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .explora__date-field input {
+    width: 100%;
+    height: 2.25rem;
+    padding-inline: var(--space-8);
+    border: 1px solid rgba(11, 18, 32, 0.16);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-white-pure);
+    color: var(--color-navy);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: 0;
+  }
+
+  .explora__date-field input:focus-visible {
+    outline: none;
+    border-color: var(--color-blue);
+    box-shadow: 0 0 0 3px rgba(22, 117, 209, 0.15);
+  }
+
+  .explora__date-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-12);
+    margin-top: var(--space-12);
+  }
+
+  .explora__date-apply {
+    padding: 0.45rem 0.8rem;
+    border: 1px solid var(--color-gold);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-gold);
+    color: var(--color-black);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+  }
+
+  .explora__date-apply:hover {
+    background-color: var(--color-gold-light);
+    border-color: var(--color-gold-light);
+  }
+
+  .explora__date-clear {
+    padding: var(--space-4) 0;
+    color: var(--color-navy);
+    opacity: 0.62;
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-medium);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .explora__date-clear:hover {
+    opacity: 1;
   }
 
   .sermon-grid {
@@ -1504,8 +1762,20 @@ const sermons = [
     }
 
     .explora__search,
-    .explora__sort {
+    .explora__sort,
+    .explora__dates {
       width: 100%;
+    }
+
+    .explora__date-toggle {
+      width: 100%;
+      justify-content: flex-start;
+    }
+
+    .explora__date-panel {
+      left: 0;
+      right: 0;
+      width: auto;
     }
 
     .sermon-grid {
