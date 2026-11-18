@@ -1,140 +1,835 @@
 ---
 /**
- * /ministerios — public ministry directory (Phase 9B1, docs/08 §13.1).
+ * /ministerios — ministry directory (mockup-approved composition).
  *
- * Published ministries are listed alphabetically; the same honest empty and
- * unavailable states as the other archives apply.
+ * Sections:
+ * 1. Hero over the supplied worship photograph, with the diagonal light edge.
+ * 2. Dark-blue editorial intro with the Ephesians quote.
+ * 3. Ministry cards. CMS covers render when present; otherwise the design
+ *    fallback uses placeholders until the CMS images are uploaded. The
+ *    supplied hero and final CTA assets are real.
+ * 4. Final invitation over the supplied mountain photograph.
+ *
+ * Copy is transcribed verbatim from the approved mockup. All light-surface
+ * text uses the deeper ministry ink from the mockup, not the global near-black.
  */
+import {
+  ArrowRight,
+  BookOpen,
+  HandHeart,
+  HeartPulse,
+  Image as ImageIcon,
+  Music2,
+  Sparkles,
+  Users,
+} from '@lucide/astro';
+import { Image } from 'astro:assets';
 import { getChurchProfile, getNavigation } from '../../data/site';
 import { getMinistriesArchive } from '../../data/content';
-import {
-  ARCHIVE_PAGE_SIZE,
-  buildArchiveHref,
-  parsePage,
-} from '../../lib/archive';
+import { ARCHIVE_PAGE_SIZE } from '../../lib/archive';
+import { buildStaticPageJsonLd } from '../../lib/seo';
 import ContentLayout from '../../layouts/ContentLayout.astro';
-import ArchiveHero from '../../components/ui/ArchiveHero.astro';
+import Button from '../../components/ui/Button.astro';
 import Container from '../../components/ui/Container.astro';
-import EmptyState from '../../components/ui/EmptyState.astro';
-import NotFoundState from '../../components/ui/NotFoundState.astro';
-import Pagination from '../../components/ui/Pagination.astro';
-import Section from '../../components/ui/Section.astro';
-import MinistryCard from '../../components/content/MinistryCard.astro';
+import SectionLabel from '../../components/ui/SectionLabel.astro';
 
-const search = Astro.url.searchParams;
-const requestedPage = parsePage(search.get('page'));
+import heroImage from '../../assets/ministerios/hero-ministerios.webp';
+import ctaImage from '../../assets/ministerios/Dios-tiene-un-lugar-para-ti.webp';
 
-const [church, navigation, result] = await Promise.all([
+const [church, navigation, ministriesResult] = await Promise.all([
   getChurchProfile(),
   getNavigation(),
   getMinistriesArchive({
-    page: requestedPage,
+    page: 1,
     limit: ARCHIVE_PAGE_SIZE,
     sort: 'name',
     order: 'asc',
   }),
 ]);
 
-if (result.status === 'unavailable') Astro.response.status = 503;
-
-const meta = result.status === 'ok' ? result.meta : null;
-const page = meta?.page ?? requestedPage;
-const totalPages = meta?.totalPages ?? 1;
-const canonicalPath = page > 1 ? `/ministerios?page=${page}` : '/ministerios';
 const title = 'Ministerios | Iglesia UCI';
 const description =
-  'Conoce los ministerios de Iglesia UCI y encuentra un lugar para servir y crecer en comunidad.';
+  'Comunidades donde servimos, crecemos y caminamos juntos. Encuentra tu lugar entre los ministerios de Iglesia UCI.';
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+const jsonLd = buildStaticPageJsonLd({
+  name: 'Ministerios',
+  description,
+  path: '/ministerios',
+  siteUrl,
+});
 
-const outOfRange =
-  result.status === 'ok' && meta !== null && page > totalPages;
-if (outOfRange) Astro.response.status = 404;
-const firstPageHref = buildArchiveHref('/ministerios', search, 1);
-const prevHref =
-  page > 1 ? buildArchiveHref('/ministerios', search, page - 1) : null;
-const nextHref =
-  page < totalPages ? buildArchiveHref('/ministerios', search, page + 1) : null;
+function iconFor(value: string) {
+  const key = value.toLowerCase();
+
+  if (key.includes('ensen')) return 'book';
+  if (key.includes('ador')) return 'music';
+  if (key.includes('orac')) return 'prayer';
+  if (key.includes('joven')) return 'youth';
+  if (key.includes('famil')) return 'family';
+  if (key.includes('bien')) return 'wellbeing';
+
+  return 'family';
+}
+
+/** Design fallback while the CMS directory is empty or unreachable. */
+const fallbackMinistries = [
+  {
+    title: 'Enseñanza',
+    slug: 'ensenanza',
+    description: 'Aprende y crece en la Palabra de Dios.',
+    icon: 'book',
+    imageUrl: null,
+    imageAlt: null,
+  },
+  {
+    title: 'Adoración',
+    slug: 'adoracion',
+    description: 'Exalta a Dios con todo tu ser.',
+    icon: 'music',
+    imageUrl: null,
+    imageAlt: null,
+  },
+  {
+    title: 'Oración',
+    slug: 'oracion',
+    description: 'Oremos juntos por nuestra iglesia y nuestra ciudad.',
+    icon: 'prayer',
+    imageUrl: null,
+    imageAlt: null,
+  },
+  {
+    title: 'Jóvenes',
+    slug: 'jovenes',
+    description: 'Conecta, crece y sirve.',
+    icon: 'youth',
+    imageUrl: null,
+    imageAlt: null,
+  },
+  {
+    title: 'Familia',
+    slug: 'familia',
+    description: 'Construyendo hogares para Dios.',
+    icon: 'family',
+    imageUrl: null,
+    imageAlt: null,
+  },
+  {
+    title: 'Bienestar',
+    slug: 'bienestar',
+    description: 'Cuidamos tu vida integral.',
+    icon: 'wellbeing',
+    imageUrl: null,
+    imageAlt: null,
+  },
+];
+
+const ministries =
+  ministriesResult.status === 'ok' && ministriesResult.data.length > 0
+    ? ministriesResult.data.map((ministry) => ({
+        title: ministry.name,
+        slug: ministry.slug,
+        description:
+          ministry.shortDescription ?? ministry.description ?? '',
+        icon: iconFor(ministry.slug || ministry.name),
+        imageUrl: ministry.coverImageUrl,
+        imageAlt: ministry.coverImageAlt,
+      }))
+    : fallbackMinistries;
 ---
 
 <ContentLayout
   title={title}
   description={description}
-  canonicalPath={canonicalPath}
-  noindex={result.status === 'unavailable' || outOfRange}
+  canonicalPath="/ministerios"
+  jsonLd={jsonLd}
   church={church}
   navigation={navigation}
 >
-  {
-    outOfRange ? (
-      <NotFoundState
-        title="Esta página no existe"
-        message="La página solicitada no existe en el directorio. Vuelve al inicio para seguir explorando."
-        backHref={firstPageHref}
-        backLabel="Ir a la primera página"
-      />
-    ) : (
-      <>
-        <ArchiveHero
-          label="Comunidad"
-          title="Ministerios"
-          description="Encuentra tu lugar: comunidades donde servimos, crecemos y caminamos juntos."
+  <div class="ministerios">
+    {/* =================================================================
+        Hero
+        ================================================================= */}
+    <section class="hero" aria-labelledby="ministerios-hero-title">
+      <div class="hero__media" aria-hidden="true">
+        <Image
+          class="hero__image"
+          src={heroImage}
+          alt=""
+          width={1672}
+          height={468}
+          widths={[768, 1280, 1672]}
+          sizes="100vw"
+          format="webp"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
         />
+        <div class="hero__scrim"></div>
+      </div>
 
-        <Section surface="light" spacing="lg">
-          <Container>
-            {
-              result.status === 'unavailable' ? (
-                <EmptyState
-                  title="No pudimos cargar los ministerios"
-                  message="El directorio no está disponible en este momento. Intenta de nuevo en unos minutos."
-                />
-              ) : result.data.length === 0 ? (
-                <EmptyState
-                  title="Estamos preparando el directorio de ministerios"
-                  message="Todavía no hay ministerios publicados. Vuelve pronto para conocer las comunidades de UCI."
-                />
-              ) : (
-                <ul class="ministry-grid">
-                  {result.data.map((ministry) => (
-                    <MinistryCard ministry={ministry} />
-                  ))}
-                </ul>
-              )
-            }
+      <Container>
+        <div class="hero__content">
+          <SectionLabel accent="gold" withRule>
+            Nuestros ministerios
+          </SectionLabel>
 
-            {
-              result.status === 'ok' && result.data.length > 0 && (
-                <Pagination
-                  page={page}
-                  totalPages={totalPages}
-                  prevHref={prevHref}
-                  nextHref={nextHref}
-                  label="ministerios"
-                />
-              )
-            }
-          </Container>
-        </Section>
-      </>
-    )
-  }
+          <h1 id="ministerios-hero-title" class="hero__title font-display">
+            Encuentra <span>tu lugar:</span>
+          </h1>
+
+          <p class="hero__support">
+            Comunidades donde servimos, crecemos y caminamos juntos.
+          </p>
+
+          <div class="hero__action">
+            <Button href="#ministerios" variant="primary" arrow>
+              Conoce nuestros ministerios
+            </Button>
+          </div>
+        </div>
+      </Container>
+
+      <div class="hero__edge" aria-hidden="true">
+        <svg viewBox="0 0 1440 80" preserveAspectRatio="none" focusable="false">
+          <path d="M0 80 L1440 40 L1440 80 Z" fill="#f7f9fc" />
+        </svg>
+      </div>
+    </section>
+
+    {/* =================================================================
+        Intro + ministry cards
+        ================================================================= */}
+    <section
+      id="ministerios"
+      class="ministerios-main"
+      aria-labelledby="ministerios-intro-title"
+    >
+      <Container>
+        <div class="intro">
+          <div class="intro__copy">
+            <SectionLabel accent="gold-ink" withRule>
+              Nuestros ministerios
+            </SectionLabel>
+
+            <h2
+              id="ministerios-intro-title"
+              class="intro__title font-display"
+            >
+              <span>Servimos juntos,</span>{' '}
+              <span>para Su gloria</span>
+            </h2>
+
+            <p class="intro__text">
+              En UCI creemos que cada creyente tiene un propósito. Nuestros
+              ministerios están diseñados para acompañarte en cada etapa de tu
+              vida y ayudarte a crecer en Cristo.
+            </p>
+          </div>
+
+          <div class="intro__quote">
+            <blockquote>
+              “Y él mismo constituyó a unos, apóstoles; a otros, profetas; a
+              otros, evangelistas; a otros, pastores y maestros; a fin de
+              perfeccionar a los santos para la obra del ministerio.”
+            </blockquote>
+            <p class="intro__cite">Efesios 4:11-12</p>
+          </div>
+        </div>
+
+        <ul class="ministry-grid">
+          {
+            ministries.map((ministry, index) => (
+              <li class="ministry-card">
+                <a
+                  class="ministry-card__link"
+                  href={`/ministerios/${ministry.slug}`}
+                >
+                  <div
+                    class={`ministry-card__media ministry-card__media--${index + 1}`}
+                  >
+                    {ministry.imageUrl ? (
+                      <img
+                        class="ministry-card__image"
+                        src={ministry.imageUrl}
+                        alt={ministry.imageAlt ?? ''}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <span class="ministry-card__pending" aria-hidden="true">
+                        <ImageIcon size={20} stroke-width={1.4} />
+                        <span>Imagen pendiente</span>
+                      </span>
+                    )}
+
+                    <span class="ministry-card__icon" aria-hidden="true">
+                      {ministry.icon === 'book' && (
+                        <BookOpen size={25} stroke-width={1.6} />
+                      )}
+                      {ministry.icon === 'music' && (
+                        <Music2 size={25} stroke-width={1.6} />
+                      )}
+                      {ministry.icon === 'prayer' && (
+                        <HandHeart size={25} stroke-width={1.6} />
+                      )}
+                      {ministry.icon === 'youth' && (
+                        <Sparkles size={25} stroke-width={1.6} />
+                      )}
+                      {ministry.icon === 'family' && (
+                        <Users size={25} stroke-width={1.6} />
+                      )}
+                      {ministry.icon === 'wellbeing' && (
+                        <HeartPulse size={25} stroke-width={1.6} />
+                      )}
+                    </span>
+                  </div>
+
+                  <div class="ministry-card__body">
+                    <h3 class="ministry-card__title">{ministry.title}</h3>
+                    <p class="ministry-card__text">{ministry.description}</p>
+                    <span class="ministry-card__arrow" aria-hidden="true">
+                      <ArrowRight size={16} stroke-width={1.7} />
+                    </span>
+                  </div>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </Container>
+    </section>
+
+    {/* =================================================================
+        Final invitation
+        ================================================================= */}
+    <section class="cierre" aria-labelledby="ministerios-cierre-title">
+      <div class="cierre__media" aria-hidden="true">
+        <Image
+          class="cierre__image"
+          src={ctaImage}
+          alt=""
+          width={1672}
+          height={467}
+          widths={[768, 1280, 1672]}
+          sizes="100vw"
+          format="webp"
+          loading="lazy"
+          decoding="async"
+        />
+        <div class="cierre__scrim"></div>
+      </div>
+
+      <Container>
+        <div class="cierre__content">
+          <SectionLabel accent="gold" withRule>
+            Sé parte de nuestros ministerios
+          </SectionLabel>
+
+          <h2 id="ministerios-cierre-title" class="cierre__title font-display">
+            Dios tiene un lugar <span>para ti</span>
+          </h2>
+
+          <p class="cierre__text">
+            Descubre cómo puedes servir, crecer y hacer parte de la familia
+            UCI.
+          </p>
+
+          <div class="cierre__action">
+            <Button href="#ministerios" variant="primary" arrow>
+              Conoce más sobre los ministerios
+            </Button>
+          </div>
+        </div>
+      </Container>
+    </section>
+  </div>
 </ContentLayout>
 
 <style>
+  .ministerios {
+    --ministry-ink: #0b2a4a;
+    --ministry-soft: #38536f;
+    --surface: #f7f9fc;
+    background-color: var(--surface);
+    color: var(--ministry-ink);
+  }
+
+  #ministerios {
+    scroll-margin-top: 6rem;
+  }
+
+  /* =====================================================================
+     Hero
+     ===================================================================== */
+  .hero {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    min-height: 24rem;
+    padding-block: 6rem 0;
+    overflow: hidden;
+    isolation: isolate;
+    background-color: #07182b;
+    color: var(--color-white);
+  }
+
+  .hero__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .hero__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 42%;
+  }
+
+  .hero__scrim {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        95deg,
+        rgba(4, 9, 18, 0.96) 0%,
+        rgba(6, 16, 32, 0.78) 42%,
+        rgba(6, 16, 32, 0.16) 100%
+      ),
+      linear-gradient(
+        to top,
+        rgba(5, 15, 28, 0.92) 0%,
+        rgba(5, 15, 28, 0) 50%
+      );
+  }
+
+  .hero__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 38rem;
+  }
+
+  .hero__title {
+    margin: 0;
+    font-size: clamp(2.4rem, 1.9rem + 1.9vw, 3.25rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.05;
+    letter-spacing: var(--letter-spacing-tight);
+  }
+
+  .hero__title span {
+    color: var(--color-gold);
+  }
+
+  .hero__support {
+    max-width: 28rem;
+    margin: 0;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+  }
+
+  .hero__action {
+    margin-top: var(--space-8);
+  }
+
+  .hero__edge {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 5rem;
+    pointer-events: none;
+  }
+
+  .hero__edge svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* =====================================================================
+     Editorial intro + cards
+     ===================================================================== */
+  .ministerios-main {
+    padding-block: clamp(1.75rem, 2.5vw, 2rem) clamp(3.5rem, 5vw, 5rem);
+    background-color: var(--surface);
+    color: var(--ministry-ink);
+  }
+
+  .intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+    align-items: start;
+    gap: clamp(2.5rem, 5vw, 5rem);
+  }
+
+  .intro__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 36rem;
+  }
+
+  .intro__title {
+    margin: 0;
+    color: var(--ministry-ink);
+    font-size: clamp(2.05rem, 1.5rem + 1.9vw, 3rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.08;
+    letter-spacing: var(--letter-spacing-tight);
+  }
+
+  .intro__title span {
+    display: block;
+  }
+
+  .intro__text {
+    margin: 0;
+    max-width: 35rem;
+    color: var(--ministry-ink);
+    font-size: var(--font-size-body);
+    line-height: 1.7;
+  }
+
+  .intro__quote {
+    padding-left: var(--space-24);
+    border-left: 2px solid var(--color-gold);
+    color: var(--ministry-ink);
+  }
+
+  .intro__quote blockquote {
+    margin: 0;
+    color: var(--ministry-ink);
+    font-family: var(--font-display);
+    font-size: clamp(1rem, 0.9rem + 0.4vw, 1.15rem);
+    font-style: italic;
+    line-height: 1.55;
+  }
+
+  .intro__cite {
+    margin: var(--space-16) 0 0;
+    color: var(--ministry-ink);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-body-small);
+    font-style: normal;
+    font-weight: var(--font-weight-semibold);
+  }
+
   .ministry-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-24);
+    gap: 1.25rem;
+    margin-top: clamp(2rem, 3.5vw, 3rem);
   }
 
+  .ministry-card {
+    min-width: 0;
+  }
+
+  .ministry-card__link {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(11, 42, 74, 0.12);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+    box-shadow: 0 1px 2px rgba(11, 42, 74, 0.04);
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  .ministry-card__link:hover {
+    border-color: rgba(11, 42, 74, 0.22);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .ministry-card__media {
+    position: relative;
+    aspect-ratio: 2.15 / 1;
+    overflow: visible;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    background-color: #0b2034;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  .ministry-card__media--1 {
+    background:
+      radial-gradient(circle at 40% 40%, rgba(240, 201, 106, 0.2), transparent 40%),
+      linear-gradient(135deg, #1a2b3d, #0a1724);
+  }
+
+  .ministry-card__media--2 {
+    background:
+      radial-gradient(circle at 62% 36%, rgba(91, 184, 245, 0.35), transparent 45%),
+      linear-gradient(135deg, #0c2b4a, #071522);
+  }
+
+  .ministry-card__media--3 {
+    background:
+      radial-gradient(circle at 50% 42%, rgba(91, 184, 245, 0.24), transparent 48%),
+      linear-gradient(135deg, #132538, #07111c);
+  }
+
+  .ministry-card__media--4 {
+    background:
+      radial-gradient(circle at 50% 46%, rgba(240, 201, 106, 0.4), transparent 48%),
+      linear-gradient(135deg, #39291d, #110d0b);
+  }
+
+  .ministry-card__media--5 {
+    background:
+      radial-gradient(circle at 50% 44%, rgba(240, 201, 106, 0.22), transparent 48%),
+      linear-gradient(135deg, #263128, #0c1210);
+  }
+
+  .ministry-card__media--6 {
+    background:
+      radial-gradient(circle at 55% 42%, rgba(240, 201, 106, 0.3), transparent 45%),
+      linear-gradient(135deg, #2b1e18, #0f0b0c);
+  }
+
+  .ministry-card__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .ministry-card__pending {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.625rem;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .ministry-card__icon {
+    position: absolute;
+    left: 1rem;
+    bottom: -1.8rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 3.6rem;
+    height: 3.6rem;
+    border: 3px solid var(--color-white-pure);
+    border-radius: 50%;
+    background-color: var(--ministry-ink);
+    color: var(--color-white-pure);
+  }
+
+  .ministry-card__body {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: 2.55rem 1.1rem 1.15rem;
+    color: var(--ministry-ink);
+  }
+
+  .ministry-card__title {
+    margin: 0;
+    color: var(--ministry-ink);
+    font-size: 1.05rem;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3;
+  }
+
+  .ministry-card__text {
+    max-width: calc(100% - 2.2rem);
+    margin: 0;
+    color: var(--ministry-ink);
+    font-size: var(--font-size-body-small);
+    line-height: 1.5;
+  }
+
+  .ministry-card__arrow {
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    border: 1px solid rgba(11, 42, 74, 0.18);
+    border-radius: 50%;
+    color: var(--ministry-ink);
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  .ministry-card__link:hover .ministry-card__arrow {
+    border-color: var(--color-gold);
+    transform: translateX(2px);
+  }
+
+  /* =====================================================================
+     Final invitation
+     ===================================================================== */
+  .cierre {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: clamp(20rem, 32vw, 28rem);
+    padding-block: clamp(3.5rem, 6vw, 5rem);
+    overflow: hidden;
+    isolation: isolate;
+    background-color: #07182b;
+    color: var(--color-white);
+  }
+
+  .cierre__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .cierre__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 54%;
+  }
+
+  .cierre__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      rgba(5, 18, 34, 0.96) 0%,
+      rgba(5, 18, 34, 0.82) 40%,
+      rgba(5, 18, 34, 0.38) 72%,
+      rgba(5, 18, 34, 0.04) 100%
+    );
+  }
+
+  .cierre__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 44rem;
+  }
+
+  .cierre__title {
+    margin: 0;
+    max-width: 40rem;
+    font-size: clamp(1.9rem, 1.35rem + 1.9vw, 2.8rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.08;
+    letter-spacing: var(--letter-spacing-tight);
+  }
+
+  .cierre__title span {
+    color: var(--color-gold);
+  }
+
+  .cierre__text {
+    max-width: 34rem;
+    margin: 0;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+  }
+
+  .cierre__action {
+    margin-top: var(--space-8);
+  }
+
+  /* =====================================================================
+     Responsive
+     ===================================================================== */
   @media (max-width: 1023px) {
+    .intro {
+      grid-template-columns: 1fr;
+    }
+
+    .intro__copy {
+      max-width: 44rem;
+    }
+
+    .intro__quote {
+      max-width: 40rem;
+    }
+
     .ministry-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
-  @media (max-width: 639px) {
+  @media (max-width: 767px) {
+    .hero {
+      min-height: 30rem;
+      padding-block: 8.5rem 6.5rem;
+    }
+
+    .hero__image {
+      object-position: 58% 42%;
+    }
+
+    .hero__content {
+      gap: var(--space-12);
+    }
+
+    .hero__title {
+      font-size: clamp(2.35rem, 9vw, 3.2rem);
+    }
+
+    .ministerios-main {
+      padding-block: var(--space-40) var(--space-48);
+    }
+
+    .intro__title {
+      font-size: 2rem;
+    }
+
     .ministry-grid {
       grid-template-columns: 1fr;
+    }
+
+    .cierre {
+      min-height: 24rem;
+    }
+
+    .cierre__scrim {
+      background: linear-gradient(
+        180deg,
+        rgba(5, 18, 34, 0.92) 0%,
+        rgba(5, 18, 34, 0.76) 48%,
+        rgba(5, 18, 34, 0.42) 76%,
+        rgba(5, 18, 34, 0.1) 100%
+      );
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ministry-card__link:hover {
+      transform: none;
+    }
+
+    .ministry-card__link:hover .ministry-card__arrow {
+      transform: none;
     }
   }
 </style>

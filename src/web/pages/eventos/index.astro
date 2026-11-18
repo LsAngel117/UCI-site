@@ -1,133 +1,965 @@
 ---
 /**
- * /eventos — public upcoming-events archive (Phase 9B1, docs/08 §12.1).
+ * /eventos — upcoming events (mockup-approved composition).
  *
- * Only published events are returned by the API; `upcoming=true` keeps the
- * agenda focused on what is still ahead. Past event detail pages remain
- * accessible directly (docs/10 §14.3).
+ * Sections:
+ * 1. Hero over the approved worship photograph.
+ * 2. Featured event with the open-Bible image and date badge.
+ * 3. Upcoming events grid. The Bible study, youth and family covers are
+ *    pending; prayer, worship and Bible covers reuse approved site imagery.
+ * 4. Contact invitation over the globe background.
+ *
+ * Light-surface copy uses the deep event ink from the mockup. Copy and dates
+ * are transcribed verbatim from the approved mockup.
  */
-import { getChurchProfile, getNavigation, getSettings } from '../../data/site';
-import { getEventsArchive } from '../../data/content';
 import {
-  ARCHIVE_PAGE_SIZE,
-  buildArchiveHref,
-  parsePage,
-} from '../../lib/archive';
+  ArrowRight,
+  Clock,
+  Image as ImageIcon,
+  MapPin,
+  UserRound,
+} from '@lucide/astro';
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import { getChurchProfile, getNavigation } from '../../data/site';
+import { buildStaticPageJsonLd } from '../../lib/seo';
 import ContentLayout from '../../layouts/ContentLayout.astro';
-import ArchiveHero from '../../components/ui/ArchiveHero.astro';
+import Button from '../../components/ui/Button.astro';
 import Container from '../../components/ui/Container.astro';
-import EmptyState from '../../components/ui/EmptyState.astro';
-import NotFoundState from '../../components/ui/NotFoundState.astro';
-import Pagination from '../../components/ui/Pagination.astro';
-import Section from '../../components/ui/Section.astro';
-import EventCard from '../../components/content/EventCard.astro';
+import SectionLabel from '../../components/ui/SectionLabel.astro';
 
-const search = Astro.url.searchParams;
-const requestedPage = parsePage(search.get('page'));
+import heroImage from '../../assets/home/hero-worship.png';
+import bibleImage from '../../assets/home/pillar-aprendemos.png';
+import prayerImage from '../../assets/home/pillar-intercedemos.png';
+import worshipImage from '../../assets/home/pillar-adoramos.png';
+import globeImage from '../../assets/nosotros/nuestra-historia-fondo.png';
 
-const [settings, navigation, result] = await Promise.all([
-  getSettings(),
+const [church, navigation] = await Promise.all([
+  getChurchProfile(),
   getNavigation(),
-  getEventsArchive({
-    upcoming: true,
-    page: requestedPage,
-    limit: ARCHIVE_PAGE_SIZE,
-    sort: 'startAt',
-    order: 'asc',
-  }),
 ]);
 
-const church = await getChurchProfile(settings);
-const timeZone = settings?.timezone;
-
-if (result.status === 'unavailable') Astro.response.status = 503;
-
-const meta = result.status === 'ok' ? result.meta : null;
-const page = meta?.page ?? requestedPage;
-const totalPages = meta?.totalPages ?? 1;
-const canonicalPath = page > 1 ? `/eventos?page=${page}` : '/eventos';
 const title = 'Eventos | Iglesia UCI';
 const description =
-  'Próximos encuentros y actividades de Iglesia UCI: fecha, hora, lugar y registro.';
+  'Acompáñanos en nuestros próximos eventos y sé parte de esta familia en la fe. Consulta fechas, horarios y lugares.';
+const siteUrl = (Astro.site ?? new URL(Astro.url.origin)).href;
+const jsonLd = buildStaticPageJsonLd({
+  name: 'Eventos',
+  description,
+  path: '/eventos',
+  siteUrl,
+});
 
-const outOfRange =
-  result.status === 'ok' && meta !== null && page > totalPages;
-if (outOfRange) Astro.response.status = 404;
-const firstPageHref = buildArchiveHref('/eventos', search, 1);
-const prevHref =
-  page > 1 ? buildArchiveHref('/eventos', search, page - 1) : null;
-const nextHref =
-  page < totalPages ? buildArchiveHref('/eventos', search, page + 1) : null;
+interface EventCard {
+  slug: string;
+  weekday: string;
+  day: string;
+  month: string;
+  title: string;
+  time: string;
+  location: string;
+  image: ImageMetadata | null;
+  tone: number;
+}
+
+const featuredEvent = {
+  slug: 'conferencia-biblica-2026',
+  weekday: 'SÁB',
+  day: '25',
+  month: 'OCT',
+  title: 'Conferencia Bíblica 2026',
+  subtitle: '“Profundizando en Su Palabra”',
+  time: '7:00 PM',
+  location: 'Auditorio UCI',
+  speaker: 'Pastor Juan Pérez',
+  description:
+    'Una noche especial para crecer en el conocimiento de la Palabra y fortalecer nuestra fe.',
+};
+
+const events: EventCard[] = [
+  {
+    slug: 'servicio-dominical-especial',
+    weekday: 'DOM',
+    day: '26',
+    month: 'OCT',
+    title: 'Servicio Dominical Especial',
+    time: '9:00 AM',
+    location: 'Auditorio UCI',
+    image: null,
+    tone: 1,
+  },
+  {
+    slug: 'encuentro-juvenil',
+    weekday: 'SÁB',
+    day: '01',
+    month: 'NOV',
+    title: 'Encuentro Juvenil',
+    time: '6:00 PM',
+    location: 'Sede Principal',
+    image: null,
+    tone: 2,
+  },
+  {
+    slug: 'jornada-de-oracion',
+    weekday: 'SÁB',
+    day: '08',
+    month: 'NOV',
+    title: 'Jornada de Oración',
+    time: '7:00 PM',
+    location: 'Auditorio UCI',
+    image: prayerImage,
+    tone: 3,
+  },
+  {
+    slug: 'dia-de-la-familia',
+    weekday: 'DOM',
+    day: '16',
+    month: 'NOV',
+    title: 'Día de la Familia',
+    time: '10:00 AM',
+    location: 'Auditorio UCI',
+    image: null,
+    tone: 4,
+  },
+  {
+    slug: 'concierto-de-adoracion',
+    weekday: 'SÁB',
+    day: '22',
+    month: 'NOV',
+    title: 'Concierto de Adoración',
+    time: '7:00 PM',
+    location: 'Auditorio UCI',
+    image: worshipImage,
+    tone: 5,
+  },
+  {
+    slug: 'foro-biblico',
+    weekday: 'DOM',
+    day: '30',
+    month: 'NOV',
+    title: 'Foro Bíblico',
+    time: '5:00 PM',
+    location: 'Auditorio UCI',
+    image: bibleImage,
+    tone: 6,
+  },
+];
 ---
 
 <ContentLayout
   title={title}
   description={description}
-  canonicalPath={canonicalPath}
-  noindex={result.status === 'unavailable' || outOfRange}
+  canonicalPath="/eventos"
+  jsonLd={jsonLd}
   church={church}
   navigation={navigation}
 >
-  {
-    outOfRange ? (
-      <NotFoundState
-        title="Esta página no existe"
-        message="La página solicitada no existe en la agenda. Vuelve al inicio para ver los próximos eventos."
-        backHref={firstPageHref}
-        backLabel="Ir a la primera página"
-      />
-    ) : (
-      <>
-        <ArchiveHero
-          label="Agenda"
-          title="Eventos"
-          description="Lo que está pasando en UCI: actividades, encuentros y oportunidades para participar."
+  <div class="eventos">
+    {/* =================================================================
+        Hero
+        ================================================================= */}
+    <section class="hero" aria-labelledby="eventos-hero-title">
+      <div class="hero__media" aria-hidden="true">
+        <Image
+          class="hero__image"
+          src={heroImage}
+          alt=""
+          width={2307}
+          height={794}
+          widths={[768, 1280, 1920, 2307]}
+          sizes="100vw"
+          format="webp"
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
         />
+        <div class="hero__scrim"></div>
+      </div>
 
-        <Section surface="light" spacing="lg">
-          <Container>
-            {
-              result.status === 'unavailable' ? (
-                <EmptyState
-                  title="No pudimos cargar los eventos"
-                  message="La agenda no está disponible en este momento. Intenta de nuevo en unos minutos."
-                />
-              ) : result.data.length === 0 ? (
-                <EmptyState
-                  title="No hay eventos próximos"
-                  message="En este momento no hay actividades publicadas en la agenda. Vuelve pronto."
-                />
-              ) : (
-                <ul class="event-list">
-                  {result.data.map((event) => (
-                    <EventCard event={event} timeZone={timeZone} />
-                  ))}
-                </ul>
-              )
-            }
+      <Container>
+        <div class="hero__content">
+          <SectionLabel accent="gold" withRule>Eventos</SectionLabel>
 
+          <h1 id="eventos-hero-title" class="hero__title font-display">
+            <span>Participa, Conecta</span>{' '}
+            <span class="hero__title-accent">y Crece en UCI</span>
+          </h1>
+
+          <p class="hero__support">
+            Acompáñanos en nuestros próximos eventos y sé parte de esta
+            familia en la fe.
+          </p>
+
+          <div class="hero__action">
+            <Button
+              href="#proximos-eventos"
+              variant="secondary"
+              icon="calendar"
+              arrow
+            >
+              Ver calendario completo
+            </Button>
+          </div>
+        </div>
+      </Container>
+    </section>
+
+    {/* =================================================================
+        Featured event + upcoming grid
+        ================================================================= */}
+    <section class="eventos-main">
+      <Container>
+        <article
+          class="featured"
+          aria-labelledby="featured-event-title"
+        >
+          <div class="featured__media">
+            <Image
+              class="featured__image"
+              src={bibleImage}
+              alt=""
+              width={686}
+              height={386}
+              widths={[480, 686, 960]}
+              sizes="(min-width: 768px) 42vw, 100vw"
+              format="webp"
+              loading="lazy"
+              decoding="async"
+            />
+            <div class="date-badge date-badge--large">
+              <span>{featuredEvent.weekday}</span>
+              <strong>{featuredEvent.day}</strong>
+              <span>{featuredEvent.month}</span>
+            </div>
+          </div>
+
+          <div class="featured__content">
+            <SectionLabel accent="gold" withRule>Evento destacado</SectionLabel>
+
+            <h2
+              id="featured-event-title"
+              class="featured__title font-display"
+            >
+              {featuredEvent.title}
+            </h2>
+            <p class="featured__subtitle">{featuredEvent.subtitle}</p>
+
+            <div class="featured__meta">
+              <span>
+                <Clock size={16} stroke-width={1.6} aria-hidden="true" />
+                {featuredEvent.time}
+              </span>
+              <span>
+                <MapPin size={16} stroke-width={1.6} aria-hidden="true" />
+                {featuredEvent.location}
+              </span>
+              <span>
+                <UserRound size={16} stroke-width={1.6} aria-hidden="true" />
+                {featuredEvent.speaker}
+              </span>
+            </div>
+
+            <p class="featured__text">{featuredEvent.description}</p>
+
+            <Button
+              href={`/eventos/${featuredEvent.slug}`}
+              variant="primary"
+              arrow
+            >
+              Más información
+            </Button>
+          </div>
+        </article>
+
+        <section
+          id="proximos-eventos"
+          class="upcoming"
+          aria-labelledby="upcoming-title"
+        >
+          <div class="upcoming__head">
+            <div class="upcoming__copy">
+              <SectionLabel accent="gold-ink" withRule>
+                Próximos eventos
+              </SectionLabel>
+              <h2 id="upcoming-title" class="upcoming__title font-display">
+                No te pierdas lo que viene
+              </h2>
+            </div>
+
+            <a class="upcoming__all" href="#proximos-eventos">
+              Ver todos los eventos
+              <ArrowRight size={16} stroke-width={1.7} aria-hidden="true" />
+            </a>
+          </div>
+
+          <ul class="event-grid">
             {
-              result.status === 'ok' && result.data.length > 0 && (
-                <Pagination
-                  page={page}
-                  totalPages={totalPages}
-                  prevHref={prevHref}
-                  nextHref={nextHref}
-                  label="eventos"
-                />
-              )
+              events.map((event) => (
+                <li class="event-card">
+                  <a
+                    class="event-card__link"
+                    href={`/eventos/${event.slug}`}
+                  >
+                    <div class="event-card__media">
+                      {event.image ? (
+                        <Image
+                          class="event-card__image"
+                          src={event.image}
+                          alt=""
+                          width={686}
+                          height={386}
+                          widths={[320, 480, 686]}
+                          sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw"
+                          format="webp"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <div
+                          class={`event-card__placeholder event-card__placeholder--${event.tone}`}
+                          aria-hidden="true"
+                        >
+                          <ImageIcon size={22} stroke-width={1.4} />
+                          <span>Imagen pendiente</span>
+                        </div>
+                      )}
+
+                      <div class="date-badge">
+                        <span>{event.weekday}</span>
+                        <strong>{event.day}</strong>
+                        <span>{event.month}</span>
+                      </div>
+                    </div>
+
+                    <div class="event-card__body">
+                      <h3 class="event-card__title">{event.title}</h3>
+                      <p class="event-card__meta">
+                        <Clock size={14} stroke-width={1.6} aria-hidden="true" />
+                        {event.time}
+                        <span class="event-card__dot" aria-hidden="true">·</span>
+                        {event.location}
+                      </p>
+                      <span class="event-card__more">
+                        Más detalles
+                        <ArrowRight size={15} stroke-width={1.7} aria-hidden="true" />
+                      </span>
+                    </div>
+                  </a>
+                </li>
+              ))
             }
-          </Container>
-        </Section>
-      </>
-    )
-  }
+          </ul>
+        </section>
+      </Container>
+    </section>
+
+    {/* =================================================================
+        Contact invitation
+        ================================================================= */}
+    <section class="contact" aria-labelledby="eventos-contact-title">
+      <div class="contact__media" aria-hidden="true">
+        <Image
+          class="contact__image"
+          src={globeImage}
+          alt=""
+          width={2048}
+          height={768}
+          widths={[768, 1280, 1920, 2048]}
+          sizes="100vw"
+          format="webp"
+          loading="lazy"
+          decoding="async"
+        />
+        <div class="contact__scrim"></div>
+      </div>
+
+      <Container>
+        <div class="contact__content">
+          <span class="contact__rule" aria-hidden="true"></span>
+          <h2 id="eventos-contact-title" class="contact__title font-display">
+            ¿Tienes alguna pregunta?
+          </h2>
+          <p class="contact__text">Contáctanos. Será un gusto atenderte.</p>
+          <div class="contact__action">
+            <Button href="/contacto" variant="primary" icon="mail" arrow>
+              Escríbenos
+            </Button>
+          </div>
+        </div>
+      </Container>
+    </section>
+  </div>
 </ContentLayout>
 
 <style>
-  .event-list {
+  .eventos {
+    --events-ink: #0b2a4a;
+    --events-soft: #38536f;
+    --events-surface: #f7f9fc;
+    background-color: var(--events-surface);
+    color: var(--events-ink);
+  }
+
+  #proximos-eventos {
+    scroll-margin-top: 6rem;
+  }
+
+  /* =====================================================================
+     Hero
+     ===================================================================== */
+  .hero {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    min-height: clamp(26rem, 30vw, 28rem);
+    padding-block: 6rem 0;
+    overflow: hidden;
+    isolation: isolate;
+    background-color: #07182b;
+    color: var(--color-white);
+  }
+
+  .hero__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .hero__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 38%;
+  }
+
+  .hero__scrim {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        95deg,
+        rgba(4, 9, 18, 0.96) 0%,
+        rgba(6, 16, 32, 0.78) 42%,
+        rgba(6, 16, 32, 0.16) 100%
+      ),
+      linear-gradient(
+        to top,
+        rgba(5, 15, 28, 0.9) 0%,
+        rgba(5, 15, 28, 0) 50%
+      );
+  }
+
+  .hero__content {
     display: flex;
     flex-direction: column;
-    border-top: 1px solid var(--border-on-light);
+    align-items: flex-start;
+    gap: var(--space-16);
+    max-width: 38rem;
+  }
+
+  .hero__title {
+    margin: 0;
+    font-size: clamp(2.6rem, 1.9rem + 2.7vw, 4rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.02;
+    letter-spacing: var(--letter-spacing-tight);
+  }
+
+  .hero__title span {
+    display: block;
+  }
+
+  .hero__title-accent {
+    color: var(--color-gold);
+  }
+
+  .hero__support {
+    max-width: 27rem;
+    margin: 0;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-large);
+    line-height: var(--line-height-body);
+  }
+
+  .hero__action {
+    margin-top: var(--space-8);
+  }
+
+  .hero__action :global(.btn) {
+    border-color: var(--color-gold);
+    color: var(--color-white);
+    background-color: transparent;
+  }
+
+  .hero__action :global(.btn:hover) {
+    border-color: var(--color-gold-light);
+    background-color: rgba(217, 164, 65, 0.14);
+  }
+
+  /* =====================================================================
+     Featured event
+     ===================================================================== */
+  .eventos-main {
+    padding-block: clamp(2rem, 3vw, 2.5rem) clamp(3.5rem, 5vw, 5rem);
+    background-color: var(--events-surface);
+  }
+
+  .featured {
+    display: grid;
+    grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background-color: var(--events-ink);
+    box-shadow: 0 8px 28px rgba(11, 42, 74, 0.16);
+    color: var(--color-white);
+  }
+
+  .featured__media {
+    position: relative;
+    min-height: clamp(15rem, 22vw, 18.5rem);
+  }
+
+  .featured__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .featured__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-12);
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+    background:
+      radial-gradient(
+        circle at 78% 24%,
+        rgba(22, 117, 209, 0.16) 0%,
+        rgba(22, 117, 209, 0) 46%
+      ),
+      var(--events-ink);
+  }
+
+  .featured__title {
+    margin: 0;
+    font-size: clamp(1.7rem, 1.3rem + 1.4vw, 2.4rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.08;
+  }
+
+  .featured__subtitle {
+    margin: 0;
+    color: var(--color-gray-light);
+    font-family: var(--font-display);
+    font-size: clamp(0.95rem, 0.85rem + 0.35vw, 1.1rem);
+    font-style: italic;
+  }
+
+  .featured__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-12) var(--space-16);
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body-small);
+  }
+
+  .featured__meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+
+  .featured__meta :global(svg) {
+    color: var(--color-gold);
+  }
+
+  .featured__text {
+    max-width: 34rem;
+    margin: 0;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body);
+    line-height: 1.6;
+  }
+
+  /* Date badges --------------------------------------------------------- */
+  .date-badge {
+    position: absolute;
+    left: var(--space-12);
+    top: var(--space-12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 3.35rem;
+    padding: 0.35rem 0.25rem;
+    border-radius: var(--radius-sm);
+    background-color: var(--color-gold);
+    color: var(--events-ink);
+    font-family: var(--font-sans);
+    line-height: 1;
+    text-align: center;
+  }
+
+  .date-badge span {
+    font-size: 0.5625rem;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.08em;
+  }
+
+  .date-badge strong {
+    display: block;
+    margin-block: 0.12rem;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: var(--font-weight-medium);
+  }
+
+  .date-badge--large {
+    left: var(--space-16);
+    top: var(--space-16);
+    width: 4.35rem;
+    padding: 0.55rem 0.35rem;
+  }
+
+  .date-badge--large span {
+    font-size: 0.7rem;
+  }
+
+  .date-badge--large strong {
+    margin-block: 0.16rem;
+    font-size: 1.9rem;
+  }
+
+  /* =====================================================================
+     Upcoming events
+     ===================================================================== */
+  .upcoming {
+    margin-top: clamp(2.5rem, 4vw, 4rem);
+  }
+
+  .upcoming__head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-24);
+  }
+
+  .upcoming__copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+
+  .upcoming__title {
+    margin: 0;
+    color: var(--events-ink);
+    font-size: clamp(2rem, 1.45rem + 1.8vw, 2.9rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.08;
+    letter-spacing: var(--letter-spacing-tight);
+  }
+
+  .upcoming__all {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    padding: 0.55rem 1rem;
+    border: 1px solid rgba(11, 42, 74, 0.22);
+    border-radius: var(--radius-pill);
+    color: var(--events-ink);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+  }
+
+  .upcoming__all:hover {
+    border-color: var(--color-gold-ink);
+    background-color: rgba(217, 164, 65, 0.08);
+  }
+
+  .event-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+    margin-top: var(--space-24);
+  }
+
+  .event-card {
+    min-width: 0;
+  }
+
+  .event-card__link {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(11, 42, 74, 0.12);
+    border-radius: var(--radius-md);
+    background-color: var(--color-white-pure);
+    box-shadow: 0 1px 2px rgba(11, 42, 74, 0.04);
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  .event-card__link:hover {
+    border-color: rgba(11, 42, 74, 0.22);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .event-card__media {
+    position: relative;
+    aspect-ratio: 1.9 / 1;
+    overflow: hidden;
+    background-color: #0b2034;
+  }
+
+  .event-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .event-card__placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4);
+    width: 100%;
+    height: 100%;
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.625rem;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  .event-card__placeholder--1 {
+    background:
+      radial-gradient(circle at 45% 40%, rgba(91, 184, 245, 0.28), transparent 48%),
+      linear-gradient(135deg, #14273a, #07121e);
+  }
+
+  .event-card__placeholder--2 {
+    background:
+      radial-gradient(circle at 60% 40%, rgba(240, 201, 106, 0.28), transparent 46%),
+      linear-gradient(135deg, #26333c, #0a1218);
+  }
+
+  .event-card__placeholder--4 {
+    background:
+      radial-gradient(circle at 50% 45%, rgba(240, 201, 106, 0.42), transparent 48%),
+      linear-gradient(135deg, #3a291b, #110d0b);
+  }
+
+  .event-card__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-8);
+    padding: var(--space-16) var(--space-16) var(--space-16);
+  }
+
+  .event-card__title {
+    margin: 0;
+    color: var(--events-ink);
+    font-size: 1.05rem;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3;
+  }
+
+  .event-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+    margin: 0;
+    color: var(--events-soft);
+    font-size: 0.6875rem;
+    line-height: 1.4;
+  }
+
+  .event-card__meta :global(svg) {
+    color: var(--events-ink);
+  }
+
+  .event-card__dot {
+    margin-inline: var(--space-4);
+    opacity: 0.45;
+  }
+
+  .event-card__more {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    margin-top: var(--space-4);
+    color: var(--events-ink);
+    font-size: var(--font-size-body-small);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .event-card__more :global(svg) {
+    color: var(--color-gold-ink);
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+
+  .event-card__link:hover .event-card__more :global(svg) {
+    transform: translateX(3px);
+  }
+
+  /* =====================================================================
+     Contact invitation
+     ===================================================================== */
+  .contact {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: clamp(19rem, 29vw, 25rem);
+    padding-block: clamp(3rem, 5vw, 4.5rem);
+    overflow: hidden;
+    isolation: isolate;
+    background-color: #07182b;
+    color: var(--color-white);
+  }
+
+  .contact__media {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .contact__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: right center;
+  }
+
+  .contact__scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      rgba(5, 18, 34, 0.96) 0%,
+      rgba(5, 18, 34, 0.78) 46%,
+      rgba(5, 18, 34, 0.2) 80%,
+      rgba(5, 18, 34, 0.02) 100%
+    );
+  }
+
+  .contact__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-12);
+    max-width: 36rem;
+  }
+
+  .contact__rule {
+    width: 2rem;
+    height: 2px;
+    background-color: var(--color-gold);
+  }
+
+  .contact__title {
+    margin: var(--space-4) 0 0;
+    font-size: clamp(1.7rem, 1.2rem + 1.8vw, 2.5rem);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.1;
+    letter-spacing: var(--letter-spacing-tight);
+  }
+
+  .contact__text {
+    margin: 0;
+    color: var(--color-gray-light);
+    font-size: var(--font-size-body);
+  }
+
+  .contact__action {
+    margin-top: var(--space-4);
+  }
+
+  /* =====================================================================
+     Responsive
+     ===================================================================== */
+  @media (max-width: 1023px) {
+    .featured {
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    }
+
+    .event-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .upcoming__head {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: var(--space-12);
+    }
+  }
+
+  @media (max-width: 767px) {
+    .hero {
+      min-height: 30rem;
+      padding-block: 8.5rem 4rem;
+    }
+
+    .hero__image {
+      object-position: 58% 42%;
+    }
+
+    .hero__title {
+      font-size: clamp(2.25rem, 8.5vw, 3.1rem);
+    }
+
+    .featured {
+      grid-template-columns: 1fr;
+    }
+
+    .featured__media {
+      min-height: 14rem;
+      aspect-ratio: 16 / 9;
+    }
+
+    .event-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .event-card__media {
+      aspect-ratio: 1.8 / 1;
+    }
+
+    .contact {
+      min-height: 24rem;
+    }
+
+    .contact__scrim {
+      background: linear-gradient(
+        180deg,
+        rgba(5, 18, 34, 0.94) 0%,
+        rgba(5, 18, 34, 0.78) 48%,
+        rgba(5, 18, 34, 0.4) 78%,
+        rgba(5, 18, 34, 0.08) 100%
+      );
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .event-card__link:hover {
+      transform: none;
+    }
+
+    .event-card__link:hover .event-card__more :global(svg) {
+      transform: none;
+    }
   }
 </style>

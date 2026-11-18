@@ -8,14 +8,14 @@
  * Renders <a> when `href` is provided, otherwise <button>. Disabled state is
  * only exposed on the button branch; anchors should not be rendered disabled.
  */
-import { ArrowRight, FileText, Play } from '@lucide/astro';
+import { ArrowRight, CalendarDays, FileText, Mail, Play } from '@lucide/astro';
 
 interface Props {
   variant?: 'primary' | 'secondary' | 'text';
   /** Text-variant link color: gold on dark surfaces, navy on light (WCAG AA). */
   contrast?: 'gold' | 'navy';
-  /** Optional leading icon. `play` marks video/sermon actions; `file` notes. */
-  icon?: 'play' | 'file';
+  /** Optional leading icon for play, notes, calendar and mail actions. */
+  icon?: 'play' | 'file' | 'calendar' | 'mail';
   /** Render a trailing arrow for primary/secondary actions. */
   arrow?: boolean;
   /** Internal path or external URL. Presence switches the root to <a>. */
@@ -77,6 +77,20 @@ const renderedHref = isLink && !disabled ? href : undefined;
     icon === 'file' && (
       <span class="btn__icon">
         <FileText size={15} stroke-width={1.75} />
+      </span>
+    )
+  }
+  {
+    icon === 'calendar' && (
+      <span class="btn__icon">
+        <CalendarDays size={15} stroke-width={1.75} />
+      </span>
+    )
+  }
+  {
+    icon === 'mail' && (
+      <span class="btn__icon">
+        <Mail size={15} stroke-width={1.75} />
       </span>
     )
   }

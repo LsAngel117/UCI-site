@@ -137,7 +137,7 @@ const jsonLd = buildStaticPageJsonLd({
         <Container>
           <div class="intro__grid">
           <div class="intro__copy">
-            <SectionLabel accent="gold-ink" withRule>
+            <SectionLabel accent="navy" withRule>
               ¿Quiénes somos?
             </SectionLabel>
 
@@ -181,7 +181,7 @@ const jsonLd = buildStaticPageJsonLd({
             </span>
             <span class="mv__rule" aria-hidden="true"></span>
             <div class="mv__body">
-              <SectionLabel accent="gold-ink" class="mv__eyebrow">
+              <SectionLabel accent="navy" class="mv__eyebrow">
                 Nuestra
               </SectionLabel>
               <h3
@@ -204,7 +204,7 @@ const jsonLd = buildStaticPageJsonLd({
             </span>
             <span class="mv__rule" aria-hidden="true"></span>
             <div class="mv__body">
-              <SectionLabel accent="gold-ink" class="mv__eyebrow">
+              <SectionLabel accent="navy" class="mv__eyebrow">
                 Nuestra
               </SectionLabel>
               <h3
@@ -393,6 +393,10 @@ const jsonLd = buildStaticPageJsonLd({
 </ContentLayout>
 
 <style>
+  .nosotros {
+    --nosotros-ink: #0b2a4a;
+  }
+
   /* =====================================================================
      Hero
      ===================================================================== */
@@ -491,7 +495,17 @@ const jsonLd = buildStaticPageJsonLd({
     z-index: 2;
     margin-top: clamp(-1rem, -6vw, -4.5rem);
     padding-block: clamp(6rem, 7vw, 7rem) clamp(4.5rem, 6vw, 6rem);
-    color: var(--color-navy);
+    color: var(--nosotros-ink);
+  }
+
+  .intro :global(.section-label--navy),
+  .mv :global(.section-label--navy) {
+    color: var(--nosotros-ink);
+  }
+
+  .intro :global(.section-label__rule) {
+    background-color: var(--color-gold);
+    opacity: 1;
   }
 
   /* Decorative layers: a diagonal white top edge and the light surface.
@@ -561,13 +575,13 @@ const jsonLd = buildStaticPageJsonLd({
     margin: 0;
     font-size: clamp(2.25rem, 1.6rem + 2.4vw, 3.25rem);
     font-weight: var(--font-weight-medium);
-    color: #0c1d3e;
+    color: var(--nosotros-ink);
   }
 
   .intro__text {
     margin: 0;
-    color: #0c1d3e;
-    opacity: 0.78;
+    color: var(--nosotros-ink);
+    opacity: 0.95;
     font-size: var(--font-size-body-large);
     line-height: 1.65;
   }
@@ -679,13 +693,13 @@ const jsonLd = buildStaticPageJsonLd({
     font-weight: var(--font-weight-medium);
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: #0c1d3e;
+    color: var(--nosotros-ink);
   }
 
   .mv__text {
     margin: 0;
-    color: var(--color-navy);
-    opacity: 0.76;
+    color: var(--nosotros-ink);
+    opacity: 0.92;
     font-size: var(--font-size-body-small);
     line-height: 1.6;
   }
